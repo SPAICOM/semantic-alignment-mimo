@@ -1,5 +1,5 @@
 import torch
-import polars
+import polars as pl
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
@@ -20,7 +20,7 @@ class CustomDataset(Dataset):
         self.path = path
         self.columns = columns
         self.target = target
-        self.dataframe = polars.scan_parquet(path).select(self.columns + [self.target])
+        self.dataframe = pl.scan_parquet(path).select(self.columns + [self.target])
 
 
     def __len__(self) -> int:
