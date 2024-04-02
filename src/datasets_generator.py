@@ -10,7 +10,7 @@ from pathlib import Path
 from numpy.linalg import norm
 
 def main() -> None:
-    """
+    """The main script loop.
     """
     import argparse
 

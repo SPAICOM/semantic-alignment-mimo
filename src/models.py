@@ -173,11 +173,10 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
 
-
-if __name__ == "__main__":
-    """Test.
+def main():
+    """The main script loop in which we perform some sanity texts.
     """
-    print("Start performing sanity text...")
+    print("Start performing sanity texts...")
     print()
     
     input_dim = 5
@@ -194,3 +193,7 @@ if __name__ == "__main__":
     mlp = MultiLayerPerceptron(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
     output = mlp(data)
     print("[Passed]")
+
+
+if __name__ == "__main__":
+    main()
