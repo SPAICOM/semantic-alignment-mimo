@@ -13,6 +13,20 @@ from pytorch_lightning import LightningDataModule
 # =====================================================
 
 class CustomDataset(Dataset):
+    """A custom implementation of a Pytorch Dataset.
+
+    Args:
+        - path (Path): The path towards the parquet file containg the data.
+        - colums (list[str]): The list containg the columns name of the input data.
+                            The input will be concatenated.
+        - target (str): The name of the target column.
+
+    Attributes:
+        - self.path (Path): Where the path argument is stored.
+        - self.columns (list[str]): Where the columns argument is stored.
+        - self.target (str): Where the target argument is stored.
+        - self.datataframe (pl.LazyFrame): The scan of the parquet file.
+    """
     def __init__(self,
                  path: Path,
                  columns: list[str],
@@ -69,7 +83,6 @@ class DataModule(LightningDataModule):
 
         self.path = Path(path)
         self.batch_size = batch_size
-        pass
 
 
     def prepare_data(self):
