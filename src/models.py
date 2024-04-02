@@ -174,9 +174,9 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
 def main():
-    """The main script loop in which we perform some sanity texts.
+    """The main script loop in which we perform some sanity tests.
     """
-    print("Start performing sanity texts...")
+    print("Start performing sanity tests...")
     print()
     
     input_dim = 5
