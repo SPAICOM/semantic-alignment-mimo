@@ -1,5 +1,5 @@
 """
-This python module artificially creates datasets for the task.
+This python module creates syntetic datasets for the task.
 
 To check the available parameters just run 'python /path/to/datasets_generator.py -h'.
 """
@@ -15,7 +15,7 @@ def main() -> None:
     import argparse
 
     description = """
-    This python module artificially creates datasets for the task.
+    This python module creates syntetic datasets for the task.
 
     To check the available parameters just run 'python /path/to/datasets_generator.py -h'.
     """
@@ -30,8 +30,8 @@ def main() -> None:
 
     parser.add_argument('-o',
                         '--observations',
-                        help="The number of observations (vectors) to generate. Default 10'000.",
-                        default=10000,
+                        help="The number of observations (vectors) to generate. Default 1'000.",
+                        default=1000,
                         type=int)
 
     parser.add_argument('-a',

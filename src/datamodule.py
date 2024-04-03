@@ -115,7 +115,7 @@ class DataModule(LightningDataModule):
 
 
     def prepare_data(self) -> None:
-        """This function will extracts the examples parquet files from the data.zip file.
+        """This function will extracts the examples parquet files from the example_data.zip file.
 
         Returns:
             - None
@@ -123,7 +123,7 @@ class DataModule(LightningDataModule):
         from zipfile import ZipFile
 
         current = Path('.')
-        zip_path = current / 'data/data.zip'
+        zip_path = current / 'data/example_data.zip'
 
         with ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(zip_path.parent)
@@ -178,7 +178,7 @@ def main() -> None:
 
     print("Running first test...", end='\t')
     # Setting inputs
-    path = "./data/example_n10000_dim10_tanh_anchors10.parquet"
+    path = "./data/example_n1000_dim10_tanh_anchors10.parquet"
     columns = ['x_i', 'a_j']
     target = 'r_ij'
 
