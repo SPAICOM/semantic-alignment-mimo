@@ -173,7 +173,7 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
 
-def main():
+def main() -> None:
     """The main script loop in which we perform some sanity tests.
     """
     print("Start performing sanity tests...")
@@ -189,10 +189,12 @@ def main():
     
     data = torch.randn(input_dim)
     
-    print("Text for MultiLayerPerceptron...", end='\t')
+    print("Test for MultiLayerPerceptron...", end='\t')
     mlp = MultiLayerPerceptron(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
     output = mlp(data)
     print("[Passed]")
+
+    return None
 
 
 if __name__ == "__main__":
