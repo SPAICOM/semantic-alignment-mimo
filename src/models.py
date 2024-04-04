@@ -16,9 +16,10 @@ class MultiLayerPerceptron(pl.LightningModule):
 
     Args:
         - input_dim (int): The input dimension.
-        - output_dim (int): The output dimension.
-        - hidden_dim (int): The hidden layer dimension.
-        - hidden_size (int): The number of hidden layers.
+        - output_dim (int): The output dimension. Default 1.
+        - hidden_dim (int): The hidden layer dimension. Default 10.
+        - hidden_size (int): The number of hidden layers. Default 10.
+        - activ_type (str): The type of the last activation function. Default 'tanh'.
         - lr (float): The learning rate. Default 1e-4. 
 
     Attributes:
@@ -27,9 +28,9 @@ class MultiLayerPerceptron(pl.LightningModule):
     """
     def __init__(self,
                  input_dim: int,
-                 output_dim: int,
-                 hidden_dim: int,
-                 hidden_size: int,
+                 output_dim: int = 1,
+                 hidden_dim: int = 10,
+                 hidden_size: int = 10,
                  activ_type: str = "tanh",
                  lr: float = 1e-4):
         super().__init__()

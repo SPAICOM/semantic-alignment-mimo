@@ -41,6 +41,12 @@ class CustomDataset(Dataset):
         self.target = target
         self.dataframe = pl.scan_parquet(path).select(self.columns + [self.target])
 
+        # Get the input and the output size
+        row = self.dataframe.slice(0, 1).collect().row(0, named=True) 
+        input = [elem for col in self.columns for elem in row[col]]
+        self.input_size = len(input)
+        self.output_size = 1
+
 
     def __len__(self) -> int:
         """Returns the length of the Dataset in a lazy fashion.
@@ -65,12 +71,12 @@ class CustomDataset(Dataset):
         row = self.dataframe.slice(idx, 1).collect().row(0, named=True) 
 
         # Get the input
-        inputs = [elem for col in self.columns for elem in row[col]]
+        input = [elem for col in self.columns for elem in row[col]]
 
         # Get the target
         target = row[self.target]
 
-        return torch.tensor(inputs, dtype=torch.float), torch.tensor(target, dtype=torch.float)
+        return torch.tensor(input, dtype=torch.float), torch.tensor([target], dtype=torch.float)
 
 
 
@@ -136,13 +142,16 @@ class DataModule(LightningDataModule):
         return None
     
 
-    def setup(self) -> None:
+    def setup(self,
+              stage: str = None) -> None:
         """This function setups a CustomDataset for our data.
 
         Returns:
             - None.
         """
         data = CustomDataset(self.path, self.columns, self.target)
+        self.input_size = data.input_size
+        self.output_size = data.output_size
         self.train_data, self.test_data, self.val_data = random_split(data, [self.train_size, self.test_size, self.val_size])
         return None
 
