@@ -1,3 +1,8 @@
+"""In this python module we define class that handles the dataset:
+    - CustomDataset: a custom Pytorch Dataset.
+    - DataModule: a Pytorch Lightning Data Module.
+"""
+
 import torch
 import polars as pl
 from pathlib import Path

@@ -84,6 +84,8 @@ def main() -> None:
                   'a_j': anchors,
                   'r_ij': rel_ij}).write_parquet(data_path/f'example_n{n_obs}_dim{dim}_{rel_type}_anchors{n_anchors}.parquet')
 
+    return None
+
 
 if __name__ == "__main__":
     main()

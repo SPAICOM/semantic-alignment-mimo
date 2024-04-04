@@ -3,7 +3,6 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
 
 
 # ==================================================================
@@ -93,7 +92,7 @@ class MultiLayerPerceptron(pl.LightningModule):
         return x
 
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> torch.optim.Optimizer:
         """Define the optimizer: Stochastic Gradient Descent.
         """
         return torch.optim.SGD(self.parameters(), lr=self.hparams["lr"])
@@ -117,8 +116,8 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
     def _shared_eval(self,
-                     batch,
-                     batch_idx,
+                     batch: torch.Tensor,
+                     batch_idx: int,
                      prefix: str) -> tuple[torch.Tensor, torch.Tensor]:
         """
         """
@@ -131,8 +130,8 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
     def training_step(self,
-                      batch,
-                      batch_idx) -> torch.Tensor:
+                      batch: torch.Tensor,
+                      batch_idx: int) -> torch.Tensor:
         """
         """
         x, y = batch
@@ -144,8 +143,8 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
     def test_step(self,
-                  batch,
-                  batch_idx) -> None:
+                  batch: torch.Tensor,
+                  batch_idx: int) -> None:
         """ 
         """
         _ = self._shared_eval(batch, batch_idx, "test")
@@ -153,8 +152,8 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
     def validation_step(self,
-                        batch,
-                        batch_idx) -> torch.Tensor:
+                        batch: torch.Tensor,
+                        batch_idx: int) -> torch.Tensor:
         """
         """
         y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
@@ -162,8 +161,8 @@ class MultiLayerPerceptron(pl.LightningModule):
 
 
     def predict_step(self,
-                     batch,
-                     batch_idx,
+                     batch: torch.Tensor,
+                     batch_idx: int,
                      dataloader_idx=0) -> torch.Tensor:
         """
         """
