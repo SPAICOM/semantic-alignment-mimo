@@ -170,8 +170,12 @@ class DataModule(LightningDataModule):
         from dotenv import dotenv_values
 
         CURRENT = Path('.')
-        ZIP_PATH = CURRENT / 'data/latents.zip'
-        DIR_PATH = CURRENT / 'data/latents/'
+        DATA_DIR = CURRENT / 'data'
+        ZIP_PATH = DATA_DIR / 'latents.zip'
+        DIR_PATH = DATA_DIR / 'latents/'
+
+        # Make sure that DATA_DIR exists
+        DATA_DIR.mkdir(exist_ok=True)
 
         # Check if the zip file is already in the path
         if not ZIP_PATH.exists():
