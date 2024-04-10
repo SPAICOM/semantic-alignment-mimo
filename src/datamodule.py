@@ -4,11 +4,9 @@
 """
 
 import torch
-import polars as pl
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule
-
 
 
 # =====================================================
@@ -21,45 +19,69 @@ class CustomDataset(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
-        - path (Path): The path towards the parquet file containg the data.
-        - colums (list[str]): The list containg the columns name of the input data.
-                            The input will be concatenated.
-        - target (str): The name of the target column.
+        - encoder_path (Path): The path to the encoder.
+        - decider_path (Path): The path to the decoder.
+        - num_anchors (int): The number of anchors to use.
 
     Attributes:
-        - self.path (Path): Where the path argument is stored.
-        - self.columns (list[str]): Where the columns argument is stored.
-        - self.target (str): Where the target argument is stored.
-        - self.datataframe (pl.LazyFrame): The scan of the parquet file.
+        The self.<arg_name> version of the arguments documented above.
     """
     def __init__(self,
-                 path: Path,
-                 columns: list[str],
-                 target: str):
-        self.path = path
-        self.columns = columns
-        self.target = target
-        self.dataframe = pl.scan_parquet(path).select(self.columns + [self.target])
+                 encoder_path: Path,
+                 decoder_path: Path,
+                 num_anchors: int):
+        self.encoder_path = encoder_path
+        self.decoder_path = decoder_path
+        self.num_anchors = num_anchors
 
-        # Get the input and the output size
-        row = self.dataframe.slice(0, 1).collect().row(0, named=True) 
-        input = [elem for col in self.columns for elem in row[col]]
-        self.input_size = len(input)
-        self.output_size = 1
+        # =================================================
+        #                 Encoder Stuff
+        # =================================================
+        encoder_blob = torch.load(self.encoder_path)
+
+        # Retrieve the anchors
+        self.anchors = encoder_blob['anchors_latents']
+
+        assert num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
+        
+        # Select the wanted anchors
+        self.anchors = self.anchors[:num_anchors]
+
+        # Retrieve the absolute representation from the encoder
+        self.z = encoder_blob['absolute']
+
+        del encoder_blob
+
+        # =================================================
+        #                 Decoder Stuff
+        # =================================================
+        decoder_blob = torch.load(self.decoder_path)
+
+        # Retrieve the relative representation from the decoder
+        self.r = decoder_blob['relative'][:, :self.num_anchors]
+
+        del decoder_blob
+        
+        # =================================================
+        #         Get the input and the output size
+        # =================================================
+        assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
+        self.input_size = self.z.shape[-1] + self.anchors.shape[-1]*self.num_anchors
+        self.output_size = self.num_anchors
 
 
     def __len__(self) -> int:
-        """Returns the length of the Dataset in a lazy fashion.
+        """Returns the length of the Dataset.
 
         Returns:
             - int : Length of the Dataset.
         """
-        return self.dataframe.select(pl.count()).collect().item()
+        return len(self.z)
 
 
     def __getitem__(self,
                     idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Returns in a torch.Tensor format the inputs and the target from a specific row with id equal to idx, all in a lazy fashion.
+        """Returns in a torch.Tensor format the input and the target.
 
         Args:
             - idx (int): The index of the wanted row.
@@ -67,16 +89,16 @@ class CustomDataset(Dataset):
         Returns:
             - tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
         """
-        # Get row by index in a lazy fashion
-        row = self.dataframe.slice(idx, 1).collect().row(0, named=True) 
+        # Get the absolute representation of element idx
+        z_i = self.z[idx]
 
-        # Get the input
-        input = [elem for col in self.columns for elem in row[col]]
+        # Define an input of the shape [z_i, a_1, ..., a_n]
+        input = torch.cat((z_i.unsqueeze(0), self.anchors), 0)
+        
+        # Get the relative representation of element idx
+        r_i = self.r[idx]
 
-        # Get the target
-        target = row[self.target]
-
-        return torch.tensor(input, dtype=torch.float), torch.tensor([target], dtype=torch.float)
+        return torch.flatten(input), r_i
 
 
 
@@ -90,9 +112,11 @@ class DataModule(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
-        - path (str): The str of the path towards the data. It will be passed as argument to the CustomDataset.
-        - columns (list[str]): The list of columns to use as input. It will be passed as argument to the CustomDataset.
-        - target (str): The name of the column to use as target. It will be passed as argument to the CustomDataset.
+        - dataset (str): The name of the dataset.
+        - encoder (str): The name of the encoder.
+        - decoder (str): The name of the decoder.
+        - split (str): The name of the split. Choose between ['train', 'test', 'val'].
+        - num_anchors (int): The number of anchors to use.
         - batch_size (int): The size of a batch. Default 128.
         - num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
@@ -101,13 +125,16 @@ class DataModule(LightningDataModule):
         - val_size (int | float): The size of the val data. Default 0.15.
 
     Attributes:
-        The self.<same_name_of_args> version of the arguments documented above.
-        The only difference is that self.path is stored as Path and not as str.
+        The self.<arg_name> version of the arguments documented above.
+        - self.path_encoder (Path): The path to the encoder.
+        - self.path_decoder (Path): The path to the decoder.
     """
     def __init__(self,
-                 path : str,
-                 columns: list[str],
-                 target: str,
+                 dataset: str,
+                 encoder: str,
+                 decoder: str,
+                 split: str,
+                 num_anchors: int,
                  batch_size: int = 128,
                  num_workers: int = 0,
                  train_size: int | float = 0.7,
@@ -115,9 +142,16 @@ class DataModule(LightningDataModule):
                  val_size: int | float = 0.15) -> None:
         super().__init__()
 
-        self.path = Path(path)
-        self.columns = columns
-        self.target = target
+        CURRENT = Path('.')
+        GENERAL_PATH = CURRENT / 'data/latents' / dataset / split 
+
+        self.path_encoder = GENERAL_PATH / f'{encoder}.pt'
+        self.path_decoder = GENERAL_PATH / f'{decoder}.pt'
+        self.dataset = dataset
+        self.encoder = encoder
+        self.decoder = decoder
+        self.split = split
+        self.num_anchors = num_anchors
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.train_size = train_size
@@ -126,18 +160,31 @@ class DataModule(LightningDataModule):
 
 
     def prepare_data(self) -> None:
-        """This function will extracts the examples parquet files from the example_data.zip file.
+        """This function prepare the dataset (Download and Unzip).
 
         Returns:
             - None
         """
+        from gdown import download
         from zipfile import ZipFile
+        from dotenv import dotenv_values
 
-        current = Path('.')
-        zip_path = current / 'data/example_data.zip'
+        CURRENT = Path('.')
+        ZIP_PATH = CURRENT / 'data/latents.zip'
+        DIR_PATH = CURRENT / 'data/latents/'
 
-        with ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(zip_path.parent)
+        # Check if the zip file is already in the path
+        if not ZIP_PATH.exists():
+            # Get from the .env file the zip file Google Drive ID
+            ID = dotenv_values()['ID']
+
+            # Download the zip file
+            download(id=ID, output=str(ZIP_PATH))
+            
+        if not DIR_PATH.is_dir():
+            # Unzip the zip file
+            with ZipFile(ZIP_PATH, 'r') as zip_ref:
+                zip_ref.extractall(ZIP_PATH.parent)
 
         return None
     
@@ -149,7 +196,7 @@ class DataModule(LightningDataModule):
         Returns:
             - None.
         """
-        data = CustomDataset(self.path, self.columns, self.target)
+        data = CustomDataset(self.path_encoder, self.path_decoder, self.num_anchors)
         self.input_size = data.input_size
         self.output_size = data.output_size
         self.train_data, self.test_data, self.val_data = random_split(data, [self.train_size, self.test_size, self.val_size])
@@ -191,12 +238,19 @@ def main() -> None:
     print()
 
     print("Running first test...", end='\t')
+    
     # Setting inputs
-    path = "./data/example_n1000_dim10_tanh_anchors10.parquet"
-    columns = ['x_i', 'a_j']
-    target = 'r_ij'
-
-    data = DataModule(path=path, columns=columns, target=target)
+    dataset = 'cifar100'
+    encoder = 'mobilenetv3_small_100'
+    decoder = 'rexnet_100'
+    split = 'test'
+    num_anchors = 1024
+    
+    data = DataModule(dataset=dataset,
+                      encoder=encoder,
+                      decoder=decoder,
+                      split=split,
+                      num_anchors=num_anchors)
 
     data.prepare_data()
     data.setup()

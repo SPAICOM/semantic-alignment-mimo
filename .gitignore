@@ -1,4 +1,7 @@
+data/
+
 *.csv
 *.parquet
+*.pt
 
 *__pycache__/

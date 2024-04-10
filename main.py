@@ -1,4 +1,3 @@
-
 """
 This python module handles the training of our models.
 
@@ -26,32 +25,43 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-p',
-                        '--path',
-                        help="The path towards a dataset.",
+    parser.add_argument('-d',
+                        '--dataset',
+                        help="The dataset.",
                         type=str,
+                        required=True)
+
+    parser.add_argument('--encoder',
+                        help="The encoder.",
+                        type=str,
+                        required=True)
+
+    parser.add_argument('--decoder',
+                        help="The encoder.",
+                        type=str,
+                        required=True)
+
+    parser.add_argument('-s',
+                        '--split',
+                        help="The split.",
+                        type=str,
+                        required=True)
+
+    parser.add_argument('-a',
+                        '--anchors',
+                        help="The number of anchors.",
+                        type=int,
                         required=True)
 
     parser.add_argument('-f',
                         '--function',
                         help="Activation function to set the right co-domain.",
+                        choices=['tanh', 'sigmoid', 'softplus', 'relu'],
                         type=str,
                         required=True)
 
-    parser.add_argument('-c',
-                        '--columns',
-                        help="The column from which the input is retrieved. Default ['x_i', 'a_j']\nNote: You have to pass the columns as an unique str with the following structure 'c1 c2 c3' , this will be parsed as ['c1', 'c2', 'c3'].",
-                        default='x_i a_j',
-                        type=str)
-
-    parser.add_argument('-t',
-                        '--target',
-                        help="The target. Default 'r_ij'.",
-                        default='r_ij',
-                        type=str)
-
-    parser.add_argument('-d',
-                        '--dimension',
+    parser.add_argument('-n',
+                        '--neurons',
                         help="The hidden layer dimension. Default 10.",
                         default=10,
                         type=int)
@@ -76,14 +86,17 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    columns = args.columns.split()
-
-    datamodule = DataModule(path=args.path, columns=columns, target=args.target, num_workers=args.workers)
+    datamodule = DataModule(dataset=args.dataset,
+                            encoder=args.encoder,
+                            decoder=args.decoder,
+                            split=args.split,
+                            num_anchors=args.anchors,
+                            num_workers=args.workers)
 
     datamodule.prepare_data()
     datamodule.setup()
 
-    model = MultiLayerPerceptron(datamodule.input_size, datamodule.output_size, hidden_dim=args.dimension, hidden_size=args.layers, activ_type=args.function)
+    model = MultiLayerPerceptron(datamodule.input_size, datamodule.output_size, hidden_dim=args.neurons, hidden_size=args.layers, activ_type=args.function)
 
     wandb.login()
 

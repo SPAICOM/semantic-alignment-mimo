@@ -1,5 +1,6 @@
 """In this python module there is a simple implementation in pytorch of a Multi Layer Perceptron.
 """
+
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -40,20 +41,26 @@ class MultiLayerPerceptron(pl.LightningModule):
 
         # Example input
         self.example_input_array = torch.randn(self.hparams["input_dim"])
-        
-        # Input Layer
+
+        # ================================================================
+        #                         Input Layer
+        # ================================================================
         self.input_layer = nn.Sequential(
                                          nn.Linear(self.hparams["input_dim"], self.hparams["hidden_dim"]),
                                          nn.GELU()
                                          )
 
-        # Hidden Layers
+        # ================================================================
+        #                         Hidden Layers
+        # ================================================================
         self.hidden_layers = nn.ModuleList([nn.Sequential(
                                                           nn.Linear(self.hparams["hidden_dim"], self.hparams["hidden_dim"]),
                                                           nn.GELU()
                                                           ) for _ in range(self.hparams["hidden_size"])])
 
-        # Output Layer
+        # ================================================================
+        #                         Output Layer
+        # ================================================================
         # If the similarity takes values [-1, 1]
         if self.hparams["activ_type"] == "tanh":
             activation = nn.Tanh()
@@ -65,6 +72,8 @@ class MultiLayerPerceptron(pl.LightningModule):
         # If the similarity is indeed a distance and takes values [0, +infinity]    
         elif self.hparams["activ_type"] == "softplus":
             activation = nn.Softplus()
+        elif self.hparams["activ_type"] == "relu":
+            activation = nn.ReLU()
 
         # Else return an Error
         else:
