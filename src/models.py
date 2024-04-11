@@ -129,7 +129,15 @@ class MultiLayerPerceptron(pl.LightningModule):
                      batch: torch.Tensor,
                      batch_idx: int,
                      prefix: str) -> tuple[torch.Tensor, torch.Tensor]:
-        """
+        """A common step performend in the test and validation step.
+
+        Args:
+            - batch (torch.Tensor): The current batch.
+            - batch_idx (int): The batch index.
+            - prefix (str): The step type for logging purposes.
+
+        Returns:
+            - (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
         y_hat, loss = self.loss(x, y)
@@ -142,7 +150,14 @@ class MultiLayerPerceptron(pl.LightningModule):
     def training_step(self,
                       batch: torch.Tensor,
                       batch_idx: int) -> torch.Tensor:
-        """
+        """The training step.
+
+        Args:
+            - batch (torch.Tensor): The current batch.
+            - batch_idx (int): The batch index.
+
+        Returns:
+            - loss (torch.Tensor): The epoch loss.
         """
         x, y = batch
         _, loss = self.loss(x, y)
@@ -155,7 +170,14 @@ class MultiLayerPerceptron(pl.LightningModule):
     def test_step(self,
                   batch: torch.Tensor,
                   batch_idx: int) -> None:
-        """ 
+        """The test step.
+
+        Args:
+            - batch (torch.Tensor): The current batch.
+            - batch_idx (int): The batch index.
+
+        Returns:
+            - None
         """
         _ = self._shared_eval(batch, batch_idx, "test")
         return None
@@ -164,7 +186,14 @@ class MultiLayerPerceptron(pl.LightningModule):
     def validation_step(self,
                         batch: torch.Tensor,
                         batch_idx: int) -> torch.Tensor:
-        """
+        """The validation step.
+
+        Args:
+            - batch (torch.Tensor): The current batch.
+            - batch_idx (int): The batch index.
+
+        Returns:
+            - y_hat (torch.Tensor): The output of the network.
         """
         y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
         return y_hat
@@ -174,7 +203,14 @@ class MultiLayerPerceptron(pl.LightningModule):
                      batch: torch.Tensor,
                      batch_idx: int,
                      dataloader_idx=0) -> torch.Tensor:
-        """
+        """The predict step.
+
+        Args:
+            - batch (torch.Tensor): The current batch.
+            - batch_idx (int): The batch index.
+
+        Returns:
+            - y_hat (torch.Tensor): The output of the network.
         """
         x, y = batch
         y_hat = self.model(x)
