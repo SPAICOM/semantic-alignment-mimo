@@ -53,6 +53,12 @@ def main() -> None:
                         type=int,
                         required=True)
 
+    parser.add_argument('-c',
+                        '--case',
+                        help="The case of the network input. Default 'abs'.",
+                        default='abs',
+                        type=str)
+
     parser.add_argument('-f',
                         '--function',
                         help="Activation function to set the right co-domain.",
@@ -62,8 +68,8 @@ def main() -> None:
 
     parser.add_argument('-n',
                         '--neurons',
-                        help="The hidden layer dimension. Default 10.",
-                        default=10,
+                        help="The hidden layer dimension.",
+                        required=True,
                         type=int)
 
     parser.add_argument('-l',
@@ -84,6 +90,12 @@ def main() -> None:
                         default=10,
                         type=int)
 
+    parser.add_argument('-b',
+                        '--batch',
+                        help="The batch size. Default 128.",
+                        default=128,
+                        type=int)
+
     args = parser.parse_args()
 
     datamodule = DataModule(dataset=args.dataset,
@@ -91,16 +103,22 @@ def main() -> None:
                             decoder=args.decoder,
                             split=args.split,
                             num_anchors=args.anchors,
-                            num_workers=args.workers)
+                            case=args.case,
+                            num_workers=args.workers,
+                            batch_size=args.batch)
 
     datamodule.prepare_data()
     datamodule.setup()
 
-    model = MultiLayerPerceptron(datamodule.input_size, datamodule.output_size, hidden_dim=args.neurons, hidden_size=args.layers, activ_type=args.function)
+    model = MultiLayerPerceptron(datamodule.input_size,
+                                 datamodule.output_size,
+                                 hidden_dim=args.neurons,
+                                 hidden_size=args.layers,
+                                 activ_type=args.function)
 
     wandb.login()
 
-    wandb_logger = WandbLogger(project=f'SemCom_{args.function}',
+    wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
                                log_model='all')
     
     trainer = Trainer(logger=wandb_logger,

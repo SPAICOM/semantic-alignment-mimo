@@ -22,33 +22,48 @@ class CustomDataset(Dataset):
         - encoder_path (Path): The path to the encoder.
         - decider_path (Path): The path to the decoder.
         - num_anchors (int): The number of anchors to use.
+        - case (str): The input case. Choose between 'rel', 'abs' or 'abs_anch'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
+        - self.z (torch.Tensor): The absolute representation of the Dataset encoder side.
+        - self.anchors (torch.Tensor): The absolute representation of the anchors encoder side.
+        - self.r_encoder (torch.Tensor): The relative representation of the Dataset encoder side.
+        - self.r_decoder (torch.Tensor): The relative representation of the Dataset decoder side.
+        - self.input_size (int): The size of the input of the network.
+        - self.output_size (int): The size of the output of the network.
     """
     def __init__(self,
                  encoder_path: Path,
                  decoder_path: Path,
-                 num_anchors: int):
-        self.encoder_path = encoder_path
-        self.decoder_path = decoder_path
-        self.num_anchors = num_anchors
+                 num_anchors: int,
+                 case: str):
+        self.encoder_path: Path = encoder_path
+        self.decoder_path: Path = decoder_path
+        self.num_anchors: int = num_anchors
+        self.case: str = case
 
+        assert self.case in ['rel', 'abs', 'abs_anch'], "Wrong case passed, choose between 'rel', 'abs' or 'abs_anch'."
+        
         # =================================================
         #                 Encoder Stuff
         # =================================================
         encoder_blob = torch.load(self.encoder_path)
 
-        # Retrieve the anchors
+        # Retrieve the absolute representation from the encoder
+        self.z = encoder_blob['absolute']
+
+        # Retrieve the anchors from the encoder
         self.anchors = encoder_blob['anchors_latents']
 
+        assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
         assert num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
         
         # Select the wanted anchors
         self.anchors = self.anchors[:num_anchors]
 
-        # Retrieve the absolute representation from the encoder
-        self.z = encoder_blob['absolute']
+        # Retriece the relative representation from the encoder
+        self.r_econder = encoder_blob['relative'][:, :self.num_anchors]
 
         del encoder_blob
 
@@ -58,15 +73,25 @@ class CustomDataset(Dataset):
         decoder_blob = torch.load(self.decoder_path)
 
         # Retrieve the relative representation from the decoder
-        self.r = decoder_blob['relative'][:, :self.num_anchors]
+        self.r_decoder = decoder_blob['relative'][:, :self.num_anchors]
 
         del decoder_blob
         
         # =================================================
         #         Get the input and the output size
         # =================================================
-        assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
-        self.input_size = self.z.shape[-1] + self.anchors.shape[-1]*self.num_anchors
+        # When the input is only the absolute representation
+        if self.case == 'abs':
+            self.input_size = self.z.shape[-1]
+
+        # When the input is both the absolute representation and the anchors
+        elif self.case == 'abs_anch':
+            self.input_size = self.z.shape[-1] + self.anchors.shape[-1]*self.num_anchors
+
+        # When the input is only the relative representation
+        elif self.case == 'rel':
+            self.input_size = self.r_econder[-1]
+            
         self.output_size = self.num_anchors
 
 
@@ -89,16 +114,28 @@ class CustomDataset(Dataset):
         Returns:
             - tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
         """
-        # Get the absolute representation of element idx
-        z_i = self.z[idx]
+        # If input is only the absolute representation
+        if self.case == 'abs':
+            # Get the absolute representation of element idx
+            input = self.z[idx]
 
-        # Define an input of the shape [z_i, a_1, ..., a_n]
-        input = torch.cat((z_i.unsqueeze(0), self.anchors), 0)
+        # If the input is both the absolute representation and the anchors
+        elif self.case == 'abs_anch':
+            # Get the absolute representation of element idx
+            z_i = self.z[idx]
+
+            # Define an input of the shape [z_i, a_1, ..., a_n]
+            input = torch.cat((z_i.unsqueeze(0), self.anchors), 0)
+            input = torch.flatten(input)
+
+        # If the input is only the relative representation
+        elif self.case == 'rel':
+            input = self.r_econder[idx]
         
         # Get the relative representation of element idx
-        r_i = self.r[idx]
+        r_i = self.r_decoder[idx]
 
-        return torch.flatten(input), r_i
+        return input, r_i
 
 
 
@@ -115,8 +152,9 @@ class DataModule(LightningDataModule):
         - dataset (str): The name of the dataset.
         - encoder (str): The name of the encoder.
         - decoder (str): The name of the decoder.
-        - split (str): The name of the split. Choose between ['train', 'test', 'val'].
+        - split (str): The name of the split. Choose between 'train', 'test' or 'val'.
         - num_anchors (int): The number of anchors to use.
+        - case (str): The case argument of the CustomDataset.
         - batch_size (int): The size of a batch. Default 128.
         - num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
@@ -135,6 +173,7 @@ class DataModule(LightningDataModule):
                  decoder: str,
                  split: str,
                  num_anchors: int,
+                 case: str,
                  batch_size: int = 128,
                  num_workers: int = 0,
                  train_size: int | float = 0.7,
@@ -145,19 +184,21 @@ class DataModule(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH = CURRENT / 'data/latents' / dataset / split 
 
-        self.path_encoder = GENERAL_PATH / f'{encoder}.pt'
-        self.path_decoder = GENERAL_PATH / f'{decoder}.pt'
-        self.dataset = dataset
-        self.encoder = encoder
-        self.decoder = decoder
-        self.split = split
-        self.num_anchors = num_anchors
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.train_size = train_size
-        self.test_size = test_size
-        self.val_size = val_size
+        self.path_encoder: Path = GENERAL_PATH / f'{encoder}.pt'
+        self.path_decoder: Path = GENERAL_PATH / f'{decoder}.pt'
+        self.dataset: str = dataset
+        self.encoder: str = encoder
+        self.decoder: str = decoder
+        self.split: str = split
+        self.case: str = case
+        self.num_anchors: int = num_anchors
+        self.batch_size: int = batch_size
+        self.num_workers: int = num_workers
+        self.train_size: int | float = train_size
+        self.test_size: int | float = test_size
+        self.val_size: int | float = val_size
 
+        assert self.split in ['train', 'test', 'val'], "Wrong split passed, choose between 'train', 'test' or 'val'."
 
     def prepare_data(self) -> None:
         """This function prepare the dataset (Download and Unzip).
@@ -200,7 +241,10 @@ class DataModule(LightningDataModule):
         Returns:
             - None.
         """
-        data = CustomDataset(self.path_encoder, self.path_decoder, self.num_anchors)
+        data = CustomDataset(encoder_path=self.path_encoder,
+                             decoder_path=self.path_decoder,
+                             num_anchors=self.num_anchors,
+                             case=self.case)
         self.input_size = data.input_size
         self.output_size = data.output_size
         self.train_data, self.test_data, self.val_data = random_split(data, [self.train_size, self.test_size, self.val_size])
@@ -249,12 +293,14 @@ def main() -> None:
     decoder = 'rexnet_100'
     split = 'test'
     num_anchors = 1024
+    case = 'rel'
     
     data = DataModule(dataset=dataset,
                       encoder=encoder,
                       decoder=decoder,
                       split=split,
-                      num_anchors=num_anchors)
+                      num_anchors=num_anchors,
+                      case=case)
 
     data.prepare_data()
     data.setup()
