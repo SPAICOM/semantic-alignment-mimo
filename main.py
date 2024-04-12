@@ -41,12 +41,6 @@ def main() -> None:
                         type=str,
                         required=True)
 
-    parser.add_argument('-s',
-                        '--split',
-                        help="The split.",
-                        type=str,
-                        required=True)
-
     parser.add_argument('-a',
                         '--anchors',
                         help="The number of anchors.",
@@ -101,7 +95,6 @@ def main() -> None:
     datamodule = DataModule(dataset=args.dataset,
                             encoder=args.encoder,
                             decoder=args.decoder,
-                            split=args.split,
                             num_anchors=args.anchors,
                             case=args.case,
                             num_workers=args.workers,

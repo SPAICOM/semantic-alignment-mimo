@@ -5,7 +5,7 @@
 
 import torch
 from pathlib import Path
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
 
 
@@ -90,7 +90,7 @@ class CustomDataset(Dataset):
 
         # When the input is only the relative representation
         elif self.case == 'rel':
-            self.input_size = self.r_econder[-1]
+            self.input_size = self.r_econder.shape[-1]
             
         self.output_size = self.num_anchors
 
@@ -152,7 +152,6 @@ class DataModule(LightningDataModule):
         - dataset (str): The name of the dataset.
         - encoder (str): The name of the encoder.
         - decoder (str): The name of the decoder.
-        - split (str): The name of the split. Choose between 'train', 'test' or 'val'.
         - num_anchors (int): The number of anchors to use.
         - case (str): The case argument of the CustomDataset.
         - batch_size (int): The size of a batch. Default 128.
@@ -171,7 +170,6 @@ class DataModule(LightningDataModule):
                  dataset: str,
                  encoder: str,
                  decoder: str,
-                 split: str,
                  num_anchors: int,
                  case: str,
                  batch_size: int = 128,
@@ -181,15 +179,9 @@ class DataModule(LightningDataModule):
                  val_size: int | float = 0.15) -> None:
         super().__init__()
 
-        CURRENT = Path('.')
-        GENERAL_PATH = CURRENT / 'data/latents' / dataset / split 
-
-        self.path_encoder: Path = GENERAL_PATH / f'{encoder}.pt'
-        self.path_decoder: Path = GENERAL_PATH / f'{decoder}.pt'
         self.dataset: str = dataset
         self.encoder: str = encoder
         self.decoder: str = decoder
-        self.split: str = split
         self.case: str = case
         self.num_anchors: int = num_anchors
         self.batch_size: int = batch_size
@@ -198,7 +190,6 @@ class DataModule(LightningDataModule):
         self.test_size: int | float = test_size
         self.val_size: int | float = val_size
 
-        assert self.split in ['train', 'test', 'val'], "Wrong split passed, choose between 'train', 'test' or 'val'."
 
     def prepare_data(self) -> None:
         """This function prepare the dataset (Download and Unzip).
@@ -226,6 +217,7 @@ class DataModule(LightningDataModule):
             # Download the zip file
             download(id=ID, output=str(ZIP_PATH))
             
+        # Check if the directory exists
         if not DIR_PATH.is_dir():
             # Unzip the zip file
             with ZipFile(ZIP_PATH, 'r') as zip_ref:
@@ -238,16 +230,33 @@ class DataModule(LightningDataModule):
               stage: str = None) -> None:
         """This function setups a CustomDataset for our data.
 
+        Args:
+            - stage (str): The stage of the setup. Default None.
+
         Returns:
             - None.
         """
-        data = CustomDataset(encoder_path=self.path_encoder,
-                             decoder_path=self.path_decoder,
-                             num_anchors=self.num_anchors,
-                             case=self.case)
-        self.input_size = data.input_size
-        self.output_size = data.output_size
-        self.train_data, self.test_data, self.val_data = random_split(data, [self.train_size, self.test_size, self.val_size])
+        CURRENT = Path('.')
+        GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
+
+        self.train_data = CustomDataset(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
+                                        decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+                                        num_anchors=self.num_anchors,
+                                        case=self.case)
+        self.test_data = CustomDataset(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
+                                       decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+                                       num_anchors=self.num_anchors,
+                                       case=self.case)
+        self.val_data = CustomDataset(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
+                                      decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+                                      num_anchors=self.num_anchors,
+                                      case=self.case)
+
+        assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
+        assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
+
+        self.input_size = self.train_data.input_size
+        self.output_size = self.train_data.output_size
         return None
 
 
@@ -291,14 +300,12 @@ def main() -> None:
     dataset = 'cifar100'
     encoder = 'mobilenetv3_small_100'
     decoder = 'rexnet_100'
-    split = 'test'
     num_anchors = 1024
     case = 'rel'
     
     data = DataModule(dataset=dataset,
                       encoder=encoder,
                       decoder=decoder,
-                      split=split,
                       num_anchors=num_anchors,
                       case=case)
 
