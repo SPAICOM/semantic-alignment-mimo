@@ -33,7 +33,7 @@ class MultiLayerPerceptron(pl.LightningModule):
                  hidden_dim: int = 10,
                  hidden_size: int = 10,
                  activ_type: str = "tanh",
-                 lr: float = 1e-4):
+                 lr: float = 1e-2):
         super().__init__()
 
         # Log the hyperparameters.

@@ -91,6 +91,11 @@ def main() -> None:
                         default=128,
                         type=int)
 
+    parser.add_argument('--lr',
+                        help="The learning rate. Default 0.01.",
+                        default=1e-2,
+                        type=float)
+
     args = parser.parse_args()
 
     # Initialize the datamodule
@@ -111,7 +116,8 @@ def main() -> None:
                                  datamodule.output_size,
                                  hidden_dim=args.neurons,
                                  hidden_size=args.layers,
-                                 activ_type=args.function)
+                                 activ_type=args.function,
+                                 lr=args.lr)
 
     # Callbacks definition
     early_stopping_callback = EarlyStopping(monitor='valid/loss_epoch')
