@@ -6,7 +6,7 @@ To check available parameters run 'python /path/to/main.py --help'.
 
 import wandb
 from pathlib import Path
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
@@ -96,7 +96,14 @@ def main() -> None:
                         default=1e-2,
                         type=float)
 
+    parser.add_argument('--seed',
+                        help="The seed for the analysis. Default 42.",
+                        default=42,
+                        type=int)
+
     args = parser.parse_args()
+
+    seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
@@ -131,6 +138,7 @@ def main() -> None:
     
     trainer = Trainer(max_epochs=args.epochs,
                       logger=wandb_logger,
+                      deterministic=True,
                       callbacks=[early_stopping_callback,
                                  checkpoint_callback])
 

@@ -33,7 +33,9 @@ class MultiLayerPerceptron(pl.LightningModule):
                  hidden_dim: int = 10,
                  hidden_size: int = 10,
                  activ_type: str = "tanh",
-                 lr: float = 1e-2):
+                 lr: float = 1e-2,
+                 momentum: float = 0.9,
+                 nesterov: bool = True):
         super().__init__()
 
         # Log the hyperparameters.
@@ -105,7 +107,7 @@ class MultiLayerPerceptron(pl.LightningModule):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Define the optimizer: Stochastic Gradient Descent.
         """
-        return torch.optim.SGD(self.parameters(), lr=self.hparams["lr"])
+        return torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
 
 
     def loss(self,
