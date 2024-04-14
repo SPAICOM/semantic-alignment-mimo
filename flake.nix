@@ -6,8 +6,11 @@
  outputs = { self, nixpkgs }:
   let
     system = "x86_64-linux";
+    pkgs = import nixpkgs {
+      system = system;
+    };
   in {
-    devShell.${system} = with nixpkgs.legacyPackages.${system}; mkShell {
+    devShell.${system} = with pkgs; mkShell {
       buildInputs = [
         (python311.withPackages (ps: with ps; [
           datasets

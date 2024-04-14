@@ -8,6 +8,7 @@ import wandb
 from pathlib import Path
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from src.datamodule import DataModule
 from src.models import MultiLayerPerceptron
@@ -81,7 +82,7 @@ def main() -> None:
     parser.add_argument('-e',
                         '--epochs',
                         help="The maximum number of epochs. Default 10.",
-                        default=10,
+                        default=100,
                         type=int)
 
     parser.add_argument('-b',
@@ -92,6 +93,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
                             encoder=args.encoder,
                             decoder=args.decoder,
@@ -100,24 +102,39 @@ def main() -> None:
                             num_workers=args.workers,
                             batch_size=args.batch)
 
+    # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
+    # Initialize the model
     model = MultiLayerPerceptron(datamodule.input_size,
                                  datamodule.output_size,
                                  hidden_dim=args.neurons,
                                  hidden_size=args.layers,
                                  activ_type=args.function)
 
-    wandb.login()
+    # Callbacks definition
+    early_stopping_callback = EarlyStopping(monitor='valid/loss_epoch')
+    checkpoint_callback = ModelCheckpoint()
 
+    
+    # W&B login and Logger intialization
+    wandb.login()
     wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
                                log_model='all')
     
-    trainer = Trainer(logger=wandb_logger,
-                      max_epochs=args.epochs)
+    trainer = Trainer(max_epochs=args.epochs,
+                      logger=wandb_logger,
+                      callbacks=[early_stopping_callback,
+                                 checkpoint_callback])
+
+    # Training
     trainer.fit(model, datamodule=datamodule)
 
+    # Testing
+    trainer.test(datamodule=datamodule)
+
+    # Closing W&B
     wandb.finish()
 
 
