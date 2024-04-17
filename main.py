@@ -81,8 +81,8 @@ def main() -> None:
 
     parser.add_argument('-e',
                         '--epochs',
-                        help="The maximum number of epochs. Default 10.",
-                        default=100,
+                        help="The maximum number of epochs. Default -1.",
+                        default=-1,
                         type=int)
 
     parser.add_argument('--lr',
@@ -124,7 +124,7 @@ def main() -> None:
     callbacks = [
         LearningRateMonitor(logging_interval='step',
                             log_momentum=True),
-        EarlyStopping(monitor='valid/loss_epoch'),
+        EarlyStopping(monitor='valid/loss_epoch', patience=10),
         ModelCheckpoint(monitor='valid/loss_epoch',
                         mode='min'),
         BatchSizeFinder(mode='binsearch',

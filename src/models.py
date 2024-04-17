@@ -114,7 +114,7 @@ class MultiLayerPerceptron(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer),
+                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=1., step_size_up=20, mode='triangular2'),
                 "monitor": "valid/loss_epoch"
             }    
         }
