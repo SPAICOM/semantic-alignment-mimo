@@ -104,10 +104,15 @@ class MultiLayerPerceptron(pl.LightningModule):
         return x
 
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(self) -> dict[str, object]:
         """Define the optimizer: Stochastic Gradient Descent.
+
+        Returns:
+            dict[str, object] : The optimizer and scheduler.
         """
-        return torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid/loss_epoch"}
 
 
     def loss(self,
