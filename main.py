@@ -8,9 +8,9 @@ import wandb
 from pathlib import Path
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodule import DataModule
+from src.datamodules import DataModule
 from src.models import MultiLayerPerceptron
 
 def main() -> None:
@@ -85,15 +85,9 @@ def main() -> None:
                         default=100,
                         type=int)
 
-    parser.add_argument('-b',
-                        '--batch',
-                        help="The batch size. Default 128.",
-                        default=128,
-                        type=int)
-
     parser.add_argument('--lr',
-                        help="The learning rate. Default 0.01.",
-                        default=1e-2,
+                        help="The learning rate. Default 0.1.",
+                        default=1e-1,
                         type=float)
 
     parser.add_argument('--seed',
@@ -103,6 +97,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Setting the seed
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
@@ -111,8 +106,7 @@ def main() -> None:
                             decoder=args.decoder,
                             num_anchors=args.anchors,
                             case=args.case,
-                            num_workers=args.workers,
-                            batch_size=args.batch)
+                            num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
@@ -127,6 +121,15 @@ def main() -> None:
                                  lr=args.lr)
 
     # Callbacks definition
+    callbacks = [
+        LearningRateMonitor(logging_interval='step',
+                            log_momentum=True),
+        EarlyStopping(monitor='valid/loss_epoch'),
+        ModelCheckpoint(monitor='valid/loss_epoch',
+                        mode='min'),
+        BatchSizeFinder(mode='binsearch',
+                        max_trials=8)
+    ]
     early_stopping_callback = EarlyStopping(monitor='valid/loss_epoch')
     checkpoint_callback = ModelCheckpoint()
 
@@ -136,17 +139,18 @@ def main() -> None:
     wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
                                log_model='all')
     
-    trainer = Trainer(max_epochs=args.epochs,
+    trainer = Trainer(num_sanity_val_steps=2,
+                      max_epochs=args.epochs,
                       logger=wandb_logger,
                       deterministic=True,
-                      callbacks=[early_stopping_callback,
-                                 checkpoint_callback])
+                      callbacks=callbacks,
+                      log_every_n_steps=10)
 
     # Training
     trainer.fit(model, datamodule=datamodule)
 
     # Testing
-    trainer.test(datamodule=datamodule)
+    trainer.test(datamodule=datamodule, ckpt_path='best')
 
     # Closing W&B
     wandb.finish()
