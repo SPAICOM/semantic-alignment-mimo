@@ -68,8 +68,8 @@ def main() -> None:
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 0.01.",
-                        default=1e-2,
+                        help="The learning rate. Default 0.1.",
+                        default=1e-1,
                         type=float)
 
     parser.add_argument('--seed',

@@ -304,13 +304,20 @@ class RelativeDecoder(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Define the optimizer: Stochastic Gradient Descent.
+
+        Returns:
+            dict[str, object] : The optimizer and scheduler.
         """
         optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
-        scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer=optimizer, base_lr=0.1, max_lr=0.9, mode='exp_range') 
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=1., step_size_up=20, mode='triangular2'),
+                "monitor": "valid/loss_epoch"
+            }    
+        }
 
-        return [optimizer], [scheduler]
-
-
+    
     def loss(self,
              x: torch.Tensor,
              y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
