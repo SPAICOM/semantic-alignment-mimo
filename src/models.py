@@ -16,15 +16,17 @@ class MultiLayerPerceptron(pl.LightningModule):
     """A simple implementation of MLP in pytorch.
 
     Args:
-        - input_dim (int): The input dimension.
-        - output_dim (int): The output dimension. Default 1.
-        - hidden_dim (int): The hidden layer dimension. Default 10.
-        - hidden_size (int): The number of hidden layers. Default 10.
-        - activ_type (str): The type of the last activation function. Default 'tanh'.
-        - lr (float): The learning rate. Default 1e-2. 
+        input_dim (int): The input dimension.
+        output_dim (int): The output dimension. Default 1.
+        hidden_dim (int): The hidden layer dimension. Default 10.
+        hidden_size (int): The number of hidden layers. Default 10.
+        activ_type (str): The type of the last activation function. Default 'tanh'.
+        lr (float): The learning rate. Default 1e-2. 
+        momentum (float): How much momentum to apply. Default 0.9.
+        nesterov (bool): If set to True use nesterov type of momentum. Default True.
 
     Attributes:
-        - self.hparams["<name-of-argument>"]:
+        self.hparams["<name-of-argument>"]:
             ex. self.hparams["input_dim"] is where the 'input_dim' argument is stored.
     """
     def __init__(self,
@@ -125,11 +127,11 @@ class MultiLayerPerceptron(pl.LightningModule):
         """A convenient method to get the loss on a batch.
 
         Args:
-            - x (torch.Tensor): The input tensor.
-            - y (torch.Tensor): The original output tensor.
+            x (torch.Tensor): The input tensor.
+            y (torch.Tensor): The original output tensor.
 
         Returns:
-            - tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
+            tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
         """
         y_hat = self(x)
         loss = nn.functional.mse_loss(y_hat, y)
@@ -143,12 +145,12 @@ class MultiLayerPerceptron(pl.LightningModule):
         """A common step performend in the test and validation step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
-            - prefix (str): The step type for logging purposes.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
+            prefix (str): The step type for logging purposes.
 
         Returns:
-            - (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
+            (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
         y_hat, loss = self.loss(x, y)
@@ -164,11 +166,11 @@ class MultiLayerPerceptron(pl.LightningModule):
         """The training step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - loss (torch.Tensor): The epoch loss.
+            loss (torch.Tensor): The epoch loss.
         """
         x, y = batch
         _, loss = self.loss(x, y)
@@ -184,11 +186,11 @@ class MultiLayerPerceptron(pl.LightningModule):
         """The test step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - None
+            None
         """
         _ = self._shared_eval(batch, batch_idx, "test")
         return None
@@ -200,11 +202,11 @@ class MultiLayerPerceptron(pl.LightningModule):
         """The validation step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - y_hat (torch.Tensor): The output of the network.
+            y_hat (torch.Tensor): The output of the network.
         """
         y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
         return y_hat
@@ -217,11 +219,11 @@ class MultiLayerPerceptron(pl.LightningModule):
         """The predict step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - y_hat (torch.Tensor): The output of the network.
+            y_hat (torch.Tensor): The output of the network.
         """
         x, y = batch
         y_hat = self.model(x)
@@ -233,14 +235,16 @@ class RelativeDecoder(pl.LightningModule):
     """An implementation of a relative decoder using a MLP architecture in pytorch.
 
     Args:
-        - input_dim (int): The input dimension.
-        - output_dim (int): The output dimension. Default 1.
-        - hidden_dim (int): The hidden layer dimension. Default 10.
-        - hidden_size (int): The number of hidden layers. Default 10.
-        - lr (float): The learning rate. Default 1e-2. 
+        input_dim (int): The input dimension.
+        output_dim (int): The output dimension. Default 1.
+        hidden_dim (int): The hidden layer dimension. Default 10.
+        hidden_size (int): The number of hidden layers. Default 10.
+        lr (float): The learning rate. Default 1e-2. 
+        momentum (float): How much momentum to apply. Default 0.9.
+        nesterov (bool): If set to True use nesterov type of momentum. Default True.
 
     Attributes:
-        - self.hparams["<name-of-argument>"]:
+        self.hparams["<name-of-argument>"]:
             ex. self.hparams["input_dim"] is where the 'input_dim' argument is stored.
     """
     def __init__(self,
@@ -286,10 +290,10 @@ class RelativeDecoder(pl.LightningModule):
         """The forward pass of the Multi Layer Perceptron.
 
         Args:
-            - x (torch.Tensor): The input tensor.
+            x (torch.Tensor): The input tensor.
 
-        returns:
-            - torch.Tensor : The output of the MLP.
+        Returns:
+            torch.Tensor : The output of the MLP.
         """
         x = self.input_layer(x)
         for layer in self.hidden_layers:
@@ -313,8 +317,8 @@ class RelativeDecoder(pl.LightningModule):
         """A convenient method to get the loss on a batch.
 
         Args:
-            - x (torch.Tensor): The input tensor.
-            - y (torch.Tensor): The original output tensor.
+            x (torch.Tensor): The input tensor.
+            y (torch.Tensor): The original output tensor.
 
         Returns:
             - tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
@@ -331,12 +335,12 @@ class RelativeDecoder(pl.LightningModule):
         """A common step performend in the test and validation step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
-            - prefix (str): The step type for logging purposes.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
+            prefix (str): The step type for logging purposes.
 
         Returns:
-            - (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
+            (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
         y_hat, loss = self.loss(x, y)
@@ -352,11 +356,11 @@ class RelativeDecoder(pl.LightningModule):
         """The training step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - loss (torch.Tensor): The epoch loss.
+            loss (torch.Tensor): The epoch loss.
         """
         x, y = batch
         _, loss = self.loss(x, y)
@@ -372,11 +376,11 @@ class RelativeDecoder(pl.LightningModule):
         """The test step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - None
+            None
         """
         _ = self._shared_eval(batch, batch_idx, "test")
         return None
@@ -388,11 +392,11 @@ class RelativeDecoder(pl.LightningModule):
         """The validation step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - y_hat (torch.Tensor): The output of the network.
+            y_hat (torch.Tensor): The output of the network.
         """
         y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
         return y_hat
@@ -405,11 +409,11 @@ class RelativeDecoder(pl.LightningModule):
         """The predict step.
 
         Args:
-            - batch (torch.Tensor): The current batch.
-            - batch_idx (int): The batch index.
+            batch (torch.Tensor): The current batch.
+            batch_idx (int): The batch index.
 
         Returns:
-            - y_hat (torch.Tensor): The output of the network.
+            y_hat (torch.Tensor): The output of the network.
         """
         x, y = batch
         y_hat = self.model(x)

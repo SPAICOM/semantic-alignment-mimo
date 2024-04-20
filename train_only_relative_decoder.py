@@ -1,7 +1,7 @@
 """
 This python module handles the training of our models.
 
-To check available parameters run 'python /path/to/main.py --help'.
+To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
 """
 
 import wandb
@@ -10,8 +10,8 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModule
-from src.models import MultiLayerPerceptron
+from src.datamodules import DataModuleRelativeDecoder
+from src.models import RelativeDecoder
 
 def main() -> None:
     """The main script loop.
@@ -21,7 +21,7 @@ def main() -> None:
     description = """
     This python module handles the training of our models.
 
-    To check available parameters run 'python /path/to/main.py --help'.
+    To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)
@@ -29,11 +29,6 @@ def main() -> None:
     parser.add_argument('-d',
                         '--dataset',
                         help="The dataset.",
-                        type=str,
-                        required=True)
-
-    parser.add_argument('--encoder',
-                        help="The encoder.",
                         type=str,
                         required=True)
 
@@ -46,19 +41,6 @@ def main() -> None:
                         '--anchors',
                         help="The number of anchors.",
                         type=int,
-                        required=True)
-
-    parser.add_argument('-c',
-                        '--case',
-                        help="The case of the network input. Default 'abs'.",
-                        default='abs',
-                        type=str)
-
-    parser.add_argument('-f',
-                        '--function',
-                        help="Activation function to set the right co-domain.",
-                        choices=['tanh', 'sigmoid', 'softplus', 'relu'],
-                        type=str,
                         required=True)
 
     parser.add_argument('-n',
@@ -81,13 +63,13 @@ def main() -> None:
 
     parser.add_argument('-e',
                         '--epochs',
-                        help="The maximum number of epochs. Default -1.",
-                        default=-1,
+                        help="The maximum number of epochs. Default 10.",
+                        default=100,
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 0.1.",
-                        default=1e-1,
+                        help="The learning rate. Default 0.01.",
+                        default=1e-2,
                         type=float)
 
     parser.add_argument('--seed',
@@ -101,24 +83,21 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModule(dataset=args.dataset,
-                            encoder=args.encoder,
-                            decoder=args.decoder,
-                            num_anchors=args.anchors,
-                            case=args.case,
-                            num_workers=args.workers)
+    datamodule = DataModuleRelativeDecoder(dataset=args.dataset,
+                                           decoder=args.decoder,
+                                           num_anchors=args.anchors,
+                                           num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
     # Initialize the model
-    model = MultiLayerPerceptron(datamodule.input_size,
-                                 datamodule.output_size,
-                                 hidden_dim=args.neurons,
-                                 hidden_size=args.layers,
-                                 activ_type=args.function,
-                                 lr=args.lr)
+    model = RelativeDecoder(datamodule.input_size,
+                            datamodule.output_size,
+                            hidden_dim=args.neurons,
+                            hidden_size=args.layers,
+                            lr=args.lr)
 
     # Callbacks definition
     callbacks = [
@@ -133,7 +112,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
+    wandb_logger = WandbLogger(project=f'RelDec_{args.decoder}_{args.anchors}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

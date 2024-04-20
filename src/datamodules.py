@@ -20,19 +20,19 @@ class CustomDataset(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
-        - encoder_path (Path): The path to the encoder.
-        - decider_path (Path): The path to the decoder.
-        - num_anchors (int): The number of anchors to use.
-        - case (str): The input case. Choose between 'rel', 'abs' or 'abs_anch'.
+        encoder_path (Path): The path to the encoder.
+        decider_path (Path): The path to the decoder.
+        num_anchors (int): The number of anchors to use.
+        case (str): The input case. Choose between 'rel', 'abs' or 'abs_anch'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        - self.z (torch.Tensor): The absolute representation of the Dataset encoder side.
-        - self.anchors (torch.Tensor): The absolute representation of the anchors encoder side.
-        - self.r_encoder (torch.Tensor): The relative representation of the Dataset encoder side.
-        - self.r_decoder (torch.Tensor): The relative representation of the Dataset decoder side.
-        - self.input_size (int): The size of the input of the network.
-        - self.output_size (int): The size of the output of the network.
+        self.z (torch.Tensor): The absolute representation of the Dataset encoder side.
+        self.anchors (torch.Tensor): The absolute representation of the anchors encoder side.
+        self.r_encoder (torch.Tensor): The relative representation of the Dataset encoder side.
+        self.r_decoder (torch.Tensor): The relative representation of the Dataset decoder side.
+        self.input_size (int): The size of the input of the network.
+        self.output_size (int): The size of the output of the network.
     """
     def __init__(self,
                  encoder_path: Path,
@@ -100,7 +100,7 @@ class CustomDataset(Dataset):
         """Returns the length of the Dataset.
 
         Returns:
-            - int : Length of the Dataset.
+            int : Length of the Dataset.
         """
         return len(self.z)
 
@@ -110,10 +110,10 @@ class CustomDataset(Dataset):
         """Returns in a torch.Tensor format the input and the target.
 
         Args:
-            - idx (int): The index of the wanted row.
+            idx (int): The index of the wanted row.
 
         Returns:
-            - tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
+            tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
         """
         # If input is only the absolute representation
         if self.case == 'abs':
@@ -143,16 +143,16 @@ class CustomDatasetRelativeDecoder(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
-        - path (Path): The path to the data.
-        - num_anchors (int): The number of anchors to use.
+        path (Path): The path to the data.
+        num_anchors (int): The number of anchors to use.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        - self.z (torch.Tensor): The absolute representation of the Dataset.
-        - self.anchors (torch.Tensor): The absolute representation of the anchors.
-        - self.r (torch.Tensor): The relative representation of the Dataset.
-        - self.input_size (int): The size of the input of the network.
-        - self.output_size (int): The size of the output of the network.
+        self.z (torch.Tensor): The absolute representation of the Dataset.
+        self.anchors (torch.Tensor): The absolute representation of the anchors.
+        self.r (torch.Tensor): The relative representation of the Dataset.
+        self.input_size (int): The size of the input of the network.
+        self.output_size (int): The size of the output of the network.
     """
     def __init__(self,
                  path: Path,
@@ -165,10 +165,10 @@ class CustomDatasetRelativeDecoder(Dataset):
         # =================================================
         decoder_blob = torch.load(self.path)
 
-        # Retrieve the absolute representation from the encoder
+        # Retrieve the absolute representation from the decoder
         self.z = decoder_blob['absolute']
 
-        # Retrieve the anchors from the encoder
+        # Retrieve the anchors from the decoder
         self.anchors = decoder_blob['anchors_latents']
 
         assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
@@ -177,7 +177,7 @@ class CustomDatasetRelativeDecoder(Dataset):
         # Select the wanted anchors
         self.anchors = self.anchors[:num_anchors]
 
-        # Retriece the relative representation from the encoder
+        # Retrieve the relative representation from the decoder
         self.r = decoder_blob['relative'][:, :self.num_anchors]
 
         del decoder_blob
@@ -193,7 +193,7 @@ class CustomDatasetRelativeDecoder(Dataset):
         """Returns the length of the Dataset.
 
         Returns:
-            - int : Length of the Dataset.
+            int : Length of the Dataset.
         """
         return len(self.r)
 
@@ -203,10 +203,10 @@ class CustomDatasetRelativeDecoder(Dataset):
         """Returns in a torch.Tensor format the input and the target.
 
         Args:
-            - idx (int): The index of the wanted row.
+            idx (int): The index of the wanted row.
 
         Returns:
-            - tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
+            tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
         """
         # Get the relative representation of the element at idx
         r_i = self.r[idx]
@@ -227,17 +227,17 @@ class DataModule(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
-        - dataset (str): The name of the dataset.
-        - encoder (str): The name of the encoder.
-        - decoder (str): The name of the decoder.
-        - num_anchors (int): The number of anchors to use.
-        - case (str): The case argument of the CustomDataset.
-        - batch_size (int): The size of a batch. Default 128.
-        - num_workers (int): The number of workers. Setting it to 0 means that the data will be
+        dataset (str): The name of the dataset.
+        encoder (str): The name of the encoder.
+        decoder (str): The name of the decoder.
+        num_anchors (int): The number of anchors to use.
+        case (str): The case argument of the CustomDataset.
+        batch_size (int): The size of a batch. Default 128.
+        num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
-        - train_size (int | float): The size of the train data. Default 0.7.
-        - test_size (int | float): The size of the test data. Default 0.15.
-        - val_size (int | float): The size of the val data. Default 0.15.
+        train_size (int | float): The size of the train data. Default 0.7.
+        test_size (int | float): The size of the test data. Default 0.15.
+        val_size (int | float): The size of the val data. Default 0.15.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -271,7 +271,7 @@ class DataModule(LightningDataModule):
         """This function prepares the dataset (Download and Unzip).
 
         Returns:
-            - None
+            None
         """
         from gdown import download
         from zipfile import ZipFile
@@ -340,7 +340,7 @@ class DataModule(LightningDataModule):
         """The function returns the train DataLoader.
 
         Returns:
-            -  DataLoader : The train DataLoader.
+            DataLoader : The train DataLoader.
         """
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
@@ -349,7 +349,7 @@ class DataModule(LightningDataModule):
         """The function returns the test DataLoader.
 
         Returns:
-            -  DataLoader : The test DataLoader.
+            DataLoader : The test DataLoader.
         """
         return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -358,7 +358,7 @@ class DataModule(LightningDataModule):
         """The function returns the validation DataLoader.
 
         Returns:
-            -  DataLoader : The validation DataLoader.
+            DataLoader : The validation DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -368,15 +368,15 @@ class DataModuleRelativeDecoder(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
-        - dataset (str): The name of the dataset.
-        - decoder (str): The name of the decoder.
-        - num_anchors (int): The number of anchors to use.
-        - batch_size (int): The size of a batch. Default 128.
-        - num_workers (int): The number of workers. Setting it to 0 means that the data will be
+        dataset (str): The name of the dataset.
+        decoder (str): The name of the decoder.
+        num_anchors (int): The number of anchors to use.
+        batch_size (int): The size of a batch. Default 128.
+        num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
-        - train_size (int | float): The size of the train data. Default 0.7.
-        - test_size (int | float): The size of the test data. Default 0.15.
-        - val_size (int | float): The size of the val data. Default 0.15.
+        train_size (int | float): The size of the train data. Default 0.7.
+        test_size (int | float): The size of the test data. Default 0.15.
+        val_size (int | float): The size of the val data. Default 0.15.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -406,7 +406,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         """This function prepare the dataset (Download and Unzip).
 
         Returns:
-            - None
+            None
         """
         from gdown import download
         from zipfile import ZipFile
@@ -442,10 +442,10 @@ class DataModuleRelativeDecoder(LightningDataModule):
         """This function setups a CustomDatasetRelativeDecoder for our data.
 
         Args:
-            - stage (str): The stage of the setup. Default None.
+            stage (str): The stage of the setup. Default None.
 
         Returns:
-            - None.
+            None.
         """
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
@@ -469,7 +469,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         """The function returns the train DataLoader.
 
         Returns:
-            -  DataLoader : The train DataLoader.
+            DataLoader : The train DataLoader.
         """
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
@@ -478,7 +478,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         """The function returns the test DataLoader.
 
         Returns:
-            -  DataLoader : The test DataLoader.
+            DataLoader : The test DataLoader.
         """
         return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -487,7 +487,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         """The function returns the validation DataLoader.
 
         Returns:
-            -  DataLoader : The validation DataLoader.
+            DataLoader : The validation DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
