@@ -24,6 +24,7 @@ class MultiLayerPerceptron(pl.LightningModule):
         lr (float): The learning rate. Default 1e-2. 
         momentum (float): How much momentum to apply. Default 0.9.
         nesterov (bool): If set to True use nesterov type of momentum. Default True.
+        max_lr (float): Maximum learning rate for the scheduler. Default 1..
 
     Attributes:
         self.hparams["<name-of-argument>"]:
@@ -37,7 +38,8 @@ class MultiLayerPerceptron(pl.LightningModule):
                  activ_type: str = "tanh",
                  lr: float = 1e-2,
                  momentum: float = 0.9,
-                 nesterov: bool = True):
+                 nesterov: bool = True,
+                 max_lr: float = 1.):
         super().__init__()
 
         # Log the hyperparameters.
@@ -116,7 +118,7 @@ class MultiLayerPerceptron(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=1., step_size_up=20, mode='triangular2'),
+                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
                 "monitor": "valid/loss_epoch"
             }    
         }
@@ -242,6 +244,7 @@ class RelativeDecoder(pl.LightningModule):
         lr (float): The learning rate. Default 1e-2. 
         momentum (float): How much momentum to apply. Default 0.9.
         nesterov (bool): If set to True use nesterov type of momentum. Default True.
+        max_lr (float): Maximum learning rate for the scheduler. Default 1..
 
     Attributes:
         self.hparams["<name-of-argument>"]:
@@ -254,7 +257,8 @@ class RelativeDecoder(pl.LightningModule):
                  hidden_size: int = 10,
                  lr: float = 1e-2,
                  momentum: float = 0.9,
-                 nesterov: bool = True):
+                 nesterov: bool = True,
+                 max_lr: float = 1.):
         super().__init__()
 
         # Log the hyperparameters.
@@ -302,7 +306,7 @@ class RelativeDecoder(pl.LightningModule):
         return x
 
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(self) -> dict[str, object]:
         """Define the optimizer: Stochastic Gradient Descent.
 
         Returns:
@@ -312,7 +316,7 @@ class RelativeDecoder(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=1., step_size_up=20, mode='triangular2'),
+                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
                 "monitor": "valid/loss_epoch"
             }    
         }

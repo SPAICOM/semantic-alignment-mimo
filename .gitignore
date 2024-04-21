@@ -4,4 +4,6 @@ data/
 *.parquet
 *.pt
 
+.venv/
+
 *__pycache__/

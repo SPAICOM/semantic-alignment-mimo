@@ -97,13 +97,14 @@ def main() -> None:
                             datamodule.output_size,
                             hidden_dim=args.neurons,
                             hidden_size=args.layers,
-                            lr=args.lr)
+                            lr=args.lr,
+                            max_lr=0.3)
 
     # Callbacks definition
     callbacks = [
         LearningRateMonitor(logging_interval='step',
                             log_momentum=True),
-        EarlyStopping(monitor='valid/loss_epoch', patience=10),
+        EarlyStopping(monitor='valid/loss_epoch', patience=20),
         ModelCheckpoint(monitor='valid/loss_epoch',
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
@@ -112,7 +113,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'RelDec_{args.decoder}_{args.anchors}',
+    wandb_logger = WandbLogger(project=f'RelDec_{args.decoder}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,
