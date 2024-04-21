@@ -10,8 +10,8 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModule
-from src.models import MultiLayerPerceptron
+from src.datamodules import DataModuleRelativeEncoder
+from src.models import RelativeEncoder
 
 def main() -> None:
     """The main script loop.
@@ -101,24 +101,24 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModule(dataset=args.dataset,
-                            encoder=args.encoder,
-                            decoder=args.decoder,
-                            num_anchors=args.anchors,
-                            case=args.case,
-                            num_workers=args.workers)
+    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
+                                           encoder=args.encoder,
+                                           decoder=args.decoder,
+                                           num_anchors=args.anchors,
+                                           case=args.case,
+                                           num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
     # Initialize the model
-    model = MultiLayerPerceptron(datamodule.input_size,
-                                 datamodule.output_size,
-                                 hidden_dim=args.neurons,
-                                 hidden_size=args.layers,
-                                 activ_type=args.function,
-                                 lr=args.lr)
+    model = RelativeEncoder(datamodule.input_size,
+                            datamodule.output_size,
+                            hidden_dim=args.neurons,
+                            hidden_size=args.layers,
+                            activ_type=args.function,
+                            lr=args.lr)
 
     # Callbacks definition
     callbacks = [

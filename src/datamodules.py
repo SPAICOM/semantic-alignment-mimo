@@ -1,7 +1,8 @@
 """In this python module we define class that handles the dataset:
-    - CustomDataset: a custom Pytorch Dataset.
-    - CustomDatasetRelativeDecoder: a custom Pytorch Dataset for decoding from a relative representation to an absolute one.
-    - DataModule: a Pytorch Lightning Data Module.
+    - DatasetRelativeEncoder: a custom Pytorch Dataset for encoding from an absolute representation to a relative one.
+    - DatasetRelativeDecoder: a custom Pytorch Dataset for decoding from a relative representation to an absolute one.
+    - DataModuleRelativeEncoder: a Pytorch Lightning Data Module for the Relative Encoder.
+    - DataModuleRelativeDecoder: a Pytorch Lightning Data Module for the Relative Decoder.
 """
 
 import torch
@@ -16,7 +17,7 @@ from pytorch_lightning import LightningDataModule
 #
 # =====================================================
 
-class CustomDataset(Dataset):
+class DatasetRelativeEncoder(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
@@ -139,7 +140,7 @@ class CustomDataset(Dataset):
         return input, r_i
 
 
-class CustomDatasetRelativeDecoder(Dataset):
+class DatasetRelativeDecoder(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
@@ -223,7 +224,7 @@ class CustomDatasetRelativeDecoder(Dataset):
 #
 # =====================================================
     
-class DataModule(LightningDataModule):
+class DataModuleRelativeEncoder(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
@@ -231,7 +232,7 @@ class DataModule(LightningDataModule):
         encoder (str): The name of the encoder.
         decoder (str): The name of the decoder.
         num_anchors (int): The number of anchors to use.
-        case (str): The case argument of the CustomDataset.
+        case (str): The case argument of the Dataset.
         batch_size (int): The size of a batch. Default 128.
         num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
@@ -288,7 +289,7 @@ class DataModule(LightningDataModule):
         # Check if the zip file is already in the path
         if not ZIP_PATH.exists():
             # Get from the .env file the zip file Google Drive ID
-            ID = dotenv_values()['ID']
+            ID = dotenv_values()['DATA_ID']
 
             # Download the zip file
             download(id=ID, output=str(ZIP_PATH))
@@ -304,7 +305,7 @@ class DataModule(LightningDataModule):
 
     def setup(self,
               stage: str = None) -> None:
-        """This function setups a CustomDataset for our data.
+        """This function setups a Dataset for our data.
 
         Args:
             - stage (str): The stage of the setup. Default None.
@@ -315,18 +316,18 @@ class DataModule(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
-        self.train_data = CustomDataset(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
-                                        decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                        num_anchors=self.num_anchors,
-                                        case=self.case)
-        self.test_data = CustomDataset(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
-                                       decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                       num_anchors=self.num_anchors,
-                                       case=self.case)
-        self.val_data = CustomDataset(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
-                                      decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                      num_anchors=self.num_anchors,
-                                      case=self.case)
+        self.train_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
+                                                       decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+                                                       num_anchors=self.num_anchors,
+                                                       case=self.case)
+        self.test_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
+                                                      decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+                                                      num_anchors=self.num_anchors,
+                                                      case=self.case)
+        self.val_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
+                                                     decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+                                                     num_anchors=self.num_anchors,
+                                                     case=self.case)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
@@ -423,7 +424,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         # Check if the zip file is already in the path
         if not ZIP_PATH.exists():
             # Get from the .env file the zip file Google Drive ID
-            ID = dotenv_values()['ID']
+            ID = dotenv_values()['DATA_ID']
 
             # Download the zip file
             download(id=ID, output=str(ZIP_PATH))
@@ -439,7 +440,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
 
     def setup(self,
               stage: str = None) -> None:
-        """This function setups a CustomDatasetRelativeDecoder for our data.
+        """This function setups a DatasetRelativeDecoder for our data.
 
         Args:
             stage (str): The stage of the setup. Default None.
@@ -450,11 +451,11 @@ class DataModuleRelativeDecoder(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
-        self.train_data = CustomDatasetRelativeDecoder(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+        self.train_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
                                                        num_anchors=self.num_anchors)
-        self.test_data = CustomDatasetRelativeDecoder(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+        self.test_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
                                                       num_anchors=self.num_anchors)
-        self.val_data = CustomDatasetRelativeDecoder(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+        self.val_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
                                                      num_anchors=self.num_anchors)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
@@ -508,11 +509,11 @@ def main() -> None:
     num_anchors = 1024
     case = 'rel'
     
-    data = DataModule(dataset=dataset,
-                      encoder=encoder,
-                      decoder=decoder,
-                      num_anchors=num_anchors,
-                      case=case)
+    data = DataModuleRelativeEncoder(dataset=dataset,
+                                     encoder=encoder,
+                                     decoder=decoder,
+                                     num_anchors=num_anchors,
+                                     case=case)
 
     data.prepare_data()
     data.setup()

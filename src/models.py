@@ -12,8 +12,8 @@ import pytorch_lightning as pl
 #
 # ==================================================================
 
-class MultiLayerPerceptron(pl.LightningModule):
-    """A simple implementation of MLP in pytorch.
+class RelativeEncoder(pl.LightningModule):
+    """An implementation of a relative encoder using a MLP architecture in pytorch.
 
     Args:
         input_dim (int): The input dimension.
@@ -93,7 +93,7 @@ class MultiLayerPerceptron(pl.LightningModule):
 
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
-        """The forward pass of the Multi Layer Perceptron.
+        """The forward pass of the Relative Encoder.
 
         Args:
             x (torch.Tensor): The input tensor.
@@ -223,14 +223,12 @@ class MultiLayerPerceptron(pl.LightningModule):
         Args:
             batch (torch.Tensor): The current batch.
             batch_idx (int): The batch index.
-
+            dataloader_idx (int): The dataloader idx.
+        
         Returns:
-            y_hat (torch.Tensor): The output of the network.
+            (torch.Tensor): The output of the network.
         """
-        x, y = batch
-        y_hat = self.model(x)
-        return y_hat
-
+        return self(batch)
 
 
 class RelativeDecoder(pl.LightningModule):
@@ -291,7 +289,7 @@ class RelativeDecoder(pl.LightningModule):
 
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
-        """The forward pass of the Multi Layer Perceptron.
+        """The forward pass of the Relative Encoder.
 
         Args:
             x (torch.Tensor): The input tensor.
@@ -422,13 +420,12 @@ class RelativeDecoder(pl.LightningModule):
         Args:
             batch (torch.Tensor): The current batch.
             batch_idx (int): The batch index.
-
+            dataloader_idx (int): The dataloader idx.
+        
         Returns:
-            y_hat (torch.Tensor): The output of the network.
+            (torch.Tensor): The output of the network.
         """
-        x, y = batch
-        y_hat = self.model(x)
-        return y_hat
+        return self(batch)
 
 
 
@@ -441,15 +438,15 @@ def main() -> None:
     input_dim = 5
     output_dim = 1
 
-    # MultiLayerPerceptron inputs
+    # RelativeEncoder inputs
     hidden_dim = 10
     hidden_size = 4
     activ_type = "softplus"
     
     data = torch.randn(input_dim)
     
-    print("Test for MultiLayerPerceptron...", end='\t')
-    mlp = MultiLayerPerceptron(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
+    print("Test for RelativeEncoder...", end='\t')
+    mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
     output = mlp(data)
     print("[Passed]")
 
