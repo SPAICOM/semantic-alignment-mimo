@@ -1,5 +1,5 @@
 """
-This python module handles the training of our models.
+This python module handles the training of the relative decoders.
 
 To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
 """
@@ -19,7 +19,7 @@ def main() -> None:
     import argparse
 
     description = """
-    This python module handles the training of our models.
+    This python module handles the training of the relative decoders.
 
     To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
     """

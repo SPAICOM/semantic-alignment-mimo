@@ -1,7 +1,7 @@
 """
-This python module handles the training of our models.
+This python module handles the training of the relative encoders.
 
-To check available parameters run 'python /path/to/main.py --help'.
+To check available parameters run 'python /path/to/train_only_relative_encoder.py --help'.
 """
 
 import wandb
@@ -19,9 +19,9 @@ def main() -> None:
     import argparse
 
     description = """
-    This python module handles the training of our models.
+    This python module handles the training of the relative encoders.
 
-    To check available parameters run 'python /path/to/main.py --help'.
+    To check available parameters run 'python /path/to/train_only_relative_encoder.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)
