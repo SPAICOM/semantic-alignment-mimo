@@ -17,6 +17,7 @@
           gdown
           numpy
           pip
+          polars
           python-dotenv
           pytorch-lightning
           timm

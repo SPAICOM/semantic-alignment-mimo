@@ -31,6 +31,7 @@ class DatasetRelativeEncoder(Dataset):
         self.z (torch.Tensor): The absolute representation of the Dataset encoder side.
         self.anchors (torch.Tensor): The absolute representation of the anchors encoder side.
         self.r_encoder (torch.Tensor): The relative representation of the Dataset encoder side.
+        self.labels (torch.Tensor): The labels of the Dataset.
         self.r_decoder (torch.Tensor): The relative representation of the Dataset decoder side.
         self.input_size (int): The size of the input of the network.
         self.output_size (int): The size of the output of the network.
@@ -64,8 +65,11 @@ class DatasetRelativeEncoder(Dataset):
         # Select the wanted anchors
         self.anchors = self.anchors[:num_anchors]
 
-        # Retriece the relative representation from the encoder
+        # Retrieve the relative representation from the encoder
         self.r_econder = encoder_blob['relative'][:, :self.num_anchors]
+
+        # Retrieve the labels
+        self.labels = encoder_blob['labels']
 
         del encoder_blob
 
@@ -127,7 +131,7 @@ class DatasetRelativeEncoder(Dataset):
             z_i = self.z[idx]
 
             # Define an input of the shape [z_i, a_1, ..., a_n]
-            input = torch.cat((z_i.unsqueeze(0), self.anchors), 0)
+            input = torch.cat((z_i.unsqueeze(0), self.anchors), dim=0)
             input = torch.flatten(input)
 
         # If the input is only the relative representation
@@ -152,6 +156,7 @@ class DatasetRelativeDecoder(Dataset):
         self.z (torch.Tensor): The absolute representation of the Dataset.
         self.anchors (torch.Tensor): The absolute representation of the anchors.
         self.r (torch.Tensor): The relative representation of the Dataset.
+        self.labels (torch.Tensor): The labels of the Dataset.
         self.input_size (int): The size of the input of the network.
         self.output_size (int): The size of the output of the network.
     """
@@ -180,6 +185,9 @@ class DatasetRelativeDecoder(Dataset):
 
         # Retrieve the relative representation from the decoder
         self.r = decoder_blob['relative'][:, :self.num_anchors]
+
+        # Retrieve the labels
+        self.labels = decoder_blob['labels']
 
         del decoder_blob
 
@@ -236,9 +244,6 @@ class DataModuleRelativeEncoder(LightningDataModule):
         batch_size (int): The size of a batch. Default 128.
         num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
-        train_size (int | float): The size of the train data. Default 0.7.
-        test_size (int | float): The size of the test data. Default 0.15.
-        val_size (int | float): The size of the val data. Default 0.15.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -250,10 +255,7 @@ class DataModuleRelativeEncoder(LightningDataModule):
                  num_anchors: int,
                  case: str,
                  batch_size: int = 128,
-                 num_workers: int = 0,
-                 train_size: int | float = 0.7,
-                 test_size: int | float = 0.15,
-                 val_size: int | float = 0.15) -> None:
+                 num_workers: int = 0) -> None:
         super().__init__()
 
         self.dataset: str = dataset
@@ -263,9 +265,6 @@ class DataModuleRelativeEncoder(LightningDataModule):
         self.num_anchors: int = num_anchors
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
-        self.train_size: int | float = train_size
-        self.test_size: int | float = test_size
-        self.val_size: int | float = val_size
 
 
     def prepare_data(self) -> None:
@@ -308,26 +307,26 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """This function setups a Dataset for our data.
 
         Args:
-            - stage (str): The stage of the setup. Default None.
+            stage (str): The stage of the setup. Default None.
 
         Returns:
-            - None.
+            None.
         """
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
         self.train_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
-                                                       decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                                       num_anchors=self.num_anchors,
-                                                       case=self.case)
+                                                 decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+                                                 num_anchors=self.num_anchors,
+                                                 case=self.case)
         self.test_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
-                                                      decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                                      num_anchors=self.num_anchors,
-                                                      case=self.case)
+                                                decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+                                                num_anchors=self.num_anchors,
+                                                case=self.case)
         self.val_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
-                                                     decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                                     num_anchors=self.num_anchors,
-                                                     case=self.case)
+                                               decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+                                               num_anchors=self.num_anchors,
+                                               case=self.case)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
@@ -352,7 +351,7 @@ class DataModuleRelativeEncoder(LightningDataModule):
         Returns:
             DataLoader : The test DataLoader.
         """
-        return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
 
     def val_dataloader(self) -> DataLoader:
@@ -360,6 +359,15 @@ class DataModuleRelativeEncoder(LightningDataModule):
 
         Returns:
             DataLoader : The validation DataLoader.
+        """
+        return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
+
+    def predict_dataloader(self) -> DataLoader:
+        """The function returns the predict DataLoader.
+
+        Returns:
+            DataLoader : The predict DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -375,9 +383,6 @@ class DataModuleRelativeDecoder(LightningDataModule):
         batch_size (int): The size of a batch. Default 128.
         num_workers (int): The number of workers. Setting it to 0 means that the data will be
                             loaded in the main process. Default 0.
-        train_size (int | float): The size of the train data. Default 0.7.
-        test_size (int | float): The size of the test data. Default 0.15.
-        val_size (int | float): The size of the val data. Default 0.15.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -387,10 +392,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
                  decoder: str,
                  num_anchors: int,
                  batch_size: int = 128,
-                 num_workers: int = 0,
-                 train_size: int | float = 0.7,
-                 test_size: int | float = 0.15,
-                 val_size: int | float = 0.15) -> None:
+                 num_workers: int = 0) -> None:
         super().__init__()
 
         self.dataset: str = dataset
@@ -398,9 +400,6 @@ class DataModuleRelativeDecoder(LightningDataModule):
         self.num_anchors: int = num_anchors
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
-        self.train_size: int | float = train_size
-        self.test_size: int | float = test_size
-        self.val_size: int | float = val_size
 
 
     def prepare_data(self) -> None:
@@ -452,11 +451,11 @@ class DataModuleRelativeDecoder(LightningDataModule):
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
         self.train_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                                       num_anchors=self.num_anchors)
+                                                 num_anchors=self.num_anchors)
         self.test_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                                      num_anchors=self.num_anchors)
+                                                num_anchors=self.num_anchors)
         self.val_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                                     num_anchors=self.num_anchors)
+                                               num_anchors=self.num_anchors)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
@@ -481,7 +480,7 @@ class DataModuleRelativeDecoder(LightningDataModule):
         Returns:
             DataLoader : The test DataLoader.
         """
-        return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+        return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
 
     def val_dataloader(self) -> DataLoader:
@@ -489,6 +488,15 @@ class DataModuleRelativeDecoder(LightningDataModule):
 
         Returns:
             DataLoader : The validation DataLoader.
+        """
+        return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
+
+    def predict_dataloader(self) -> DataLoader:
+        """The function returns the predict DataLoader.
+
+        Returns:
+            DataLoader : The predict DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 

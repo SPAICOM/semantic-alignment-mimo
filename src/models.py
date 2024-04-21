@@ -141,13 +141,13 @@ class RelativeEncoder(pl.LightningModule):
 
 
     def _shared_eval(self,
-                     batch: torch.Tensor,
+                     batch: list[torch.Tensor],
                      batch_idx: int,
                      prefix: str) -> tuple[torch.Tensor, torch.Tensor]:
         """A common step performend in the test and validation step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
             prefix (str): The step type for logging purposes.
 
@@ -163,12 +163,12 @@ class RelativeEncoder(pl.LightningModule):
 
 
     def training_step(self,
-                      batch: torch.Tensor,
+                      batch: list[torch.Tensor],
                       batch_idx: int) -> torch.Tensor:
         """The training step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -183,12 +183,12 @@ class RelativeEncoder(pl.LightningModule):
 
 
     def test_step(self,
-                  batch: torch.Tensor,
+                  batch: list[torch.Tensor],
                   batch_idx: int) -> None:
         """The test step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -199,12 +199,12 @@ class RelativeEncoder(pl.LightningModule):
 
 
     def validation_step(self,
-                        batch: torch.Tensor,
+                        batch: list[torch.Tensor],
                         batch_idx: int) -> torch.Tensor:
         """The validation step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -215,20 +215,21 @@ class RelativeEncoder(pl.LightningModule):
 
 
     def predict_step(self,
-                     batch: torch.Tensor,
+                     batch: list[torch.Tensor],
                      batch_idx: int,
                      dataloader_idx=0) -> torch.Tensor:
         """The predict step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
             dataloader_idx (int): The dataloader idx.
         
         Returns:
             (torch.Tensor): The output of the network.
         """
-        return self(batch)
+        x, y = batch
+        return self(x)
 
 
 class RelativeDecoder(pl.LightningModule):
@@ -338,13 +339,13 @@ class RelativeDecoder(pl.LightningModule):
 
 
     def _shared_eval(self,
-                     batch: torch.Tensor,
+                     batch: list[torch.Tensor],
                      batch_idx: int,
                      prefix: str) -> tuple[torch.Tensor, torch.Tensor]:
         """A common step performend in the test and validation step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
             prefix (str): The step type for logging purposes.
 
@@ -360,12 +361,12 @@ class RelativeDecoder(pl.LightningModule):
 
 
     def training_step(self,
-                      batch: torch.Tensor,
+                      batch: list[torch.Tensor],
                       batch_idx: int) -> torch.Tensor:
         """The training step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -380,12 +381,12 @@ class RelativeDecoder(pl.LightningModule):
 
 
     def test_step(self,
-                  batch: torch.Tensor,
+                  batch: list[torch.Tensor],
                   batch_idx: int) -> None:
         """The test step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -396,12 +397,12 @@ class RelativeDecoder(pl.LightningModule):
 
 
     def validation_step(self,
-                        batch: torch.Tensor,
+                        batch: list[torch.Tensor],
                         batch_idx: int) -> torch.Tensor:
         """The validation step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
 
         Returns:
@@ -412,20 +413,21 @@ class RelativeDecoder(pl.LightningModule):
 
 
     def predict_step(self,
-                     batch: torch.Tensor,
+                     batch: list[torch.Tensor],
                      batch_idx: int,
                      dataloader_idx=0) -> torch.Tensor:
         """The predict step.
 
         Args:
-            batch (torch.Tensor): The current batch.
+            batch (list[torch.Tensor]): The current batch.
             batch_idx (int): The batch index.
             dataloader_idx (int): The dataloader idx.
         
         Returns:
             (torch.Tensor): The output of the network.
         """
-        return self(batch)
+        x = batch[0]
+        return self(x)
 
 
 

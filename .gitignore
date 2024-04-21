@@ -1,8 +1,14 @@
 data/
+models/
 
 *.csv
 *.parquet
 *.pt
+
+*.ckpt
+
+lightning_logs/
+wandb/
 
 .venv/
 
