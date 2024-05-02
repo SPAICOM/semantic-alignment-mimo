@@ -1,8 +1,8 @@
 """In this python module we define class that handles the dataset:
     - DatasetRelativeEncoder: a custom Pytorch Dataset for encoding from an absolute representation to a relative one.
-    - DatasetRelativeDecoder: a custom Pytorch Dataset for decoding from a relative representation to an absolute one.
+    - DatasetClassifier: a custom Pytorch Dataset for classifing images.
     - DataModuleRelativeEncoder: a Pytorch Lightning Data Module for the Relative Encoder.
-    - DataModuleRelativeDecoder: a Pytorch Lightning Data Module for the Relative Decoder.
+    - DataModuleClassifier: a Pytorch Lightning Data Module for classifing the images.
 """
 
 import torch
@@ -69,7 +69,7 @@ class DatasetRelativeEncoder(Dataset):
         self.r_econder = encoder_blob['relative'][:, :self.num_anchors]
 
         # Retrieve the labels
-        self.labels = encoder_blob['labels']
+        self.labels = encoder_blob['coarse_labels']
 
         del encoder_blob
 
@@ -144,7 +144,7 @@ class DatasetRelativeEncoder(Dataset):
         return input, r_i
 
 
-class DatasetRelativeDecoder(Dataset):
+class DatasetClassifier(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
@@ -153,12 +153,11 @@ class DatasetRelativeDecoder(Dataset):
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        self.z (torch.Tensor): The absolute representation of the Dataset.
         self.anchors (torch.Tensor): The absolute representation of the anchors.
         self.r (torch.Tensor): The relative representation of the Dataset.
         self.labels (torch.Tensor): The labels of the Dataset.
         self.input_size (int): The size of the input of the network.
-        self.output_size (int): The size of the output of the network.
+        self.num_classes (int): The size of the number of classes.
     """
     def __init__(self,
                  path: Path,
@@ -171,13 +170,9 @@ class DatasetRelativeDecoder(Dataset):
         # =================================================
         decoder_blob = torch.load(self.path)
 
-        # Retrieve the absolute representation from the decoder
-        self.z = decoder_blob['absolute']
-
         # Retrieve the anchors from the decoder
         self.anchors = decoder_blob['anchors_latents']
 
-        assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
         assert num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
         
         # Select the wanted anchors
@@ -187,7 +182,7 @@ class DatasetRelativeDecoder(Dataset):
         self.r = decoder_blob['relative'][:, :self.num_anchors]
 
         # Retrieve the labels
-        self.labels = decoder_blob['labels']
+        self.labels = decoder_blob['coarse_labels']
 
         del decoder_blob
 
@@ -195,7 +190,7 @@ class DatasetRelativeDecoder(Dataset):
         #         Get the input and the output size
         # =================================================
         self.input_size = self.r.shape[-1]
-        self.output_size = self.z.shape[-1]
+        self.num_classes = self.labels.unique().shape[-1]
 
 
     def __len__(self) -> int:
@@ -221,9 +216,9 @@ class DatasetRelativeDecoder(Dataset):
         r_i = self.r[idx]
 
         # Get the absolute representation of the element at idx
-        z_i = self.z[idx]
+        l_i = self.labels[idx]
         
-        return r_i, z_i
+        return r_i, l_i
 
 
 # =====================================================
@@ -373,7 +368,7 @@ class DataModuleRelativeEncoder(LightningDataModule):
 
 
 
-class DataModuleRelativeDecoder(LightningDataModule):
+class DataModuleClassifier(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
@@ -450,18 +445,18 @@ class DataModuleRelativeDecoder(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
-        self.train_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                                 num_anchors=self.num_anchors)
-        self.test_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                                num_anchors=self.num_anchors)
-        self.val_data = DatasetRelativeDecoder(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                               num_anchors=self.num_anchors)
+        self.train_data = DatasetClassifier(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+                                            num_anchors=self.num_anchors)
+        self.test_data = DatasetClassifier(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+                                           num_anchors=self.num_anchors)
+        self.val_data = DatasetClassifier(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+                                          num_anchors=self.num_anchors)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
-        assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
+        assert self.train_data.num_classes == self.test_data.num_classes and self.train_data.num_classes == self.val_data.num_classes, "The number of classes must match between train, test and val data."
 
         self.input_size = self.train_data.input_size
-        self.output_size = self.train_data.output_size
+        self.num_classes = self.train_data.num_classes
         return None
 
 
@@ -539,9 +534,9 @@ def main() -> None:
     decoder = 'rexnet_100'
     num_anchors = 1024
     
-    data = DataModuleRelativeDecoder(dataset=dataset,
-                                     decoder=decoder,
-                                     num_anchors=num_anchors)
+    data = DataModuleClassifier(dataset=dataset,
+                                decoder=decoder,
+                                num_anchors=num_anchors)
     data.prepare_data()
     data.setup()
     next(iter(data.train_dataloader()))

@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+from torchmetrics.classification import MulticlassAccuracy
 
 
 # ==================================================================
@@ -232,12 +233,12 @@ class RelativeEncoder(pl.LightningModule):
         return self(x)
 
 
-class RelativeDecoder(pl.LightningModule):
-    """An implementation of a relative decoder using a MLP architecture in pytorch.
+class Classifier(pl.LightningModule):
+    """An implementation of a classifier using a MLP architecture in pytorch.
 
     Args:
         input_dim (int): The input dimension.
-        output_dim (int): The output dimension. Default 1.
+        num_classes (int): The number of classes. Default 20.
         hidden_dim (int): The hidden layer dimension. Default 10.
         hidden_size (int): The number of hidden layers. Default 10.
         lr (float): The learning rate. Default 1e-2. 
@@ -251,7 +252,7 @@ class RelativeDecoder(pl.LightningModule):
     """
     def __init__(self,
                  input_dim: int,
-                 output_dim: int = 1,
+                 num_classes: int = 20,
                  hidden_dim: int = 10,
                  hidden_size: int = 10,
                  lr: float = 1e-2,
@@ -262,6 +263,8 @@ class RelativeDecoder(pl.LightningModule):
 
         # Log the hyperparameters.
         self.save_hyperparameters()
+
+        self.accuracy = MulticlassAccuracy(num_classes=num_classes)
 
         # Example input
         self.example_input_array = torch.randn(self.hparams["input_dim"])
@@ -285,12 +288,12 @@ class RelativeDecoder(pl.LightningModule):
         # ================================================================
         #                         Output Layer
         # ================================================================
-        self.output_layer = nn.Linear(self.hparams["hidden_dim"], self.hparams["output_dim"])
+        self.output_layer = nn.Linear(self.hparams["hidden_dim"], self.hparams["num_classes"])
 
 
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
-        """The forward pass of the Relative Encoder.
+        """The forward pass of the Classifier.
 
         Args:
             x (torch.Tensor): The input tensor.
@@ -331,11 +334,11 @@ class RelativeDecoder(pl.LightningModule):
             y (torch.Tensor): The original output tensor.
 
         Returns:
-            - tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
+            (logits, loss) tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
         """
-        y_hat = self(x)
-        loss = nn.functional.mse_loss(y_hat, y)
-        return y_hat, loss
+        logits = self(x)
+        loss = nn.functional.cross_entropy(logits, y)
+        return logits, loss
 
 
     def _shared_eval(self,
@@ -350,14 +353,19 @@ class RelativeDecoder(pl.LightningModule):
             prefix (str): The step type for logging purposes.
 
         Returns:
-            (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
+            (logits, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
-        y_hat, loss = self.loss(x, y)
+        logits, loss = self.loss(x, y)
+
+        # Getting the predictions
+        preds = torch.argmax(logits, dim=1)
+        acc = self.accuracy(preds, y)
 
         self.log(f'{prefix}/loss_epoch', loss, on_step=False, on_epoch=True)
+        self.log(f'{prefix}/acc_epoch', acc, on_step=False, on_epoch=True)
 
-        return y_hat, loss
+        return preds, loss
 
 
     def training_step(self,
@@ -373,9 +381,14 @@ class RelativeDecoder(pl.LightningModule):
             loss (torch.Tensor): The epoch loss.
         """
         x, y = batch
-        _, loss = self.loss(x, y)
+        logits, loss = self.loss(x, y)
+
+        # Getting the predictions
+        preds = torch.argmax(logits, dim=1)
+        acc = self.accuracy(preds, y)
 
         self.log('train/loss', loss, on_epoch=True)
+        self.log('train/acc', acc, on_epoch=True)
 
         return loss
 
@@ -406,10 +419,10 @@ class RelativeDecoder(pl.LightningModule):
             batch_idx (int): The batch index.
 
         Returns:
-            y_hat (torch.Tensor): The output of the network.
+            preds (torch.Tensor): The output of the network.
         """
-        y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
-        return y_hat
+        preds, _ = self._shared_eval(batch, batch_idx, "valid")
+        return preds
 
 
     def predict_step(self,
@@ -424,10 +437,14 @@ class RelativeDecoder(pl.LightningModule):
             dataloader_idx (int): The dataloader idx.
         
         Returns:
-            (torch.Tensor): The output of the network.
+            preds (torch.Tensor): The output of the network.
         """
         x = batch[0]
-        return self(x)
+
+        logits = self(x)
+        preds = torch.argmax(logits, dim=1)
+        
+        return preds
 
 
 
@@ -439,6 +456,7 @@ def main() -> None:
     
     input_dim = 5
     output_dim = 1
+    num_classes = 1
 
     # RelativeEncoder inputs
     hidden_dim = 10
@@ -452,8 +470,8 @@ def main() -> None:
     output = mlp(data)
     print("[Passed]")
 
-    print("Test for RelativeDecoder...", end='\t')
-    mlp = RelativeDecoder(input_dim, output_dim, hidden_dim, hidden_size)
+    print("Test for Classifier...", end='\t')
+    mlp = Classifier(input_dim, num_classes, hidden_dim, hidden_size)
     output = mlp(data)
     print("[Passed]")
 

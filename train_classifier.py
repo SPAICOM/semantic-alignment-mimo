@@ -1,7 +1,7 @@
 """
-This python module handles the training of the relative decoders.
+This python module handles the training of the classifier.
 
-To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
+To check available parameters run 'python /path/to/train_classifier.py --help'.
 """
 
 import wandb
@@ -10,8 +10,8 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModuleRelativeDecoder
-from src.models import RelativeDecoder
+from src.datamodules import DataModuleClassifier
+from src.models import Classifier
 
 def main() -> None:
     """The main script loop.
@@ -19,9 +19,9 @@ def main() -> None:
     import argparse
 
     description = """
-    This python module handles the training of the relative decoders.
+    This python module handles the training of the classifiers.
 
-    To check available parameters run 'python /path/to/train_relative_decoder.py --help'.
+    To check available parameters run 'python /path/to/train_classifier.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)
@@ -51,8 +51,8 @@ def main() -> None:
 
     parser.add_argument('-l',
                         '--layers',
-                        help="The number of the hidden layers. Default 10.",
-                        default=10,
+                        help="The number of the hidden layers. Default 5.",
+                        default=5,
                         type=int)
 
     parser.add_argument('-w',
@@ -63,12 +63,12 @@ def main() -> None:
 
     parser.add_argument('-e',
                         '--epochs',
-                        help="The maximum number of epochs. Default 10.",
-                        default=100,
+                        help="The maximum number of epochs. Default -1.",
+                        default=-1,
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 0.1.",
+                        help="The learning rate. Default 1e-1.",
                         default=1e-1,
                         type=float)
 
@@ -83,37 +83,37 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModuleRelativeDecoder(dataset=args.dataset,
-                                           decoder=args.decoder,
-                                           num_anchors=args.anchors,
-                                           num_workers=args.workers)
+    datamodule = DataModuleClassifier(dataset=args.dataset,
+                                      decoder=args.decoder,
+                                      num_anchors=args.anchors,
+                                      num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
     # Initialize the model
-    model = RelativeDecoder(datamodule.input_size,
-                            datamodule.output_size,
-                            hidden_dim=args.neurons,
-                            hidden_size=args.layers,
-                            lr=args.lr,
-                            max_lr=0.3)
+    model = Classifier(datamodule.input_size,
+                       datamodule.num_classes,
+                       hidden_dim=args.neurons,
+                       hidden_size=args.layers,
+                       lr=args.lr,
+                       max_lr=0.3)
 
     # Callbacks definition
     callbacks = [
         LearningRateMonitor(logging_interval='step',
                             log_momentum=True),
         EarlyStopping(monitor='valid/loss_epoch', patience=20),
-        ModelCheckpoint(monitor='valid/loss_epoch',
-                        mode='min'),
+        ModelCheckpoint(monitor='valid/acc_epoch',
+                        mode='max'),
         BatchSizeFinder(mode='binsearch',
                         max_trials=8)
     ]
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'RelDec_{args.decoder}',
+    wandb_logger = WandbLogger(project=f'Classifier_{args.decoder}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,
