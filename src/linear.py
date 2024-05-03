@@ -58,7 +58,14 @@ class LinearOptimizer():
 
     def transform(self,
                   input: torch.Tensor):
-        """
+        """Transform the passed input.
+
+        Args:
+            input : torch.Tensor
+
+        Returns:
+            torch.Tensor
+                The input@self.W version output.
         """
         assert self.W is not None, "The 'W' matrix is currently None. You have to first fit the Linear model."
         input = torch.nn.functional.normalize(input, p=2, dim=-1)
@@ -68,7 +75,17 @@ class LinearOptimizer():
     def eval(self,
              input: torch.Tensor,
              output: torch.Tensor) -> float:
-        """
+        """Eval an input given an expected output.
+
+        Args:
+            input : torch.Tensor
+                The input tensor.
+            output : torch.Tensor
+                The output tensor.
+        
+        Returns:
+            float
+                The mse loss.
         """
         preds = self.transform(input)
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
