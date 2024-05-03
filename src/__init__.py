@@ -1,1 +1,1 @@
-__all__ = ['datamodule', 'models']
+__all__ = ['datamodule', 'linear', 'models']
