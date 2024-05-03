@@ -62,7 +62,7 @@ class LinearOptimizer():
         
 
     def transform(self,
-                  input: torch.Tensor):
+                  input: torch.Tensor) -> torch.Tensor:
         """Transform the passed input.
 
         Args:
