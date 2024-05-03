@@ -14,6 +14,11 @@ class LinearOptimizer():
     Args:
         solver : str
             The type of solver strategy used. Choose between ['ortho', 'free']. Default 'ortho'.
+
+    Attributes:
+        self.<args_name>
+        self.W : torch.Tensor
+            The matrix that solves the linear problem.
     """
     def __init__(self,
                  solver: str = 'ortho'):

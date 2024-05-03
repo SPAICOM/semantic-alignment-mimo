@@ -4,7 +4,7 @@ This python module handles the training of the linear optimizer.
 To check available parameters run 'python /path/to/train_linear.py --help'.
 """
 
-from src.linear import  LinearOptimizer
+from src.linear_optim import  LinearOptimizer
 from src.datamodules import DataModuleRelativeEncoder
 
 def main() -> None:
