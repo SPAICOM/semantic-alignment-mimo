@@ -49,7 +49,7 @@ def main() -> None:
         #                            Classfier Stuff
         # =========================================================================
         # Define the path towards the classifier
-        clf_path: Path = MODELS_DIR / f"decoders/{dataset}/{decoder}/anchors_{anchors}.ckpt"
+        clf_path: Path = MODELS_DIR / f"decoders/{dataset}/{decoder}/{function}/anchors_{anchors}.ckpt"
 
         # Load the classifier model
         clf = Classifier.load_from_checkpoint(clf_path)
@@ -66,14 +66,13 @@ def main() -> None:
         # =========================================================================
         #                           Computing the results
         # =========================================================================
-
-
         # Get the relative representation in the decoder space
         r_psi_hat = torch.cat(trainer.predict(model=enc_model, datamodule=enc_datamodule))
-        dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
-       
+        alignment_metrics = trainer.test(model=enc_model, datamodule=enc_datamodule)[0]
+              
         # Get the predictions using as input the r_psi_hat
-        metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+        dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
+        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
         
         results = results.vstack(pl.DataFrame(
                                  {
@@ -83,18 +82,18 @@ def main() -> None:
                                      'Function': function,
                                      'Case': case,
                                      'Anchors': anchors,
-                                     'Classifier Loss': metrics['test/loss_epoch'],
-                                     'Accuracy': metrics['test/acc_epoch']
+                                     'Alignment Loss': alignment_metrics['test/loss_epoch'],
+                                     'Classifier Loss': clf_metrics['test/loss_epoch'],
+                                     'Accuracy': clf_metrics['test/acc_epoch']
                                  }
                                  ))
   
-    results.write_parquet("results.parquet")
-
-    # Get the original values
-    original = pl.DataFrame()
+    # ==============================================================
+    #                Get the original values
+    # ==============================================================
     for clf_path in (MODELS_DIR / 'decoders').rglob('*.ckpt'):
         # Getting the settings
-        _, _, dataset, decoder, ckpt = str(clf_path).split("\\")
+        _, _, dataset, decoder, function, ckpt = str(clf_path).split("\\")
         anchors = int(ckpt.split('.')[0].split('_')[-1])
 
         # Load the classifier model
@@ -117,15 +116,17 @@ def main() -> None:
                                        'Dataset': dataset,
                                        'Encoder': decoder,
                                        'Decoder': decoder,
-                                       'Function': None,
-                                       'Case': None,
+                                       'Function': function,
+                                       'Case': 'Original Model',
                                        'Anchors': anchors,
+                                       'Alignment Loss': None,
                                        'Classifier Loss': metrics['test/loss_epoch'],
                                        'Accuracy': metrics['test/acc_epoch']
                                    }
                                    ))
 
     print(results)
+    results.write_parquet('results.parquet')
     
     return None
 
