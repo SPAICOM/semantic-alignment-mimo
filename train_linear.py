@@ -71,8 +71,10 @@ def main() -> None:
     # Get the linear optimizer
     opt = LinearOptimizer(solver=args.solver)
 
+    # Fit the optimizer
     opt.fit(datamodule.train_data.z, datamodule.train_data.r_decoder)
     
+    # Examples of evaluation
     print(opt.eval(datamodule.train_data.z, datamodule.train_data.r_decoder))
     print(opt.eval(datamodule.val_data.z, datamodule.val_data.r_decoder))
     print(opt.eval(datamodule.test_data.z, datamodule.test_data.r_decoder))

@@ -8,6 +8,7 @@ from timm import create_model
 from pytorch_lightning import Trainer
 from torch.utils.data import TensorDataset, DataLoader
 
+from src.linear_optim import LinearOptimizer
 from src.models import RelativeEncoder, Classifier
 from src.datamodules import DataModuleRelativeEncoder, DataModuleClassifier
 
@@ -20,8 +21,9 @@ def main() -> None:
     MODELS_DIR: Path = CURRENT / "models"
     
     batch_size = 512
+    solvers = ['ortho', 'free']
     trainer = Trainer(inference_mode=True, enable_progress_bar=False, logger=False)
-    
+
     results = pl.DataFrame()
     for encoder_path in (MODELS_DIR / 'encoders').rglob('*.ckpt'):
         # Getting the settings
@@ -74,19 +76,53 @@ def main() -> None:
         dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
         clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
         
-        results = results.vstack(pl.DataFrame(
-                                 {
-                                     'Dataset': dataset,
-                                     'Encoder': encoder,
-                                     'Decoder': decoder,
-                                     'Function': function,
-                                     'Case': case,
-                                     'Anchors': anchors,
-                                     'Alignment Loss': alignment_metrics['test/loss_epoch'],
-                                     'Classifier Loss': clf_metrics['test/loss_epoch'],
-                                     'Accuracy': clf_metrics['test/acc_epoch']
-                                 }
-                                 ))
+        results.vstack(pl.DataFrame(
+                       {
+                           'Dataset': dataset,
+                           'Encoder': encoder,
+                           'Decoder': decoder,
+                           'Function': function,
+                           'Case': case,
+                           'Anchors': anchors,
+                           'Alignment Loss': alignment_metrics['test/loss_epoch'],
+                           'Classifier Loss': clf_metrics['test/loss_epoch'],
+                           'Accuracy': clf_metrics['test/acc_epoch']
+                       }),
+                       in_place=True)
+
+        # =========================================================================
+        #                           Linear Optimizer
+        # =========================================================================
+        # Get the linear optimizer results
+        if case == "abs":
+            for solver in solvers:
+                # Get the Linear Optimizer
+                opt = LinearOptimizer(solver=solver)
+
+                # Fit the optimizer
+                opt.fit(enc_datamodule.train_data.z, enc_datamodule.train_data.r_decoder)
+
+                # Get the relative representation in the decoder space
+                r_psi_hat = opt.transform(enc_datamodule.test_data.z)
+                
+                # Get the predictions using as input the r_psi_hat
+                dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
+                clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+                results.vstack(pl.DataFrame(
+                               {
+                                   'Dataset': dataset,
+                                   'Encoder': encoder,
+                                   'Decoder': decoder,
+                                   'Function': function,
+                                   'Case': f'{case} linear {solver}',
+                                   'Anchors': anchors,
+                                   'Alignment Loss': opt.eval(enc_datamodule.test_data.z, enc_datamodule.test_data.r_decoder),
+                                   'Classifier Loss': clf_metrics['test/loss_epoch'],
+                                   'Accuracy': clf_metrics['test/acc_epoch']
+                               }),
+                               in_place=True)
+
   
     # ==============================================================
     #                Get the original values
@@ -111,19 +147,19 @@ def main() -> None:
         # Get the accuracy
         metrics = trainer.test(model=clf, datamodule=clf_datamodule)[0]
         
-        results = results.vstack(pl.DataFrame(
-                                   {
-                                       'Dataset': dataset,
-                                       'Encoder': decoder,
-                                       'Decoder': decoder,
-                                       'Function': function,
-                                       'Case': 'Original Model',
-                                       'Anchors': anchors,
-                                       'Alignment Loss': None,
-                                       'Classifier Loss': metrics['test/loss_epoch'],
-                                       'Accuracy': metrics['test/acc_epoch']
-                                   }
-                                   ))
+        results.vstack(pl.DataFrame(
+                       {
+                           'Dataset': dataset,
+                           'Encoder': decoder,
+                           'Decoder': decoder,
+                           'Function': function,
+                           'Case': 'Original Model',
+                           'Anchors': anchors,
+                           'Alignment Loss': None,
+                           'Classifier Loss': metrics['test/loss_epoch'],
+                           'Accuracy': metrics['test/acc_epoch']
+                       }),
+                       in_place=True)
 
     print(results)
     results.write_parquet('results.parquet')
