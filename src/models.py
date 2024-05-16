@@ -271,9 +271,7 @@ class Classifier(pl.LightningModule):
             nn.LayerNorm(normalized_shape=self.hparams['input_dim']),
             nn.Linear(self.hparams["input_dim"], self.hparams["hidden_dim"]),
             nn.Tanh(),
-            # self.Lambda(lambda x: x.permute(1, 0)),
-            # nn.InstanceNorm1d(self.hparams["hidden_dim"]),
-            # self.Lambda(lambda x: x.permute(1, 0)),
+            nn.LayerNorm(normalized_shape=self.hparams['hidden_dim']),
             nn.Linear(self.hparams["hidden_dim"], self.hparams["num_classes"])
         )
 
@@ -432,28 +430,6 @@ class Classifier(pl.LightningModule):
         preds = torch.argmax(logits, dim=1)
         
         return preds
-
-
-    class Lambda(nn.Module):
-        """An inner class defined at 'https://github.com/lucmos/relreps/blob/main/experiments/sec%3Amodel-reusability-vision/vision_stitching_cifar100.ipynb'.
-        """
-        def __init__(self, func):
-            super().__init__()
-            self.func = func
-
-        def forward(self,
-                    x: torch.Tensor) -> torch.Tensor:
-            """The forward pass.
-
-            Args:
-                x : torch.Tensor
-                    The input tensor.
-
-            Returns:
-                torch.Tensor
-                    The output in tensor format.
-            """
-            return self.func(x)
 
 
 
