@@ -115,13 +115,13 @@ class RelativeEncoder(pl.LightningModule):
         Returns:
             dict[str, object] : The optimizer and scheduler.
         """
-        optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])#, momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
         return {
             "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
-                "monitor": "valid/loss_epoch"
-            }    
+            # "lr_scheduler": {
+            #     "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
+            #     "monitor": "valid/loss_epoch"
+            # }    
         }
 
     def loss(self,
@@ -240,7 +240,6 @@ class Classifier(pl.LightningModule):
         input_dim (int): The input dimension.
         num_classes (int): The number of classes. Default 20.
         hidden_dim (int): The hidden layer dimension. Default 10.
-        hidden_size (int): The number of hidden layers. Default 10.
         lr (float): The learning rate. Default 1e-2. 
         momentum (float): How much momentum to apply. Default 0.9.
         nesterov (bool): If set to True use nesterov type of momentum. Default True.
@@ -254,7 +253,6 @@ class Classifier(pl.LightningModule):
                  input_dim: int,
                  num_classes: int = 20,
                  hidden_dim: int = 10,
-                 hidden_size: int = 10,
                  lr: float = 1e-2,
                  momentum: float = 0.9,
                  nesterov: bool = True,
@@ -264,31 +262,20 @@ class Classifier(pl.LightningModule):
         # Log the hyperparameters.
         self.save_hyperparameters()
 
-        self.accuracy = MulticlassAccuracy(num_classes=num_classes)
+        self.accuracy = MulticlassAccuracy(num_classes=self.hparams["num_classes"])
 
         # Example input
         self.example_input_array = torch.randn(self.hparams["input_dim"])
 
-        # ================================================================
-        #                         Input Layer
-        # ================================================================
-        self.input_layer = nn.Sequential(
-                                         nn.Linear(self.hparams["input_dim"], self.hparams["hidden_dim"]),
-                                         nn.GELU()
-                                         )
-
-        # ================================================================
-        #                         Hidden Layers
-        # ================================================================
-        self.hidden_layers = nn.ModuleList([nn.Sequential(
-                                                          nn.Linear(self.hparams["hidden_dim"], self.hparams["hidden_dim"]),
-                                                          nn.GELU()
-                                                          ) for _ in range(self.hparams["hidden_size"])])
-
-        # ================================================================
-        #                         Output Layer
-        # ================================================================
-        self.output_layer = nn.Linear(self.hparams["hidden_dim"], self.hparams["num_classes"])
+        self.model = nn.Sequential(
+            nn.LayerNorm(normalized_shape=self.hparams['input_dim']),
+            nn.Linear(self.hparams["input_dim"], self.hparams["hidden_dim"]),
+            nn.Tanh(),
+            # self.Lambda(lambda x: x.permute(1, 0)),
+            # nn.InstanceNorm1d(self.hparams["hidden_dim"]),
+            # self.Lambda(lambda x: x.permute(1, 0)),
+            nn.Linear(self.hparams["hidden_dim"], self.hparams["num_classes"])
+        )
 
 
     def forward(self,
@@ -296,31 +283,31 @@ class Classifier(pl.LightningModule):
         """The forward pass of the Classifier.
 
         Args:
-            x (torch.Tensor): The input tensor.
+            x : torch.Tensor
+                The input tensor.
 
         Returns:
-            torch.Tensor : The output of the MLP.
+            torch.Tensor
+                The output of the MLP.
         """
-        x = self.input_layer(x)
-        for layer in self.hidden_layers:
-            x = layer(x)
-        x = self.output_layer(x)
-        return x
+        x = nn.functional.normalize(x, p=2, dim=-1)
+        return self.model(x)
 
 
     def configure_optimizers(self) -> dict[str, object]:
         """Define the optimizer: Stochastic Gradient Descent.
 
         Returns:
-            dict[str, object] : The optimizer and scheduler.
+            dict[str, object]
+                The optimizer and scheduler.
         """
-        optimizer = torch.optim.SGD(self.parameters(), lr=self.hparams["lr"], momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])#, momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
         return {
             "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
-                "monitor": "valid/loss_epoch"
-            }    
+            # "lr_scheduler": {
+            #     "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
+            #     "monitor": "valid/loss_epoch"
+            # }    
         }
 
     
@@ -447,6 +434,28 @@ class Classifier(pl.LightningModule):
         return preds
 
 
+    class Lambda(nn.Module):
+        """An inner class defined at 'https://github.com/lucmos/relreps/blob/main/experiments/sec%3Amodel-reusability-vision/vision_stitching_cifar100.ipynb'.
+        """
+        def __init__(self, func):
+            super().__init__()
+            self.func = func
+
+        def forward(self,
+                    x: torch.Tensor) -> torch.Tensor:
+            """The forward pass.
+
+            Args:
+                x : torch.Tensor
+                    The input tensor.
+
+            Returns:
+                torch.Tensor
+                    The output in tensor format.
+            """
+            return self.func(x)
+
+
 
 def main() -> None:
     """The main script loop in which we perform some sanity tests.
@@ -455,15 +464,16 @@ def main() -> None:
     print()
     
     input_dim = 5
-    output_dim = 1
-    num_classes = 1
+    samples = 2
+    output_dim = 2
+    num_classes = 2
 
     # RelativeEncoder inputs
     hidden_dim = 10
     hidden_size = 4
     activ_type = "softplus"
     
-    data = torch.randn(input_dim)
+    data = torch.randn(samples, input_dim)
     
     print("Test for RelativeEncoder...", end='\t')
     mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)

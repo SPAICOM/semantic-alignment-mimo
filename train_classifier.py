@@ -49,12 +49,6 @@ def main() -> None:
                         required=True,
                         type=int)
 
-    parser.add_argument('-l',
-                        '--layers',
-                        help="The number of the hidden layers. Default 5.",
-                        default=5,
-                        type=int)
-
     parser.add_argument('-w',
                         '--workers',
                         help="Number of workers. Default 0.",
@@ -68,8 +62,8 @@ def main() -> None:
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 1e-1.",
-                        default=1e-1,
+                        help="The learning rate. Default 1e-3.",
+                        default=1e-3,
                         type=float)
 
     parser.add_argument('--seed',
@@ -96,7 +90,6 @@ def main() -> None:
     model = Classifier(datamodule.input_size,
                        datamodule.num_classes,
                        hidden_dim=args.neurons,
-                       hidden_size=args.layers,
                        lr=args.lr,
                        max_lr=0.3)
 

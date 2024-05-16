@@ -1,6 +1,9 @@
 data/
 models/
 
+*.png
+*.jpeg
+*.jpg
 *.csv
 *.parquet
 *.pt

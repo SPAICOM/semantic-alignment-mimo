@@ -27,7 +27,8 @@ def main() -> None:
     results = pl.DataFrame()
     for encoder_path in (MODELS_DIR / 'encoders').rglob('*.ckpt'):
         # Getting the settings
-        _, _, dataset, encoder, decoder, function, case, ckpt = str(encoder_path).split("\\")
+        _, _, dataset, encoder, decoder, function, case, seed, ckpt = str(encoder_path.as_posix()).split("/")
+        seed = int(seed.split('_')[-1])
         anchors = int(ckpt.split('.')[0].split('_')[-1])
         
         # =========================================================================
@@ -51,7 +52,7 @@ def main() -> None:
         #                            Classfier Stuff
         # =========================================================================
         # Define the path towards the classifier
-        clf_path: Path = MODELS_DIR / f"decoders/{dataset}/{decoder}/{function}/anchors_{anchors}.ckpt"
+        clf_path: Path = MODELS_DIR / f"decoders/{dataset}/{decoder}/{function}/seed_{seed}/anchors_{anchors}.ckpt"
 
         # Load the classifier model
         clf = Classifier.load_from_checkpoint(clf_path)
@@ -82,7 +83,8 @@ def main() -> None:
                            'Encoder': encoder,
                            'Decoder': decoder,
                            'Function': function,
-                           'Case': case,
+                           'Case': f'{case} NN',
+                           'Seed': seed,
                            'Anchors': anchors,
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
@@ -116,6 +118,7 @@ def main() -> None:
                                    'Decoder': decoder,
                                    'Function': function,
                                    'Case': f'{case} linear {solver}',
+                                   'Seed': seed,
                                    'Anchors': anchors,
                                    'Alignment Loss': opt.eval(enc_datamodule.test_data.z, enc_datamodule.test_data.r_decoder),
                                    'Classifier Loss': clf_metrics['test/loss_epoch'],
@@ -129,7 +132,8 @@ def main() -> None:
     # ==============================================================
     for clf_path in (MODELS_DIR / 'decoders').rglob('*.ckpt'):
         # Getting the settings
-        _, _, dataset, decoder, function, ckpt = str(clf_path).split("\\")
+        _, _, dataset, decoder, function, seed, ckpt = str(clf_path.as_posix()).split("/")
+        seed = int(seed.split('_')[-1])
         anchors = int(ckpt.split('.')[0].split('_')[-1])
 
         # Load the classifier model
@@ -154,6 +158,7 @@ def main() -> None:
                            'Decoder': decoder,
                            'Function': function,
                            'Case': 'Original Model',
+                           'Seed': seed,
                            'Anchors': anchors,
                            'Alignment Loss': None,
                            'Classifier Loss': metrics['test/loss_epoch'],
