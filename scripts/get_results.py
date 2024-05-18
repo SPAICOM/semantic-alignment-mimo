@@ -1,9 +1,12 @@
 """Script for getting the final parquet with the results.
 """
+# Add root to the path
+import sys
+from pathlib import Path
+sys.path.append(str(Path(sys.path[0]).parent))
 
 import torch
 import polars as pl
-from pathlib import Path
 from timm import create_model
 from pytorch_lightning import Trainer
 from torch.utils.data import TensorDataset, DataLoader

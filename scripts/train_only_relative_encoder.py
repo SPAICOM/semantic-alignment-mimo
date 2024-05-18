@@ -1,17 +1,20 @@
 """
-This python module handles the training of the classifier.
+This python module handles the training of the relative encoders.
 
-To check available parameters run 'python /path/to/train_classifier.py --help'.
+To check available parameters run 'python /path/to/train_only_relative_encoder.py --help'.
 """
+# Add root to the path
+import sys
+from pathlib import Path
+sys.path.append(str(Path(sys.path[0]).parent))
 
 import wandb
-from pathlib import Path
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModuleClassifier
-from src.models import Classifier
+from src.datamodules import DataModuleRelativeEncoder
+from src.models import RelativeEncoder
 
 def main() -> None:
     """The main script loop.
@@ -19,9 +22,9 @@ def main() -> None:
     import argparse
 
     description = """
-    This python module handles the training of the classifiers.
+    This python module handles the training of the relative encoders.
 
-    To check available parameters run 'python /path/to/train_classifier.py --help'.
+    To check available parameters run 'python /path/to/train_only_relative_encoder.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)
@@ -29,6 +32,11 @@ def main() -> None:
     parser.add_argument('-d',
                         '--dataset',
                         help="The dataset.",
+                        type=str,
+                        required=True)
+
+    parser.add_argument('--encoder',
+                        help="The encoder.",
                         type=str,
                         required=True)
 
@@ -43,10 +51,29 @@ def main() -> None:
                         type=int,
                         required=True)
 
+    parser.add_argument('-c',
+                        '--case',
+                        help="The case of the network input. Default 'abs'.",
+                        default='abs',
+                        type=str)
+
+    parser.add_argument('-f',
+                        '--function',
+                        help="Activation function to set the right co-domain.",
+                        choices=['tanh', 'sigmoid', 'softplus', 'relu'],
+                        type=str,
+                        required=True)
+
     parser.add_argument('-n',
                         '--neurons',
                         help="The hidden layer dimension.",
                         required=True,
+                        type=int)
+
+    parser.add_argument('-l',
+                        '--layers',
+                        help="The number of the hidden layers. Default 10.",
+                        default=10,
                         type=int)
 
     parser.add_argument('-w',
@@ -62,8 +89,8 @@ def main() -> None:
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 1e-3.",
-                        default=1e-3,
+                        help="The learning rate. Default 0.1.",
+                        default=1e-1,
                         type=float)
 
     parser.add_argument('--seed',
@@ -77,36 +104,39 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModuleClassifier(dataset=args.dataset,
-                                      decoder=args.decoder,
-                                      num_anchors=args.anchors,
-                                      num_workers=args.workers)
+    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
+                                           encoder=args.encoder,
+                                           decoder=args.decoder,
+                                           num_anchors=args.anchors,
+                                           case=args.case,
+                                           num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
     # Initialize the model
-    model = Classifier(datamodule.input_size,
-                       datamodule.num_classes,
-                       hidden_dim=args.neurons,
-                       lr=args.lr,
-                       max_lr=0.3)
+    model = RelativeEncoder(datamodule.input_size,
+                            datamodule.output_size,
+                            hidden_dim=args.neurons,
+                            hidden_size=args.layers,
+                            activ_type=args.function,
+                            lr=args.lr)
 
     # Callbacks definition
     callbacks = [
         LearningRateMonitor(logging_interval='step',
                             log_momentum=True),
-        EarlyStopping(monitor='valid/loss_epoch', patience=20),
-        ModelCheckpoint(monitor='valid/acc_epoch',
-                        mode='max'),
+        EarlyStopping(monitor='valid/loss_epoch', patience=10),
+        ModelCheckpoint(monitor='valid/loss_epoch',
+                        mode='min'),
         BatchSizeFinder(mode='binsearch',
                         max_trials=8)
     ]
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'Classifier_{args.decoder}',
+    wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

@@ -3,6 +3,10 @@ This python module handles the training of the linear optimizer.
 
 To check available parameters run 'python /path/to/train_linear.py --help'.
 """
+# Add root to the path
+import sys
+from pathlib import Path
+sys.path.append(str(Path(sys.path[0]).parent))
 
 from src.linear_optim import  LinearOptimizer
 from src.datamodules import DataModuleRelativeEncoder
