@@ -16,8 +16,10 @@ def relative_projection(x: torch.Tensor,
     """Given a set of anchors and of x observations, it returns the projection of x over the anchors.
 
     Args:
-        - x (torch.Tensor): The observations x.
-        - anchors (torch.Tensor): The anchors.
+        x : torch.Tensor
+            The observations x.
+        anchors : torch.Tensor
+            The anchors.
 
     Returns:
         - torch.Tensor : The projection of x over the anchors.

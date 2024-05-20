@@ -21,20 +21,31 @@ class DatasetRelativeEncoder(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
-        encoder_path (Path): The path to the encoder.
-        decider_path (Path): The path to the decoder.
-        num_anchors (int): The number of anchors to use.
-        case (str): The input case. Choose between 'rel', 'abs' or 'abs_anch'.
+        encoder_path : Path
+            The path to the encoder.
+        decider_path : Path
+            The path to the decoder.
+        num_anchors : int
+            The number of anchors to use.
+        case : str
+            The input case. Choose between 'rel', 'abs' or 'abs_anch'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        self.z (torch.Tensor): The absolute representation of the Dataset encoder side.
-        self.anchors (torch.Tensor): The absolute representation of the anchors encoder side.
-        self.r_encoder (torch.Tensor): The relative representation of the Dataset encoder side.
-        self.labels (torch.Tensor): The labels of the Dataset.
-        self.r_decoder (torch.Tensor): The relative representation of the Dataset decoder side.
-        self.input_size (int): The size of the input of the network.
-        self.output_size (int): The size of the output of the network.
+        self.z : torch.Tensor
+            The absolute representation of the Dataset encoder side.
+        self.anchors : torch.Tensor
+            The absolute representation of the anchors encoder side.
+        self.r_encoder : torch.Tensor
+            The relative representation of the Dataset encoder side.
+        self.labels : torch.Tensor
+            The labels of the Dataset.
+        self.r_decoder : torch.Tensor
+            The relative representation of the Dataset decoder side.
+        self.input_size : int
+            The size of the input of the network.
+        self.output_size : int
+            The size of the output of the network.
     """
     def __init__(self,
                  encoder_path: Path,
@@ -105,7 +116,8 @@ class DatasetRelativeEncoder(Dataset):
         """Returns the length of the Dataset.
 
         Returns:
-            int : Length of the Dataset.
+            int
+                Length of the Dataset.
         """
         return len(self.z)
 
@@ -115,10 +127,12 @@ class DatasetRelativeEncoder(Dataset):
         """Returns in a torch.Tensor format the input and the target.
 
         Args:
-            idx (int): The index of the wanted row.
+            idx : int
+                The index of the wanted row.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
+            (input, r_i) : tuple[torch.Tensor, torch.Tensor]
+                The inputs and target as a tuple of tensors.
         """
         # If input is only the absolute representation
         if self.case == 'abs':
@@ -148,16 +162,23 @@ class DatasetClassifier(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
-        path (Path): The path to the data.
-        num_anchors (int): The number of anchors to use.
+        path : Path
+            The path to the data.
+        num_anchors : int
+            The number of anchors to use.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        self.anchors (torch.Tensor): The absolute representation of the anchors.
-        self.r (torch.Tensor): The relative representation of the Dataset.
-        self.labels (torch.Tensor): The labels of the Dataset.
-        self.input_size (int): The size of the input of the network.
-        self.num_classes (int): The size of the number of classes.
+        self.anchors : torch.Tensor
+            The absolute representation of the anchors.
+        self.r : torch.Tensor
+            The relative representation of the Dataset.
+        self.labels : torch.Tensor
+            The labels of the Dataset.
+        self.input_size : int
+            The size of the input of the network.
+        self.num_classes : int
+            The size of the number of classes.
     """
     def __init__(self,
                  path: Path,
@@ -197,7 +218,8 @@ class DatasetClassifier(Dataset):
         """Returns the length of the Dataset.
 
         Returns:
-            int : Length of the Dataset.
+            int
+            Length of the Dataset.
         """
         return len(self.r)
 
@@ -207,10 +229,12 @@ class DatasetClassifier(Dataset):
         """Returns in a torch.Tensor format the input and the target.
 
         Args:
-            idx (int): The index of the wanted row.
+            idx : int
+                The index of the wanted row.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor] : The inputs and target as a tuple of tensors.
+            (r_i, l_i) : tuple[torch.Tensor, torch.Tensor]
+                The inputs and target as a tuple of tensors.
         """
         # Get the relative representation of the element at idx
         r_i = self.r[idx]
@@ -231,14 +255,21 @@ class DataModuleRelativeEncoder(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
-        dataset (str): The name of the dataset.
-        encoder (str): The name of the encoder.
-        decoder (str): The name of the decoder.
-        num_anchors (int): The number of anchors to use.
-        case (str): The case argument of the Dataset.
-        batch_size (int): The size of a batch. Default 128.
-        num_workers (int): The number of workers. Setting it to 0 means that the data will be
-                            loaded in the main process. Default 0.
+        dataset : str
+            The name of the dataset.
+        encoder : str
+            The name of the encoder.
+        decoder : str
+            The name of the decoder.
+        num_anchors : int
+            The number of anchors to use.
+        case : str
+            The case argument of the Dataset.
+        batch_size : int
+            The size of a batch. Default 128.
+        num_workers : int
+            The number of workers. Setting it to 0 means that the data will be
+            loaded in the main process. Default 0.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -302,7 +333,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """This function setups a Dataset for our data.
 
         Args:
-            stage (str): The stage of the setup. Default None.
+            stage : str
+                The stage of the setup. Default None.
 
         Returns:
             None.
@@ -335,7 +367,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """The function returns the train DataLoader.
 
         Returns:
-            DataLoader : The train DataLoader.
+            DataLoader
+                The train DataLoader.
         """
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
@@ -344,7 +377,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """The function returns the test DataLoader.
 
         Returns:
-            DataLoader : The test DataLoader.
+            DataLoader
+                The test DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -353,7 +387,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """The function returns the validation DataLoader.
 
         Returns:
-            DataLoader : The validation DataLoader.
+            DataLoader
+                The validation DataLoader.
         """
         return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -362,7 +397,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
         """The function returns the predict DataLoader.
 
         Returns:
-            DataLoader : The predict DataLoader.
+            DataLoader
+                The predict DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -372,12 +408,17 @@ class DataModuleClassifier(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
-        dataset (str): The name of the dataset.
-        decoder (str): The name of the decoder.
-        num_anchors (int): The number of anchors to use.
-        batch_size (int): The size of a batch. Default 128.
-        num_workers (int): The number of workers. Setting it to 0 means that the data will be
-                            loaded in the main process. Default 0.
+        dataset : str
+            The name of the dataset.
+        decoder : str
+            The name of the decoder.
+        num_anchors : int
+            The number of anchors to use.
+        batch_size : int
+            The size of a batch. Default 128.
+        num_workers : int
+            The number of workers. Setting it to 0 means that the data will be
+            loaded in the main process. Default 0.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -437,7 +478,8 @@ class DataModuleClassifier(LightningDataModule):
         """This function setups a DatasetRelativeDecoder for our data.
 
         Args:
-            stage (str): The stage of the setup. Default None.
+            stage : str
+                The stage of the setup. Default None.
 
         Returns:
             None.
@@ -464,7 +506,8 @@ class DataModuleClassifier(LightningDataModule):
         """The function returns the train DataLoader.
 
         Returns:
-            DataLoader : The train DataLoader.
+            DataLoader
+                The train DataLoader.
         """
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
@@ -473,7 +516,8 @@ class DataModuleClassifier(LightningDataModule):
         """The function returns the test DataLoader.
 
         Returns:
-            DataLoader : The test DataLoader.
+            DataLoader
+                The test DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -482,7 +526,8 @@ class DataModuleClassifier(LightningDataModule):
         """The function returns the validation DataLoader.
 
         Returns:
-            DataLoader : The validation DataLoader.
+            DataLoader
+                The validation DataLoader.
         """
         return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
@@ -491,7 +536,8 @@ class DataModuleClassifier(LightningDataModule):
         """The function returns the predict DataLoader.
 
         Returns:
-            DataLoader : The predict DataLoader.
+            DataLoader
+                The predict DataLoader.
         """
         return DataLoader(self.test_data, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 

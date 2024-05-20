@@ -17,15 +17,24 @@ class RelativeEncoder(pl.LightningModule):
     """An implementation of a relative encoder using a MLP architecture in pytorch.
 
     Args:
-        input_dim (int): The input dimension.
-        output_dim (int): The output dimension. Default 1.
-        hidden_dim (int): The hidden layer dimension. Default 10.
-        hidden_size (int): The number of hidden layers. Default 10.
-        activ_type (str): The type of the last activation function. Default 'tanh'.
-        lr (float): The learning rate. Default 1e-2. 
-        momentum (float): How much momentum to apply. Default 0.9.
-        nesterov (bool): If set to True use nesterov type of momentum. Default True.
-        max_lr (float): Maximum learning rate for the scheduler. Default 1..
+        input_dim : int
+            The input dimension.
+        output_dim : int
+            The output dimension. Default 1.
+        hidden_dim : int
+            The hidden layer dimension. Default 10.
+        hidden_size : int
+            The number of hidden layers. Default 10.
+        activ_type : str
+            The type of the last activation function. Default 'tanh'.
+        lr : float)
+            The learning rate. Default 1e-2. 
+        momentum : float
+            How much momentum to apply. Default 0.9.
+        nesterov : bool
+            If set to True use nesterov type of momentum. Default True.
+        max_lr : float
+            Maximum learning rate for the scheduler. Default 1..
 
     Attributes:
         self.hparams["<name-of-argument>"]:
@@ -97,10 +106,12 @@ class RelativeEncoder(pl.LightningModule):
         """The forward pass of the Relative Encoder.
 
         Args:
-            x (torch.Tensor): The input tensor.
+            x : torch.Tensor
+                The input tensor.
 
         Returns:
-            torch.Tensor : The output of the MLP.
+            torch.Tensor
+                The output of the MLP.
         """
         x = self.input_layer(x)
         for layer in self.hidden_layers:
@@ -113,7 +124,8 @@ class RelativeEncoder(pl.LightningModule):
         """Define the optimizer: Stochastic Gradient Descent.
 
         Returns:
-            dict[str, object] : The optimizer and scheduler.
+            dict[str, object]
+                The optimizer and scheduler.
         """
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])#, momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
         return {
@@ -130,11 +142,14 @@ class RelativeEncoder(pl.LightningModule):
         """A convenient method to get the loss on a batch.
 
         Args:
-            x (torch.Tensor): The input tensor.
-            y (torch.Tensor): The original output tensor.
+            x : torch.Tensor
+                The input tensor.
+            y : torch.Tensor
+                The original output tensor.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
+            tuple[torch.Tensor, torch.Tensor]
+                The output of the MLP and the loss.
         """
         y_hat = self(x)
         loss = nn.functional.mse_loss(y_hat, y)
@@ -148,12 +163,16 @@ class RelativeEncoder(pl.LightningModule):
         """A common step performend in the test and validation step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
-            prefix (str): The step type for logging purposes.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            prefix : str
+                The step type for logging purposes.
 
         Returns:
-            (y_hat, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
+            (y_hat, loss) : tuple[torch.Tensor, torch.Tensor]
+                The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
         y_hat, loss = self.loss(x, y)
@@ -169,11 +188,14 @@ class RelativeEncoder(pl.LightningModule):
         """The training step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
-            loss (torch.Tensor): The epoch loss.
+            loss : torch.Tensor
+                The epoch loss.
         """
         x, y = batch
         _, loss = self.loss(x, y)
@@ -189,8 +211,10 @@ class RelativeEncoder(pl.LightningModule):
         """The test step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
             None
@@ -205,11 +229,14 @@ class RelativeEncoder(pl.LightningModule):
         """The validation step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
-            y_hat (torch.Tensor): The output of the network.
+            y_hat : torch.Tensor
+                The output of the network.
         """
         y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
         return y_hat
@@ -222,12 +249,16 @@ class RelativeEncoder(pl.LightningModule):
         """The predict step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
-            dataloader_idx (int): The dataloader idx.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            dataloader_idx : int
+                The dataloader idx.
         
         Returns:
-            (torch.Tensor): The output of the network.
+            torch.Tensor
+                The output of the network.
         """
         x, y = batch
         return self(x)
@@ -237,13 +268,20 @@ class Classifier(pl.LightningModule):
     """An implementation of a classifier using a MLP architecture in pytorch.
 
     Args:
-        input_dim (int): The input dimension.
-        num_classes (int): The number of classes. Default 20.
-        hidden_dim (int): The hidden layer dimension. Default 10.
-        lr (float): The learning rate. Default 1e-2. 
-        momentum (float): How much momentum to apply. Default 0.9.
-        nesterov (bool): If set to True use nesterov type of momentum. Default True.
-        max_lr (float): Maximum learning rate for the scheduler. Default 1..
+        input_dim : int
+            The input dimension.
+        num_classes : int
+            The number of classes. Default 20.
+        hidden_dim : int
+            The hidden layer dimension. Default 10.
+        lr : float
+            The learning rate. Default 1e-2. 
+        momentum : float
+            How much momentum to apply. Default 0.9.
+        nesterov : bool
+            If set to True use nesterov type of momentum. Default True.
+        max_lr : float
+            Maximum learning rate for the scheduler. Default 1..
 
     Attributes:
         self.hparams["<name-of-argument>"]:
@@ -315,11 +353,14 @@ class Classifier(pl.LightningModule):
         """A convenient method to get the loss on a batch.
 
         Args:
-            x (torch.Tensor): The input tensor.
-            y (torch.Tensor): The original output tensor.
+            x : torch.Tensor
+                The input tensor.
+            y : torch.Tensor
+                The original output tensor.
 
         Returns:
-            (logits, loss) tuple[torch.Tensor, torch.Tensor] : The output of the MLP and the loss.
+            (logits, loss) : tuple[torch.Tensor, torch.Tensor]
+                The output of the MLP and the loss.
         """
         logits = self(x)
         loss = nn.functional.cross_entropy(logits, y)
@@ -333,12 +374,16 @@ class Classifier(pl.LightningModule):
         """A common step performend in the test and validation step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
-            prefix (str): The step type for logging purposes.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            prefix : str
+                The step type for logging purposes.
 
         Returns:
-            (logits, loss) (tuple[torch.Tensor, torch.Tensor]): The tuple with the output of the network and the epoch loss.
+            (logits, loss) : tuple[torch.Tensor, torch.Tensor]
+                The tuple with the output of the network and the epoch loss.
         """
         x, y = batch
         logits, loss = self.loss(x, y)
@@ -359,11 +404,14 @@ class Classifier(pl.LightningModule):
         """The training step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
-            loss (torch.Tensor): The epoch loss.
+            loss : torch.Tensor
+                The epoch loss.
         """
         x, y = batch
         logits, loss = self.loss(x, y)
@@ -384,8 +432,10 @@ class Classifier(pl.LightningModule):
         """The test step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
             None
@@ -400,11 +450,14 @@ class Classifier(pl.LightningModule):
         """The validation step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
 
         Returns:
-            preds (torch.Tensor): The output of the network.
+            preds : torch.Tensor
+                The output of the network.
         """
         preds, _ = self._shared_eval(batch, batch_idx, "valid")
         return preds
@@ -417,12 +470,16 @@ class Classifier(pl.LightningModule):
         """The predict step.
 
         Args:
-            batch (list[torch.Tensor]): The current batch.
-            batch_idx (int): The batch index.
-            dataloader_idx (int): The dataloader idx.
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            dataloader_idx : int
+                The dataloader idx.
         
         Returns:
-            preds (torch.Tensor): The output of the network.
+            preds : torch.Tensor
+                The output of the network.
         """
         x = batch[0]
 
