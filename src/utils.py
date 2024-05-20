@@ -16,7 +16,19 @@ import torch
 def complex_gaussian_matrix(mean: float,
                             std: float,
                             size: tuple) -> torch.Tensor:
-    """
+    """A method that returns a complex gaussian matrix in the torch.Tensor format.
+
+    Args:
+        mean : float
+            The mean of the distribution.
+        std : float
+            The std of the distribution.
+        size : tuple[int]
+            The size of the matrix.
+
+    Returns:
+        torch.Tensor
+            The complex gaussian matrix in the torch.Tensor format.
     """
     # Get the real and imaginary parts
     real_part = torch.normal(mean, std/2, size=size)
