@@ -127,11 +127,6 @@ class RelativeEncoder(pl.LightningModule):
         # Example input
         self.example_input_array = torch.randn(self.hparams["input_dim"])
 
-        MLP(self.hparams["input_dim"],
-                       self.hparams["output_dim"],
-                       self.hparams["hidden_dim"],
-                       self.hparams["hidden_size"])
-
         # ================================================================
         #                     Activation Function    
         # ================================================================
