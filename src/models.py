@@ -13,6 +13,75 @@ from torchmetrics.classification import MulticlassAccuracy
 #
 # ==================================================================
 
+class MLP(nn.Module):
+    """An implementation of a MLP in pytorch.
+
+    Args:
+        input_dim : int
+            The input dimension.
+        output_dim : int
+            The output dimension. Default 1.
+        hidden_dim : int
+            The hidden layer dimension. Default 10.
+        hidden_size : int
+            The number of hidden layers. Default 10.
+
+    Attributes:
+        self.<name-of-argument>:
+            ex. self.input_dim is where the 'input_dim' argument is stored.
+    """
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 hidden_dim: int,
+                 hidden_size: int):
+        super().__init__()
+
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.hidden_size = hidden_size
+        
+        # ================================================================
+        #                         Input Layer
+        # ================================================================
+        self.input_layer = nn.Sequential(
+                                         nn.Linear(self.input_dim, self.hidden_dim),
+                                         nn.GELU()
+                                         )
+
+        # ================================================================
+        #                         Hidden Layers
+        # ================================================================
+        self.hidden_layers = nn.ModuleList([nn.Sequential(
+                                                          nn.Linear(self.hidden_dim, self.hidden_dim),
+                                                          nn.GELU()
+                                                          ) for _ in range(self.hidden_size)])
+
+        # ================================================================
+        #                         Output Layer
+        # ================================================================
+        self.output_layer = nn.Linear(self.hidden_dim, self.output_dim)
+        
+
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
+        """The forward pass of the Relative Encoder.
+
+        Args:
+            x : torch.Tensor
+                The input tensor.
+
+        Returns:
+            torch.Tensor
+                The output of the MLP.
+        """
+        x = self.input_layer(x)
+        for layer in self.hidden_layers:
+            x = layer(x)
+        return self.output_layer(x)
+    
+
 class RelativeEncoder(pl.LightningModule):
     """An implementation of a relative encoder using a MLP architecture in pytorch.
 
@@ -58,24 +127,13 @@ class RelativeEncoder(pl.LightningModule):
         # Example input
         self.example_input_array = torch.randn(self.hparams["input_dim"])
 
-        # ================================================================
-        #                         Input Layer
-        # ================================================================
-        self.input_layer = nn.Sequential(
-                                         nn.Linear(self.hparams["input_dim"], self.hparams["hidden_dim"]),
-                                         nn.GELU()
-                                         )
+        MLP(self.hparams["input_dim"],
+                       self.hparams["output_dim"],
+                       self.hparams["hidden_dim"],
+                       self.hparams["hidden_size"])
 
         # ================================================================
-        #                         Hidden Layers
-        # ================================================================
-        self.hidden_layers = nn.ModuleList([nn.Sequential(
-                                                          nn.Linear(self.hparams["hidden_dim"], self.hparams["hidden_dim"]),
-                                                          nn.GELU()
-                                                          ) for _ in range(self.hparams["hidden_size"])])
-
-        # ================================================================
-        #                         Output Layer
+        #                     Activation Function    
         # ================================================================
         # If the similarity takes values [-1, 1]
         if self.hparams["activ_type"] == "tanh":
@@ -95,10 +153,13 @@ class RelativeEncoder(pl.LightningModule):
         else:
             raise Exception(f'Invalid "activ_type" passed: {self.hparams["activ_type"]} is not in the available types.')
 
-        self.output_layer = nn.Sequential(
-                                          nn.Linear(self.hparams["hidden_dim"], self.hparams["output_dim"]),
-                                          activation
-                                          )
+        self.model = nn.Sequential(
+                                       MLP(self.hparams["input_dim"],
+                                           self.hparams["output_dim"],
+                                           self.hparams["hidden_dim"],
+                                           self.hparams["hidden_size"]),
+                                       activation
+                                    )
             
 
     def forward(self,
@@ -113,11 +174,7 @@ class RelativeEncoder(pl.LightningModule):
             torch.Tensor
                 The output of the MLP.
         """
-        x = self.input_layer(x)
-        for layer in self.hidden_layers:
-            x = layer(x)
-        x = self.output_layer(x)
-        return x
+        return self.model(x)
 
 
     def configure_optimizers(self) -> dict[str, object]:
