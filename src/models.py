@@ -6,6 +6,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics.classification import MulticlassAccuracy
 
+from src.utils import complex_gaussian_matrix, complex_tensor
+
 
 # ==================================================================
 #
@@ -169,6 +171,7 @@ class RelativeEncoder(pl.LightningModule):
             torch.Tensor
                 The output of the MLP.
         """
+        x = nn.functional.normalize(x, p=2, dim=-1)
         return self.model(x)
 
 
@@ -541,6 +544,221 @@ class Classifier(pl.LightningModule):
         return preds
 
 
+class SemanticAutoEncoder(pl.LightningModule):
+    """An implementation of a relative encoder using a MLP architecture in pytorch.
+
+    Args:
+        input_dim : int
+            The input dimension.
+        output_dim : int
+            The output dimension.
+        antennas_transmitter : int
+            The number of antennas the transmitter has.
+        antennas_receiver : int
+            The number of antennas the receiver has.
+        hidden_dim : int
+            The hidden layer dimension.
+        hidden_size : int
+            The number of hidden layers.
+        lr : float)
+            The learning rate. Default 1e-3. 
+
+    Attributes:
+        self.hparams["<name-of-argument>"]:
+            ex. self.hparams["input_dim"] is where the 'input_dim' argument is stored.
+    """
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 antennas_transmitter: int,
+                 antennas_receiver: int,
+                 hidden_dim: int,
+                 hidden_size: int,
+                 lr: float = 1e-3):
+        super().__init__()
+
+        # Log the hyperparameters.
+        self.save_hyperparameters()
+
+        # Example input
+        self.example_input_array = torch.randn(self.hparams["input_dim"])
+
+        self.semantic_encoder = MLP(self.hparams["input_dim"],
+                                    self.hparams["antennas_transmitter"],
+                                    self.hparams["hidden_dim"],
+                                    self.hparams["hidden_size"])
+        
+        self.semantic_decoder = MLP(self.hparams["antennas_receiver"],
+                                    self.hparams["output_dim"],
+                                    self.hparams["hidden_dim"],
+                                    self.hparams["hidden_size"])
+
+        self.H = complex_gaussian_matrix(mean=0, std=1, size=(self.hparams["antennas_receiver"], self.hparams["antennas_transmitter"]))
+
+
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
+        """The forward pass of the Relative Encoder.
+
+        Args:
+            x : torch.Tensor
+                The input tensor.
+
+        Returns:
+            torch.Tensor
+                The output of the MLP.
+        """
+        device = x.device
+        x = nn.functional.normalize(x, p=2, dim=-1)
+        z = self.semantic_encoder(x)
+        z = complex_tensor(z)
+        z = (self.H.to(device)@z.T).T
+        return self.semantic_decoder(z.real)
+
+
+    def configure_optimizers(self) -> dict[str, object]:
+        """Define the optimizer: Stochastic Gradient Descent.
+
+        Returns:
+            dict[str, object]
+                The optimizer and scheduler.
+        """
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])#, momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        return {
+            "optimizer": optimizer,
+            # "lr_scheduler": {
+            #     "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
+            #     "monitor": "valid/loss_epoch"
+            # }    
+        }
+
+    def loss(self,
+             x: torch.Tensor,
+             y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """A convenient method to get the loss on a batch.
+
+        Args:
+            x : torch.Tensor
+                The input tensor.
+            y : torch.Tensor
+                The original output tensor.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]
+                The output of the MLP and the loss.
+        """
+        y_hat = self(x)
+        loss = nn.functional.mse_loss(y_hat, y)
+        return y_hat, loss
+
+
+    def _shared_eval(self,
+                     batch: list[torch.Tensor],
+                     batch_idx: int,
+                     prefix: str) -> tuple[torch.Tensor, torch.Tensor]:
+        """A common step performend in the test and validation step.
+
+        Args:
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            prefix : str
+                The step type for logging purposes.
+
+        Returns:
+            (y_hat, loss) : tuple[torch.Tensor, torch.Tensor]
+                The tuple with the output of the network and the epoch loss.
+        """
+        x, y = batch
+        y_hat, loss = self.loss(x, y)
+
+        self.log(f'{prefix}/loss_epoch', loss, on_step=False, on_epoch=True)
+
+        return y_hat, loss
+
+
+    def training_step(self,
+                      batch: list[torch.Tensor],
+                      batch_idx: int) -> torch.Tensor:
+        """The training step.
+
+        Args:
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+
+        Returns:
+            loss : torch.Tensor
+                The epoch loss.
+        """
+        x, y = batch
+        _, loss = self.loss(x, y)
+
+        self.log('train/loss', loss, on_epoch=True)
+
+        return loss
+
+
+    def test_step(self,
+                  batch: list[torch.Tensor],
+                  batch_idx: int) -> None:
+        """The test step.
+
+        Args:
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+
+        Returns:
+            None
+        """
+        _ = self._shared_eval(batch, batch_idx, "test")
+        return None
+
+
+    def validation_step(self,
+                        batch: list[torch.Tensor],
+                        batch_idx: int) -> torch.Tensor:
+        """The validation step.
+
+        Args:
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+
+        Returns:
+            y_hat : torch.Tensor
+                The output of the network.
+        """
+        y_hat, _ = self._shared_eval(batch, batch_idx, "valid")
+        return y_hat
+
+
+    def predict_step(self,
+                     batch: list[torch.Tensor],
+                     batch_idx: int,
+                     dataloader_idx=0) -> torch.Tensor:
+        """The predict step.
+
+        Args:
+            batch : list[torch.Tensor]
+                The current batch.
+            batch_idx : int
+                The batch index.
+            dataloader_idx : int
+                The dataloader idx.
+        
+        Returns:
+            torch.Tensor
+                The output of the network.
+        """
+        x, y = batch
+        return self(x)
+
 
 def main() -> None:
     """The main script loop in which we perform some sanity tests.
@@ -548,25 +766,32 @@ def main() -> None:
     print("Start performing sanity tests...")
     print()
     
+    # Variables definition
     input_dim = 5
-    samples = 2
     output_dim = 2
     num_classes = 2
-
-    # RelativeEncoder inputs
     hidden_dim = 10
     hidden_size = 4
     activ_type = "softplus"
+    antennas_transmitter = 5
+    antennas_receiver = 5
     
-    data = torch.randn(samples, input_dim)
+    data = torch.randn(input_dim)
     
     print("Test for RelativeEncoder...", end='\t')
     mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
     output = mlp(data)
     print("[Passed]")
 
+    print()
     print("Test for Classifier...", end='\t')
     mlp = Classifier(input_dim, num_classes, hidden_dim, hidden_size)
+    output = mlp(data)
+    print("[Passed]")
+    
+    print()
+    print("Test for SemanticAutoEncoder...", end='\t')
+    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size)
     output = mlp(data)
     print("[Passed]")
 
