@@ -136,7 +136,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemCom_{args.function}_{args.case}',
+    wandb_logger = WandbLogger(project=f'RelativeEncoder_{args.function}_{args.case}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,
