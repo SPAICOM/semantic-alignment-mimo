@@ -28,6 +28,7 @@ def complex_tensor(x: torch.Tensor) -> torch.Tensor:
     x = torch.stack((x, torch.zeros(x.shape).to(device)), dim=-1)
     return torch.view_as_complex(x)
 
+
 def complex_gaussian_matrix(mean: float,
                             std: float,
                             size: tuple) -> torch.Tensor:

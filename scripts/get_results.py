@@ -178,7 +178,8 @@ def main() -> None:
     # ==============================================================================
     for autoencoder_path in (MODELS_DIR / 'autoencoders').rglob('*.ckpt'):
         # Getting the settings
-        _, _, dataset, encoder, decoder, case, seed, ckpt = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, case, antennas, seed, ckpt = str(autoencoder_path.as_posix()).split('/')
+        transmitter, receiver = antennas.split('_')[-2:]
         seed = int(seed.split('_')[-1])
         anchors = int(ckpt.split('.')[0].split('_')[-1])
 
@@ -231,7 +232,7 @@ def main() -> None:
                            'Encoder': encoder,
                            'Decoder': decoder,
                            'Function': function,
-                           'Case': f'{case} SAE NN',
+                           'Case': f'{case} SAE NN {transmitter} {receiver}',
                            'Seed': seed,
                            'Anchors': anchors,
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],

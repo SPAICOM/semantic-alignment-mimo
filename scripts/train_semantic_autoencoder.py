@@ -13,8 +13,9 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModuleRelativeEncoder
 from src.models import SemanticAutoEncoder
+from src.utils import complex_gaussian_matrix
+from src.datamodules import DataModuleRelativeEncoder
     
 def main() -> None:
     """The main script loop.
@@ -106,6 +107,9 @@ def main() -> None:
     # Setting the seed
     seed_everything(args.seed, workers=True)
 
+    # Get the channel matrix
+    channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
+
     # Initialize the datamodule
     datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
                                            encoder=args.encoder,
@@ -125,6 +129,7 @@ def main() -> None:
                                 antennas_receiver=args.receiver,
                                 hidden_dim=args.neurons,
                                 hidden_size=args.layers,
+                                channel_matrix=channel_matrix,
                                 lr=args.lr)
 
     # Callbacks definition
@@ -140,7 +145,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_{args.case}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_{args.case}_{args.transmitter}_{args.receiver}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

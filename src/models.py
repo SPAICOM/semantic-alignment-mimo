@@ -6,7 +6,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics.classification import MulticlassAccuracy
 
-from src.utils import complex_gaussian_matrix, complex_tensor
+from src.utils import complex_tensor
 
 
 # ==================================================================
@@ -560,6 +560,8 @@ class SemanticAutoEncoder(pl.LightningModule):
             The hidden layer dimension.
         hidden_size : int
             The number of hidden layers.
+        channel_matrix : torch.Tensor
+            A complex matrix simulating a communication channel.
         lr : float)
             The learning rate. Default 1e-3. 
 
@@ -574,6 +576,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  antennas_receiver: int,
                  hidden_dim: int,
                  hidden_size: int,
+                 channel_matrix: torch.Tensor,
                  lr: float = 1e-3):
         super().__init__()
 
@@ -581,7 +584,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         self.save_hyperparameters()
 
         # Example input
-        self.example_input_array = torch.randn(self.hparams["input_dim"])
+        self.example_input_array = torch.randn(1, self.hparams["input_dim"])
 
         self.semantic_encoder = MLP(self.hparams["input_dim"],
                                     self.hparams["antennas_transmitter"],
@@ -593,9 +596,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                                     self.hparams["hidden_dim"],
                                     self.hparams["hidden_size"])
 
-        self.H = complex_gaussian_matrix(mean=0, std=1, size=(self.hparams["antennas_receiver"], self.hparams["antennas_transmitter"]))
-
-
+        
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
         """The forward pass of the Relative Encoder.
@@ -612,7 +613,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         x = nn.functional.normalize(x, p=2, dim=-1)
         z = self.semantic_encoder(x)
         z = complex_tensor(z)
-        z = (self.H.to(device)@z.T).T
+        z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(device))
         return self.semantic_decoder(z.real)
 
 
@@ -763,6 +764,8 @@ class SemanticAutoEncoder(pl.LightningModule):
 def main() -> None:
     """The main script loop in which we perform some sanity tests.
     """
+    from utils import complex_gaussian_matrix
+    
     print("Start performing sanity tests...")
     print()
     
@@ -773,10 +776,11 @@ def main() -> None:
     hidden_dim = 10
     hidden_size = 4
     activ_type = "softplus"
-    antennas_transmitter = 5
-    antennas_receiver = 5
+    antennas_transmitter = 10
+    antennas_receiver = 10
+    channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
     
-    data = torch.randn(input_dim)
+    data = torch.randn(1, input_dim)
     
     print("Test for RelativeEncoder...", end='\t')
     mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
@@ -791,7 +795,7 @@ def main() -> None:
     
     print()
     print("Test for SemanticAutoEncoder...", end='\t')
-    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size)
+    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size, channel_matrix)
     output = mlp(data)
     print("[Passed]")
 
