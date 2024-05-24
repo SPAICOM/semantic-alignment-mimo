@@ -31,7 +31,7 @@ def complex_tensor(x: torch.Tensor) -> torch.Tensor:
 
 def complex_gaussian_matrix(mean: float,
                             std: float,
-                            size: tuple) -> torch.Tensor:
+                            size: tuple[int]) -> torch.Tensor:
     """A method that returns a complex gaussian matrix in the torch.Tensor format.
 
     Args:
