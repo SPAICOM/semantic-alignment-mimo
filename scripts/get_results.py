@@ -8,10 +8,11 @@ sys.path.append(str(Path(sys.path[0]).parent))
 import torch
 import polars as pl
 from timm import create_model
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.linear_optim import LinearOptimizer
+from src.utils import complex_gaussian_matrix, complex_tensor
 from src.models import RelativeEncoder, Classifier, SemanticAutoEncoder
 from src.datamodules import DataModuleRelativeEncoder, DataModuleClassifier
 
@@ -72,15 +73,27 @@ def main() -> None:
         clf_datamodule.prepare_data()
         clf_datamodule.setup()
 
+        
+        # =========================================================================
+        #                         Get Channel Matrix
+        # =========================================================================
+        # Setting the seed
+        seed_everything(seed, workers=True)
+
+        # Get the channel matrix
+        channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(anchors, anchors))
+
         # =========================================================================
         #                           Computing the results
         # =========================================================================
         # Get the relative representation in the decoder space
-        r_psi_hat = torch.cat(trainer.predict(model=enc_model, datamodule=enc_datamodule))
+        r_psi_hat = complex_tensor(torch.cat(trainer.predict(model=enc_model, datamodule=enc_datamodule)))
         alignment_metrics = trainer.test(model=enc_model, datamodule=enc_datamodule)[0]
-              
+
+        output = (channel_matrix@r_psi_hat.T).real
+
         # Get the predictions using as input the r_psi_hat
-        dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
+        dataloader = DataLoader(TensorDataset(output.T, enc_datamodule.test_data.labels), batch_size=batch_size)
         clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
         
         results.vstack(pl.DataFrame(
@@ -111,10 +124,11 @@ def main() -> None:
                 opt.fit(enc_datamodule.train_data.z, enc_datamodule.train_data.r_decoder)
 
                 # Get the relative representation in the decoder space
-                r_psi_hat = opt.transform(enc_datamodule.test_data.z)
+                r_psi_hat = complex_tensor(opt.transform(enc_datamodule.test_data.z))
+                output = (channel_matrix@r_psi_hat.T).real
                 
                 # Get the predictions using as input the r_psi_hat
-                dataloader = DataLoader(TensorDataset(r_psi_hat, enc_datamodule.test_data.labels), batch_size=batch_size)
+                dataloader = DataLoader(TensorDataset(output.T, enc_datamodule.test_data.labels), batch_size=batch_size)
                 clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
 
                 results.vstack(pl.DataFrame(
