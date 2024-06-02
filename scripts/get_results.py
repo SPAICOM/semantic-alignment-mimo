@@ -11,7 +11,7 @@ from timm import create_model
 from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
-from src.linear_optim import LinearOptimizer
+from src.linear_optim import LinearOptimizerRE, LinearOptimizerSAE
 from src.utils import complex_gaussian_matrix, complex_tensor
 from src.models import RelativeEncoder, Classifier, SemanticAutoEncoder
 from src.datamodules import DataModuleRelativeEncoder, DataModuleClassifier
@@ -90,10 +90,10 @@ def main() -> None:
         r_psi_hat = complex_tensor(torch.cat(trainer.predict(model=enc_model, datamodule=enc_datamodule)))
         alignment_metrics = trainer.test(model=enc_model, datamodule=enc_datamodule)[0]
 
-        output = (channel_matrix@r_psi_hat.T).real
+        output = (channel_matrix@r_psi_hat.T).real.T
 
         # Get the predictions using as input the r_psi_hat
-        dataloader = DataLoader(TensorDataset(output.T, enc_datamodule.test_data.labels), batch_size=batch_size)
+        dataloader = DataLoader(TensorDataset(output, enc_datamodule.test_data.labels), batch_size=batch_size)
         clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
         
         results.vstack(pl.DataFrame(
@@ -118,17 +118,17 @@ def main() -> None:
         if case == "abs":
             for solver in solvers:
                 # Get the Linear Optimizer
-                opt = LinearOptimizer(solver=solver)
+                opt = LinearOptimizerRE(solver=solver)
 
                 # Fit the optimizer
                 opt.fit(enc_datamodule.train_data.z, enc_datamodule.train_data.r_decoder)
 
                 # Get the relative representation in the decoder space
                 r_psi_hat = complex_tensor(opt.transform(enc_datamodule.test_data.z))
-                output = (channel_matrix@r_psi_hat.T).real
+                output = (channel_matrix@r_psi_hat.T).real.T
                 
                 # Get the predictions using as input the r_psi_hat
-                dataloader = DataLoader(TensorDataset(output.T, enc_datamodule.test_data.labels), batch_size=batch_size)
+                dataloader = DataLoader(TensorDataset(output, enc_datamodule.test_data.labels), batch_size=batch_size)
                 clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
 
                 results.vstack(pl.DataFrame(
@@ -193,7 +193,7 @@ def main() -> None:
     for autoencoder_path in (MODELS_DIR / 'autoencoders').rglob('*.ckpt'):
         # Getting the settings
         _, _, dataset, encoder, decoder, case, antennas, seed, ckpt = str(autoencoder_path.as_posix()).split('/')
-        transmitter, receiver = antennas.split('_')[-2:]
+        transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         seed = int(seed.split('_')[-1])
         anchors = int(ckpt.split('.')[0].split('_')[-1])
 
@@ -255,6 +255,46 @@ def main() -> None:
                        }),
                        in_place=True)
 
+        # =========================================================================
+        #                            Linear Optimizer
+        # =========================================================================
+        # Setting the seed
+        seed_everything(seed, workers=True)
+
+        # Get the channel matrix
+        channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(receiver, transmitter))
+
+        # Get the optimizer
+        opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
+                                 output_dim=datamodule.output_size,
+                                 channel_matrix=channel_matrix)
+        
+        # Fit the linear optimizer
+        opt.fit(input=datamodule.train_data.z,
+                output=datamodule.train_data.r_decoder)
+
+        # Get the r_psi_hat
+        r_psi_hat = opt.transform(enc_datamodule.test_data.z)
+        
+        # Get the predictions using as input the r_psi_hat
+        dataloader = DataLoader(TensorDataset(r_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+        results.vstack(pl.DataFrame(
+                       {
+                           'Dataset': dataset,
+                           'Encoder': encoder,
+                           'Decoder': decoder,
+                           'Function': function,
+                           'Case': f'{case} SAE linear {transmitter} {receiver}',
+                           'Seed': seed,
+                           'Anchors': anchors,
+                           'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.r_decoder),
+                           'Classifier Loss': clf_metrics['test/loss_epoch'],
+                           'Accuracy': clf_metrics['test/acc_epoch']
+                       }),
+                       in_place=True)
+        
        
     print(results)
     results.write_parquet('results.parquet')

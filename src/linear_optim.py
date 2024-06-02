@@ -4,16 +4,18 @@
 import torch
 import numpy as np
 import cvxpy as cp
+from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
 
+from src.utils import complex_tensor
 
 # ============================================================
 #
 #                     CLASSES DEFINITION
 #
 # ============================================================
-class LinearOptimizer():
+class LinearOptimizerRE():
     """The linear optimizer for the Relative Decoder.
     
     Args:
@@ -136,10 +138,56 @@ class LinearOptimizerSAE():
         self.antennas_transmitter, self.antennas_receiver = self.channel_matrix.shape
 
         # Variables
-        self.F = cp.Variable((self.antennas_transmitter, self.input_dim))
-        self.G = cp.Variable((self.output_dim, self.antennas_receiver))
+        self.F = None
+        self.G = None
 
 
+    def __G_step(self,
+                 input: torch.Tensor,
+                 output: torch.Tensor) -> None:
+        """The G step that minimize the Lagrangian.
+
+        Args:
+            input : torch.Tensor
+                The input tensor.
+            output : torch.Tensor
+                The output tensor.
+
+        Returns:
+            None
+        """
+        input = complex_tensor(input)
+        output = complex_tensor(output)
+        
+        A = self.channel_matrix @ self.F @ input
+        self.G = output @ torch.linalg.pinv(A)
+        
+        return None
+    
+
+    def __F_step(self,
+                 input: torch.Tensor,
+                 output: torch.Tensor) -> None:
+        """The F step that minimize the Lagrangian.
+
+        Args:
+            input : torch.Tensor
+                The input tensor.
+            output : torch.Tensor
+                The output tensor.
+
+        Returns:
+            None
+        """
+        input = complex_tensor(input)
+        output = complex_tensor(output)
+        
+        A = self.G @ self.channel_matrix
+        self.F = torch.linalg.pinv(A) @ output @ torch.linalg.pinv(input)
+        
+        return None
+    
+    
     def fit(self,
             input: torch.Tensor,
             output: torch.Tensor,
@@ -157,42 +205,17 @@ class LinearOptimizerSAE():
         Returns:
             None
         """
-        F_step = torch.eye(self.antennas_transmitter, self.input_dim).numpy()
+        # Inizialize the F matrix
+        self.F = complex_tensor(torch.eye(self.antennas_transmitter, self.input_dim))
+
+        # Set the input and output in the right dimensions
+        input = nn.functional.normalize(input, p=2, dim=-1)
+        input = input.T
+        output = output.T
 
         for _ in tqdm(range(iterations)):
-            # ====================================================================================
-            #                                 First Iteration
-            # ====================================================================================
-            # Define the objective function
-            first_obj = cp.Minimize(cp.norm(output.numpy().T - self.G @ self.channel_matrix.numpy() @ F_step @ input.T.numpy(), p=2))
-
-            # Set the problem
-            problem = cp.Problem(first_obj)
-
-            # Solve the problem
-            problem.solve(solver=cp.MOSEK)
-
-            # Save the G step
-            G_step = self.G.value
-            
-            # ====================================================================================
-            #                                 Second Iteration
-            # ====================================================================================
-            # Define the objective function
-            second_obj = cp.Minimize(cp.norm(output.numpy().T - G_step @ self.channel_matrix.numpy() @ self.F @ input.T.numpy(), p=2))
-
-            # Set the problem
-            problem = cp.Problem(second_obj)
-
-            # Solve the problem
-            problem.solve(solver=cp.MOSEK)
-
-            # Save the F step
-            F_step = self.F.value
-
-        # Transform the solution to tensors
-        self.F = torch.from_numpy(self.F.value)
-        self.G = torch.from_numpy(self.G.value)
+            self.__G_step(input=input, output=output)
+            self.__F_step(input=input, output=output)
 
         return None
 
@@ -205,10 +228,14 @@ class LinearOptimizerSAE():
             input : torch.Tensor
 
         Returns:
-            torch.Tensor
+            output : torch.Tensor
                 The transformed version of the input.
         """
-        return torch.from_numpy(self.G.numpy() @ self.channel_matrix.numpy() @ self.F.numpy() @ input.T.numpy()).T.real
+        input = nn.functional.normalize(input, p=2, dim=-1)
+        input = complex_tensor(input.T)
+        output = self.G @ self.channel_matrix @ self.F @ input
+
+        return output.real.T
     
 
     def eval(self,
@@ -230,38 +257,6 @@ class LinearOptimizerSAE():
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
 
 
-    def save(self,
-             path: Path) -> None:
-        """A function to save the F and G matrix.
-
-        Args:
-            path : Path
-                The path where to save the matrixes
-
-        Returns:
-            None
-        """
-        torch.save(self.F, str(path / "F_matrix.pt"))
-        torch.save(self.G, str(path / "G_matrix.pt"))
-        return None
-
-
-    def load(self,
-             path: Path) -> None:
-        """A function to load the saved version of F and G.
-
-        Args:
-            path : Path
-                The path to the saved versions.
-
-        Returns:
-            None
-        """
-        self.F = torch.load(str(path / "F_matrix.pt"))
-        self.G = torch.load(str(path / "G_matrix.pt"))
-        return None
-        
-        
 
 # ============================================================
 #
@@ -272,24 +267,6 @@ class LinearOptimizerSAE():
 def main() -> None:
     """Some sanity tests...
     """
-    from utils import complex_gaussian_matrix
-
-    n = 200
-    input_dim = 10
-    output_dim= 15
-    transmitter = 100
-    receiver = 100
-
-    inputs = torch.randn(n, input_dim)
-    outputs = torch.randn(n, output_dim)
-
-    channel_matrix = complex_gaussian_matrix(0, 1, size=(transmitter, receiver))
-
-    opt = LinearOptimizerSAE(input_dim=input_dim, output_dim=output_dim, channel_matrix=channel_matrix)
-
-    opt.fit(inputs, outputs)
-    print(opt.eval(inputs, outputs))
-        
     return None
 
 
