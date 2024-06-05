@@ -13,7 +13,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
-from src.datamodules import DataModuleRelativeEncoder
+from src.datamodules import DataModule
 from src.models import RelativeEncoder
 
 def main() -> None:
@@ -104,12 +104,12 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
-                                           encoder=args.encoder,
-                                           decoder=args.decoder,
-                                           num_anchors=args.anchors,
-                                           case=args.case,
-                                           num_workers=args.workers)
+    datamodule = DataModule(dataset=args.dataset,
+                            encoder=args.encoder,
+                            decoder=args.decoder,
+                            num_anchors=args.anchors,
+                            case=args.case,
+                            num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()

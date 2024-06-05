@@ -12,7 +12,7 @@ from pytorch_lightning import Trainer, seed_everything
 
 from src.utils import complex_gaussian_matrix
 from src.linear_optim import  LinearOptimizerSAE
-from src.datamodules import DataModuleRelativeEncoder
+from src.datamodules import DataModule
 
 def main():
     """The main loop.
@@ -76,11 +76,11 @@ def main():
     #                     Get the dataset
     # =========================================================
     # Initialize the datamodule
-    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
-                                           encoder=args.encoder,
-                                           decoder=args.decoder,
-                                           num_anchors=args.anchors,
-                                           case='abs')
+    datamodule = DataModule(dataset=args.dataset,
+                            encoder=args.encoder,
+                            decoder=args.decoder,
+                            num_anchors=args.anchors,
+                            case='abs')
     
     # Prepare and setup the data
     datamodule.prepare_data()

@@ -14,7 +14,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from src.linear_optim import LinearOptimizerRE, LinearOptimizerSAE
 from src.utils import complex_gaussian_matrix, complex_tensor
 from src.models import RelativeEncoder, Classifier, SemanticAutoEncoder
-from src.datamodules import DataModuleRelativeEncoder, DataModuleClassifier
+from src.datamodules import DataModule, DataModuleClassifier
 
 def main() -> None:
     """The main loop. 
@@ -46,12 +46,12 @@ def main() -> None:
         enc_model.eval()
     
         # Get and setup the encoder datamodule
-        enc_datamodule = DataModuleRelativeEncoder(dataset=dataset,
-                                                   encoder=encoder,
-                                                   decoder=decoder,
-                                                   num_anchors=anchors,
-                                                   case=case,
-                                                   batch_size=batch_size)
+        enc_datamodule = DataModule(dataset=dataset,
+                                    encoder=encoder,
+                                    decoder=decoder,
+                                    num_anchors=anchors,
+                                    case=case,
+                                    batch_size=batch_size)
         enc_datamodule.prepare_data()
         enc_datamodule.setup()
                             
@@ -202,12 +202,12 @@ def main() -> None:
         model.eval()
 
         # Get and setup the datamodule
-        datamodule = DataModuleRelativeEncoder(dataset=dataset,
-                                               encoder=encoder,
-                                               decoder=decoder,
-                                               num_anchors=anchors,
-                                               case=case,
-                                               batch_size=batch_size)
+        datamodule = DataModule(dataset=dataset,
+                                encoder=encoder,
+                                decoder=decoder,
+                                num_anchors=anchors,
+                                case=case,
+                                batch_size=batch_size)
         datamodule.prepare_data()
         datamodule.setup()
         

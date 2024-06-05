@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(sys.path[0]).parent))
 
 from src.linear_optim import  LinearOptimizer
-from src.datamodules import DataModuleRelativeEncoder
+from src.datamodules import DataModule
 
 def main() -> None:
     """The main loop.
@@ -63,11 +63,11 @@ def main() -> None:
     #                     Get the dataset
     # =========================================================
     # Initialize the datamodule
-    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
-                                           encoder=args.encoder,
-                                           decoder=args.decoder,
-                                           num_anchors=args.anchors,
-                                           case='abs')
+    datamodule = DataModule(dataset=args.dataset,
+                            encoder=args.encoder,
+                            decoder=args.decoder,
+                            num_anchors=args.anchors,
+                            case='abs')
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()

@@ -15,8 +15,8 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Learning
 
 from src.models import SemanticAutoEncoder
 from src.utils import complex_gaussian_matrix
-from src.datamodules import DataModuleRelativeEncoder
-    
+from src.datamodules import DataModule    
+
 def main() -> None:
     """The main script loop.
     """
@@ -111,12 +111,12 @@ def main() -> None:
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
 
     # Initialize the datamodule
-    datamodule = DataModuleRelativeEncoder(dataset=args.dataset,
-                                           encoder=args.encoder,
-                                           decoder=args.decoder,
-                                           num_anchors=args.anchors,
-                                           case=args.case,
-                                           num_workers=args.workers)
+    datamodule = DataModule(dataset=args.dataset,
+                            encoder=args.encoder,
+                            decoder=args.decoder,
+                            num_anchors=args.anchors,
+                            case=args.case,
+                            num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()

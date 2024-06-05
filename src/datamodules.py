@@ -1,7 +1,7 @@
 """In this python module we define class that handles the dataset:
-    - DatasetRelativeEncoder: a custom Pytorch Dataset for encoding from an absolute representation to a relative one.
+    - CustomDataset: a custom Pytorch Dataset for encoding from an absolute representation to a relative one.
     - DatasetClassifier: a custom Pytorch Dataset for classifing images.
-    - DataModuleRelativeEncoder: a Pytorch Lightning Data Module for the Relative Encoder.
+    - DataModule: a Pytorch Lightning Data Module for the Relative Encoder.
     - DataModuleClassifier: a Pytorch Lightning Data Module for classifing the images.
 """
 
@@ -17,7 +17,7 @@ from pytorch_lightning import LightningDataModule
 #
 # =====================================================
 
-class DatasetRelativeEncoder(Dataset):
+class CustomDataset(Dataset):
     """A custom implementation of a Pytorch Dataset.
 
     Args:
@@ -29,6 +29,8 @@ class DatasetRelativeEncoder(Dataset):
             The number of anchors to use.
         case : str
             The input case. Choose between 'rel', 'abs' or 'abs_anch'.
+        target : str
+            The output target. Choose between 'abs' or 'rel'. Default 'rel'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -51,13 +53,16 @@ class DatasetRelativeEncoder(Dataset):
                  encoder_path: Path,
                  decoder_path: Path,
                  num_anchors: int,
-                 case: str):
+                 case: str,
+                 target: str = 'rel'):
         self.encoder_path: Path = encoder_path
         self.decoder_path: Path = decoder_path
         self.num_anchors: int = num_anchors
         self.case: str = case
+        self.target: str = target
 
         assert self.case in ['rel', 'abs', 'abs_anch'], "Wrong case passed, choose between 'rel', 'abs' or 'abs_anch'."
+        assert self.target in ['rel', 'abs'], "Wrong target passed, choose between 'rel' or 'abs'."
         
         # =================================================
         #                 Encoder Stuff
@@ -92,6 +97,9 @@ class DatasetRelativeEncoder(Dataset):
         # Retrieve the relative representation from the decoder
         self.r_decoder = decoder_blob['relative'][:, :self.num_anchors]
 
+        # Retrieve the absolute representation from the decoder
+        self.z_decoder = decoder_blob['absolute']
+
         del decoder_blob
         
         # =================================================
@@ -109,7 +117,10 @@ class DatasetRelativeEncoder(Dataset):
         elif self.case == 'rel':
             self.input_size = self.r_econder.shape[-1]
             
-        self.output_size = self.num_anchors
+        if self.target == 'abs':
+            self.output_size = self.z_decoder.shape[-1]
+        elif self.target == 'rel':
+            self.output_size = self.num_anchors
 
 
     def __len__(self) -> int:
@@ -152,10 +163,14 @@ class DatasetRelativeEncoder(Dataset):
         elif self.case == 'rel':
             input = self.r_econder[idx]
         
-        # Get the relative representation of element idx
-        r_i = self.r_decoder[idx]
+        if self.target == 'rel':
+            # Get the relative representation of element idx
+            output = self.r_decoder[idx]
+        elif self.target == 'abs':
+            # Get the absolute representation of element idx
+            output = self.z_decoder[idx]
 
-        return input, r_i
+        return input, output
 
 
 class DatasetClassifier(Dataset):
@@ -251,7 +266,7 @@ class DatasetClassifier(Dataset):
 #
 # =====================================================
     
-class DataModuleRelativeEncoder(LightningDataModule):
+class DataModule(LightningDataModule):
     """A custom Lightning Data Module to handle a Pytorch Dataset.
 
     Args:
@@ -265,6 +280,8 @@ class DataModuleRelativeEncoder(LightningDataModule):
             The number of anchors to use.
         case : str
             The case argument of the Dataset.
+        target : str
+            The target type. Default 'rel'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -280,6 +297,7 @@ class DataModuleRelativeEncoder(LightningDataModule):
                  decoder: str,
                  num_anchors: int,
                  case: str,
+                 target: str = 'rel',
                  batch_size: int = 128,
                  num_workers: int = 0) -> None:
         super().__init__()
@@ -288,6 +306,7 @@ class DataModuleRelativeEncoder(LightningDataModule):
         self.encoder: str = encoder
         self.decoder: str = decoder
         self.case: str = case
+        self.target: str = target
         self.num_anchors: int = num_anchors
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
@@ -342,18 +361,21 @@ class DataModuleRelativeEncoder(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
-        self.train_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
-                                                 decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                                 num_anchors=self.num_anchors,
-                                                 case=self.case)
-        self.test_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
-                                                decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                                num_anchors=self.num_anchors,
-                                                case=self.case)
-        self.val_data = DatasetRelativeEncoder(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
-                                               decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                               num_anchors=self.num_anchors,
-                                               case=self.case)
+        self.train_data = CustomDataset(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
+                                        decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
+                                        num_anchors=self.num_anchors,
+                                        case=self.case,
+                                        target=self.target)
+        self.test_data = CustomDataset(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
+                                       decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
+                                       num_anchors=self.num_anchors,
+                                       case=self.case,
+                                       target=self.target)
+        self.val_data = CustomDataset(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
+                                      decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
+                                      num_anchors=self.num_anchors,
+                                      case=self.case,
+                                      target=self.target)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
@@ -557,12 +579,14 @@ def main() -> None:
     decoder = 'rexnet_100'
     num_anchors = 1024
     case = 'rel'
+    target = 'abs'
     
-    data = DataModuleRelativeEncoder(dataset=dataset,
-                                     encoder=encoder,
-                                     decoder=decoder,
-                                     num_anchors=num_anchors,
-                                     case=case)
+    data = DataModule(dataset=dataset,
+                      encoder=encoder,
+                      decoder=decoder,
+                      num_anchors=num_anchors,
+                      case=case,
+                      target=target)
 
     data.prepare_data()
     data.setup()
