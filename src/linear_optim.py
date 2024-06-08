@@ -135,7 +135,7 @@ class LinearOptimizerSAE():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.antennas_transmitter, self.antennas_receiver = self.channel_matrix.shape
+        self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
 
         # Variables
         self.F = None
