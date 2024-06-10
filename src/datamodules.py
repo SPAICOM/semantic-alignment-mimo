@@ -75,8 +75,11 @@ class CustomDataset(Dataset):
         # Retrieve the anchors from the encoder
         self.anchors = encoder_blob['anchors_latents']
 
+        if self.num_anchors is None:
+            self.num_anchors = len(self.anchors)
+
         assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
-        assert num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
+        assert self.num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
         
         # Select the wanted anchors
         self.anchors = self.anchors[:num_anchors]
@@ -181,6 +184,8 @@ class DatasetClassifier(Dataset):
             The path to the data.
         num_anchors : int
             The number of anchors to use.
+        case : str
+            The type of input. Default 'rel'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -197,10 +202,12 @@ class DatasetClassifier(Dataset):
     """
     def __init__(self,
                  path: Path,
-                 num_anchors: int):
+                 num_anchors: int,
+                 case: str):
         self.path: Path = path
         self.num_anchors: int = num_anchors
-        
+        self.case: str = case
+                
         # =================================================
         #                 Get the Data
         # =================================================
@@ -208,14 +215,25 @@ class DatasetClassifier(Dataset):
 
         # Retrieve the anchors from the decoder
         self.anchors = decoder_blob['anchors_latents']
-
-        assert num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
         
+        if self.num_anchors is None:
+            self.num_anchors = len(self.anchors)
+
+        assert self.num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
+
         # Select the wanted anchors
         self.anchors = self.anchors[:num_anchors]
 
         # Retrieve the relative representation from the decoder
         self.r = decoder_blob['relative'][:, :self.num_anchors]
+
+        # Retrieve the absolute representation from the decoder
+        self.z = decoder_blob['absolute']
+        
+        if self.case == 'rel':
+            self.input = self.r
+        elif self.case == 'abs':
+            self.input = self.z
 
         # Retrieve the labels
         self.labels = decoder_blob['coarse_labels']
@@ -225,7 +243,7 @@ class DatasetClassifier(Dataset):
         # =================================================
         #         Get the input and the output size
         # =================================================
-        self.input_size = self.r.shape[-1]
+        self.input_size = self.input.shape[-1]
         self.num_classes = self.labels.unique().shape[-1]
 
 
@@ -236,7 +254,7 @@ class DatasetClassifier(Dataset):
             int
             Length of the Dataset.
         """
-        return len(self.r)
+        return len(self.input)
 
 
     def __getitem__(self,
@@ -248,16 +266,16 @@ class DatasetClassifier(Dataset):
                 The index of the wanted row.
 
         Returns:
-            (r_i, l_i) : tuple[torch.Tensor, torch.Tensor]
+            (input_i, l_i) : tuple[torch.Tensor, torch.Tensor]
                 The inputs and target as a tuple of tensors.
         """
-        # Get the relative representation of the element at idx
-        r_i = self.r[idx]
+        # Get the i input
+        input_i = self.input[idx]
 
-        # Get the absolute representation of the element at idx
+        # Get the label of the element at idx
         l_i = self.labels[idx]
         
-        return r_i, l_i
+        return input_i, l_i
 
 
 # =====================================================
@@ -436,6 +454,8 @@ class DataModuleClassifier(LightningDataModule):
             The name of the decoder.
         num_anchors : int
             The number of anchors to use.
+        case : str
+            The type of the input. Default 'rel'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -449,6 +469,7 @@ class DataModuleClassifier(LightningDataModule):
                  dataset: str,
                  decoder: str,
                  num_anchors: int,
+                 case: str = 'rel',
                  batch_size: int = 128,
                  num_workers: int = 0) -> None:
         super().__init__()
@@ -456,6 +477,7 @@ class DataModuleClassifier(LightningDataModule):
         self.dataset: str = dataset
         self.decoder: str = decoder
         self.num_anchors: int = num_anchors
+        self.case: str = case
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
 
@@ -510,11 +532,14 @@ class DataModuleClassifier(LightningDataModule):
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
         self.train_data = DatasetClassifier(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                            num_anchors=self.num_anchors)
+                                            num_anchors=self.num_anchors,
+                                            case=self.case)
         self.test_data = DatasetClassifier(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                           num_anchors=self.num_anchors)
+                                           num_anchors=self.num_anchors,
+                                           case=self.case)
         self.val_data = DatasetClassifier(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                          num_anchors=self.num_anchors)
+                                          num_anchors=self.num_anchors,
+                                          case=self.case)
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.num_classes == self.test_data.num_classes and self.train_data.num_classes == self.val_data.num_classes, "The number of classes must match between train, test and val data."
@@ -606,7 +631,8 @@ def main() -> None:
     
     data = DataModuleClassifier(dataset=dataset,
                                 decoder=decoder,
-                                num_anchors=num_anchors)
+                                num_anchors=num_anchors,
+                                case='abs')
     data.prepare_data()
     data.setup()
     next(iter(data.train_dataloader()))

@@ -8,13 +8,14 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(sys.path[0]).parent))
 
+import torch
 import wandb
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
 from src.models import SemanticAutoEncoder
-from src.utils import complex_gaussian_matrix
+from src.utils import complex_gaussian_matrix, complex_tensor
 from src.datamodules import DataModule    
 
 def main() -> None:
@@ -48,9 +49,9 @@ def main() -> None:
 
     parser.add_argument('-a',
                         '--anchors',
-                        help="The number of anchors.",
+                        help="The number of anchors. Default None.",
                         type=int,
-                        required=True)
+                        default=None)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
@@ -67,6 +68,14 @@ def main() -> None:
                         help="The case of the network input. Default 'abs'.",
                         default='abs',
                         type=str)
+
+    parser.add_argument('-t',
+                        '--target',
+                        help="The target of the neural network. Default 'abs'.",
+                        default='abs',
+                        type=str)
+
+    parser.add_argument('--aware', default=True, action=argparse.BooleanOptionalAction)
 
     parser.add_argument('-n',
                         '--neurons',
@@ -108,7 +117,12 @@ def main() -> None:
     seed_everything(args.seed, workers=True)
 
     # Get the channel matrix
-    channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
+    if args.aware:
+        aware = 'aware'
+        channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
+    else:
+        aware = 'unaware'
+        channel_matrix = complex_tensor(torch.eye(args.receiver, args.transmitter))
 
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
@@ -116,6 +130,7 @@ def main() -> None:
                             decoder=args.decoder,
                             num_anchors=args.anchors,
                             case=args.case,
+                            target=args.target,
                             num_workers=args.workers)
 
     # Prepare and setup the data
@@ -145,7 +160,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_{args.case}_{args.transmitter}_{args.receiver}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,
