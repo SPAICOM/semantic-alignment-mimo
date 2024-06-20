@@ -135,6 +135,7 @@ def main() -> None:
     # Closing W&B
     wandb.finish()
 
+    return None
 
 if __name__ == "__main__":
     main()

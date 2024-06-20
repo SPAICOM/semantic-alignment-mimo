@@ -126,5 +126,7 @@ def main():
     plot = sns.lineplot(x=range(0, len(losses)), y=losses).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")
     plt.show()
 
+    return None
+
 if __name__ == "__main__":
     main()
