@@ -75,7 +75,9 @@ def main() -> None:
                         default='abs',
                         type=str)
 
-    parser.add_argument('--aware', default=True, action=argparse.BooleanOptionalAction)
+    parser.add_argument('--aware', 
+                        default=True,
+                        action=argparse.BooleanOptionalAction)
 
     parser.add_argument('-n',
                         '--neurons',
