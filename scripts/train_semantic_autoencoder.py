@@ -75,7 +75,8 @@ def main() -> None:
                         default='abs',
                         type=str)
 
-    parser.add_argument('--aware', 
+    parser.add_argument('--aware',
+                        help="The aweraness of the model. Default True.",
                         default=True,
                         action=argparse.BooleanOptionalAction)
 
