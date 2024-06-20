@@ -113,6 +113,10 @@ class LinearOptimizerSAE():
             The output dimension.
         channel_matrix : torch.Tensor
             The Complex Gaussian Matrix simulating the communication channel.
+        white_noise_cov: torch.Tensor
+            The covariance matrix of white noise.
+        sigma : int
+            The sigma square for the white noise.
 
     Attributes:
         self.<args_name>
@@ -128,13 +132,17 @@ class LinearOptimizerSAE():
     def __init__(self,
                  input_dim: int,
                  output_dim: int,
-                 channel_matrix: torch.Tensor):
+                 channel_matrix: torch.Tensor,
+                 white_noise_cov: torch.Tensor,
+                 sigma: int):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
+        self.white_noise_cov = white_noise_cov
+        self.sigma = sigma
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
 
         # Variables
@@ -160,7 +168,7 @@ class LinearOptimizerSAE():
         output = complex_tensor(output)
         
         A = self.channel_matrix @ self.F @ input
-        self.G = output @ torch.linalg.pinv(A)
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.white_noise_cov)  
         
         return None
     
@@ -191,7 +199,8 @@ class LinearOptimizerSAE():
     def fit(self,
             input: torch.Tensor,
             output: torch.Tensor,
-            iterations: int = 10) -> None:
+            iterations: int = 10,
+            eval: bool = False) -> list[float]:
         """Fitting the F and G to the passed data.
 
         Args:
@@ -201,23 +210,29 @@ class LinearOptimizerSAE():
                 The output tensor.
             iterations : int
                 The number of iterations. Default 10.
+            eval: bool
+                Set to True if you want to eval every single iteration. Default False.
         
         Returns:
-            None
+            loss : list[float]
+                The list of all the losses during fit.
         """
         # Inizialize the F matrix
-        self.F = complex_tensor(torch.eye(self.antennas_transmitter, self.input_dim))
+        self.F = complex_tensor(torch.randn(self.antennas_transmitter, self.input_dim))
 
         # Set the input and output in the right dimensions
         input = nn.functional.normalize(input, p=2, dim=-1)
         input = input.T
         output = output.T
 
+        loss = []
         for _ in tqdm(range(iterations)):
             self.__G_step(input=input, output=output)
             self.__F_step(input=input, output=output)
+            if eval:
+                loss.append(self.eval(input.T, output.T))
 
-        return None
+        return loss
 
 
     def transform(self,
@@ -226,6 +241,7 @@ class LinearOptimizerSAE():
 
         Args:
             input : torch.Tensor
+                The input tensor.
 
         Returns:
             output : torch.Tensor
@@ -233,7 +249,9 @@ class LinearOptimizerSAE():
         """
         input = nn.functional.normalize(input, p=2, dim=-1)
         input = complex_tensor(input.T)
-        output = self.G @ self.channel_matrix @ self.F @ input
+        z = self.channel_matrix @ self.F @ input
+        wn = complex_tensor(torch.normal(0, self.sigma, size=z.shape))
+        output = self.G @ (z + wn)
 
         return output.real.T
     

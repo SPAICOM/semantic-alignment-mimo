@@ -120,9 +120,11 @@ def main() -> None:
     if args.aware:
         aware = 'aware'
         channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
+        sigma = 1
     else:
         aware = 'unaware'
         channel_matrix = complex_tensor(torch.eye(args.receiver, args.transmitter))
+        sigma = 0
 
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
@@ -145,6 +147,7 @@ def main() -> None:
                                 hidden_dim=args.neurons,
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
+                                sigma=sigma,
                                 lr=args.lr)
 
     # Callbacks definition
@@ -160,7 +163,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

@@ -5,7 +5,10 @@ To check available parameters run 'python /path/to/train_linear_SAE.py --help'.
 """
 # Add root to the path
 import sys
+import torch
 from pathlib import Path
+import seaborn as sns
+import matplotlib.pyplot as plt
 sys.path.append(str(Path(sys.path[0]).parent))
 
 from pytorch_lightning import Trainer, seed_everything
@@ -45,9 +48,15 @@ def main():
 
     parser.add_argument('-a',
                         '--anchors',
-                        help="The number of anchors.",
+                        help="The number of anchors. Default None.",
                         type=int,
-                        required=True)
+                        default=None)
+    
+    parser.add_argument('-s',
+                        '--sigma',
+                        help="The sigma squared of the white noise. Default 0.",
+                        type=int,
+                        default=0)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
@@ -58,6 +67,12 @@ def main():
                         help="The number of antennas for the receiver.",
                         type=int,
                         required=True)
+
+    parser.add_argument('-i',
+                        '--iterations',
+                        help="The number of fitting iterations.",
+                        type=int,
+                        default=10)
 
     parser.add_argument('--seed',
                         help="The seed for the analysis. Default 42.",
@@ -71,6 +86,9 @@ def main():
 
     # Get the channel matrix
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
+
+    # Set the white noise
+    white_noise_cov = args.sigma * torch.eye(args.receiver)
     
     # =========================================================
     #                     Get the dataset
@@ -91,16 +109,22 @@ def main():
     # =========================================================
     opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
                              output_dim=datamodule.output_size,
-                             channel_matrix=channel_matrix)
+                             channel_matrix=channel_matrix,
+                             white_noise_cov=white_noise_cov,
+                             sigma=args.sigma)
 
     # Fit the linear optimizer
-    opt.fit(input=datamodule.train_data.z,
-            output=datamodule.train_data.r_decoder)
+    losses = opt.fit(input=datamodule.train_data.z,
+                     output=datamodule.train_data.r_decoder,
+                     iterations=args.iterations,
+                     eval=True)
     
     # Eval the linear optimizer
     print(opt.eval(input=datamodule.test_data.z,
                    output=datamodule.test_data.r_decoder))
 
+    plot = sns.lineplot(x=range(0, len(losses)), y=losses).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")
+    plt.show()
 
 if __name__ == "__main__":
     main()

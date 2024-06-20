@@ -15,7 +15,7 @@ def main() -> None:
     """
     # Define some paths
     CURRENT: Path = Path('.')
-    PARQUET_PATH: Path = CURRENT / 'final_results.parquet'
+    PARQUET_PATH: Path = CURRENT / 'final_results_with_noise.parquet'
     IMG_PATH: Path = CURRENT / 'img'
 
     # Create the 'img' folder if it doesn't exist
@@ -66,61 +66,61 @@ def main() -> None:
     plt.show()
 
     
-    # ====================================================================================================================
-    #                                        Transmitting Antennas Relative
-    # ====================================================================================================================
-    ticks = df['Transmitting Antennas'].unique()
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Transmitting Antennas', 'Accuracy')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1))
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'accuracy_transmitting_relative.png'))
-    plt.show()
+    # # ====================================================================================================================
+    # #                                        Transmitting Antennas Relative
+    # # ====================================================================================================================
+    # ticks = df['Transmitting Antennas'].unique()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Transmitting Antennas', 'Accuracy')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1))
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'accuracy_transmitting_relative.png'))
+    # plt.show()
     
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Transmitting Antennas', 'Classifier Loss')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'classifier_transmitting_relative.png'))
-    plt.show()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Transmitting Antennas', 'Classifier Loss')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'classifier_transmitting_relative.png'))
+    # plt.show()
     
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Transmitting Antennas', 'Alignment Loss')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'alignment_transmitting_relative.png'))
-    plt.show()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Receiving Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Transmitting Antennas', 'Alignment Loss')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'alignment_transmitting_relative.png'))
+    # plt.show()
     
-    # ====================================================================================================================
-    #                                        Receiving Antennas Relative
-    # ====================================================================================================================
-    ticks = df['Receiving Antennas'].unique()
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Receiving Antennas', 'Accuracy')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1))
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'accuracy_receving_relative.png'))
-    plt.show()
+    # # ====================================================================================================================
+    # #                                        Receiving Antennas Relative
+    # # ====================================================================================================================
+    # ticks = df['Receiving Antennas'].unique()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Receiving Antennas', 'Accuracy')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1))
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'accuracy_receving_relative.png'))
+    # plt.show()
     
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Receiving Antennas', 'Classifier Loss')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'classifier_receving_relative.png'))
-    plt.show()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Receiving Antennas', 'Classifier Loss')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'classifier_receving_relative.png'))
+    # plt.show()
     
-    plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
-    plot.map(sns.lineplot, 'Receiving Antennas', 'Alignment Loss')
-    plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
-    plot.add_legend()
-    plot.figure.subplots_adjust(wspace=0.1)
-    plt.savefig(str(IMG_PATH / 'alignment_receving_relative.png'))
-    plt.show()
+    # plot = sns.FacetGrid(df.filter((pl.col('Case').str.contains('rel'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), hue='Case', col="Anchors")
+    # plot.map(sns.lineplot, 'Receiving Antennas', 'Alignment Loss')
+    # plot.set(xlim=(ticks[0], ticks[-1]), xticks=ticks)
+    # plot.add_legend()
+    # plot.figure.subplots_adjust(wspace=0.1)
+    # plt.savefig(str(IMG_PATH / 'alignment_receving_relative.png'))
+    # plt.show()
         
     return None
 

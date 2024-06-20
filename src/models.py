@@ -562,6 +562,8 @@ class SemanticAutoEncoder(pl.LightningModule):
             The number of hidden layers.
         channel_matrix : torch.Tensor
             A complex matrix simulating a communication channel.
+        sigma : int
+            The sigma square for the white noise. Default 0.
         lr : float)
             The learning rate. Default 1e-3. 
 
@@ -577,6 +579,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  hidden_dim: int,
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
+                 sigma: int = 0,
                  lr: float = 1e-3):
         super().__init__()
 
@@ -609,12 +612,19 @@ class SemanticAutoEncoder(pl.LightningModule):
             torch.Tensor
                 The output of the MLP.
         """
-        device = x.device
         x = nn.functional.normalize(x, p=2, dim=-1)
-        z = self.semantic_encoder(x)
-        z = complex_tensor(z)
-        z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(device))
-        return self.semantic_decoder(z.real)
+        
+        # Encoding in transmission
+        z = complex_tensor(self.semantic_encoder(x))
+        
+        # Make the signal pass through the channel
+        z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device))
+        
+        # Add white noise
+        z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
+        
+        # Decoding in reception
+        return self.semantic_decoder(z)
 
 
     def configure_optimizers(self) -> dict[str, object]:
@@ -779,6 +789,7 @@ def main() -> None:
     antennas_transmitter = 10
     antennas_receiver = 10
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
+    sigma = 1
     
     data = torch.randn(1, input_dim)
     
@@ -795,7 +806,7 @@ def main() -> None:
     
     print()
     print("Test for SemanticAutoEncoder...", end='\t')
-    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size, channel_matrix)
+    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size, channel_matrix, sigma=sigma)
     output = mlp(data)
     print("[Passed]")
 
