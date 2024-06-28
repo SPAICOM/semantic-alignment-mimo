@@ -15,8 +15,11 @@ def main() -> None:
     """
     # Define some paths
     CURRENT: Path = Path('.')
-    PARQUET_PATH: Path = CURRENT / 'final_results_with_noise.parquet'
+    PARQUET_PATH: Path = CURRENT / 'final_results.parquet'
     IMG_PATH: Path = CURRENT / 'img'
+
+    tr_fixed = 350
+    rc_fixed = 80
 
     # Create the 'img' folder if it doesn't exist
     IMG_PATH.mkdir(parents=True, exist_ok=True)
@@ -30,18 +33,19 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Transmitting Antennas Absolute
     # ====================================================================================================================
-    ticks = df['Transmitting Antennas'].unique()
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==200)).to_pandas(), 
+    ticks = df.filter(pl.col('Transmitting Antennas')!=tr_fixed)['Transmitting Antennas'].unique()
+
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==rc_fixed)).to_pandas(), 
                         x='Transmitting Antennas', y='Accuracy', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Accuracy Vs Transmitting Antennas", ylim=(0, 1))
     plt.savefig(str(IMG_PATH / 'accuracy_transmitting_absolute.png'))
     plt.show()
     
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==200)).to_pandas(), 
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==rc_fixed)).to_pandas(), 
                         x='Transmitting Antennas', y='Classifier Loss', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Classifier Loss Vs Transmitting Antennas")
     plt.savefig(str(IMG_PATH / 'classifier_transmitting_absolute.png'))
     plt.show()
     
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==200)).to_pandas(), 
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Receiving Antennas')==rc_fixed)).to_pandas(), 
                         x='Transmitting Antennas', y='Alignment Loss', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Alignment Loss Vs Transmitting Antennas")
     plt.savefig(str(IMG_PATH / 'alignment_transmitting_absolute.png'))
     plt.show()
@@ -49,22 +53,43 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Receiving Antennas Absolute
     # ====================================================================================================================
-    ticks = df['Receiving Antennas'].unique()
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), 
+    ticks = df.filter(pl.col('Receiving Antennas')!=rc_fixed)['Receiving Antennas'].unique()
+    
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==tr_fixed)).to_pandas(), 
                         x='Receiving Antennas', y='Accuracy', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Accuracy Vs Receiving Antennas", ylim=(0, 1))
     plt.savefig(str(IMG_PATH / 'accuracy_receving_absolute.png'))
     plt.show()
     
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), 
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==tr_fixed)).to_pandas(), 
                         x='Receiving Antennas', y='Classifier Loss', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Classifier Loss Vs Receiving Antennas")
     plt.savefig(str(IMG_PATH / 'classifier_receiving_absolute.png'))
     plt.show()
     
-    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==200)).to_pandas(), 
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==tr_fixed)).to_pandas(), 
                         x='Receiving Antennas', y='Alignment Loss', hue='Case').set(xlim=(ticks[0], ticks[-1]), xticks=ticks, title="Alignment Loss Vs Receiving Antennas")
     plt.savefig(str(IMG_PATH / 'alignment_receiving_absolute.png'))
     plt.show()
 
+    
+    # ====================================================================================================================
+    #                                        Accuracy Vs Signal to Noise Ratio
+    # ====================================================================================================================
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains(' aware abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100)&(pl.col("Sigma")!=0)).to_pandas(), 
+                        x='SNR', y='Accuracy', hue='Case').set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio")
+    plt.savefig(str(IMG_PATH / 'snr_absolute.png'))
+    plt.show()
+    
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains(' aware abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100)&(pl.col("Sigma")!=0)).to_pandas(), 
+                        x='SNR', y='Accuracy', hue='Case').set(xlim=(-30, 20), ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio")
+    plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.png'))
+    plt.show()
+    
+    ticks = df.filter((pl.col('Case').str.contains('abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100))['Sigma'].unique()
+       
+    plot = sns.lineplot(df.filter((pl.col('Case').str.contains(' aware abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100)&(pl.col('Sigma')!=0)).to_pandas(), 
+                        x='Sigma', y='Accuracy', hue='Case').set(xscale='log', ylim=(0, 1), xlim=(ticks[0], ticks[-1]), title="Accuracy Vs Sigma")
+    plt.savefig(str(IMG_PATH / 'sigma_absolute.png'))
+    plt.show()
     
     # # ====================================================================================================================
     # #                                        Transmitting Antennas Relative

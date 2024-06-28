@@ -57,20 +57,20 @@ def complex_gaussian_matrix(mean: float,
 
 
 def snr(signal: torch.Tensor,
-        noise: torch.Tensor) -> float:
+        sigma: float) -> float:
     """Return the Signal to Noise Ratio.
 
     Args:
         signal : torch.Tensor
             The signal vector.
-        noise : torch.Tensor
-            The noise vector.
+        sigma : float
+            The sigma squared of the noise.
 
     Return:
         float
             The Signal to Noise Ratio.
     """
-    return (torch.mean(signal**2)/torch.mean(noise**2)).item()
+    return 10*torch.log10(torch.mean(signal**2)/sigma**2).item()
     
     
 
@@ -90,7 +90,7 @@ def main() -> None:
     size: tuple[int] = (4, 4)
 
     x = torch.randn(4, 10)
-    n = torch.normal(mean, std, size=x.shape)
+    # n = torch.normal(mean, std, size=x.shape)
     
     print("Performing first test...", end="\t")
     complex_matrix = complex_gaussian_matrix(mean=mean, std=std, size=size)
@@ -103,7 +103,7 @@ def main() -> None:
 
     print()
     print("Performing third test...", end='\t')
-    sn_ratio = snr(x.real, x.real+n)
+    sn_ratio = snr(x.real, std)
     print("[PASSED]")
     
     return None
