@@ -75,12 +75,12 @@ def main() -> None:
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
     plot = sns.lineplot(df.filter((pl.col('Case').str.contains(' aware abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100)&(pl.col("Sigma")!=0)).to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case').set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio")
+                        x='SNR', y='Accuracy', hue='Case').set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio", xlabel="Signal to Noise Ratio (dB)")
     plt.savefig(str(IMG_PATH / 'snr_absolute.png'))
     plt.show()
     
     plot = sns.lineplot(df.filter((pl.col('Case').str.contains(' aware abs'))&(pl.col('Transmitting Antennas')==200)&(pl.col('Receiving Antennas')==100)&(pl.col("Sigma")!=0)).to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case').set(xlim=(-30, 20), ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio")
+                        x='SNR', y='Accuracy', hue='Case').set(xlim=(-30, 20), ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio", xlabel="Signal to Noise Ratio (dB)")
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.png'))
     plt.show()
     
