@@ -80,6 +80,11 @@ def main() -> None:
                         default=True,
                         action=argparse.BooleanOptionalAction)
 
+    parser.add_argument('--sigma',
+                        help="The sigma of the white noise. Default 1.",
+                        default=1,
+                        type=float)
+
     parser.add_argument('-n',
                         '--neurons',
                         help="The hidden layer dimension.",
@@ -104,6 +109,11 @@ def main() -> None:
                         default=-1,
                         type=int)
 
+    parser.add_argument('--cost',
+                        help="Transmission cost. Default None.",
+                        default=None,
+                        type=int)
+
     parser.add_argument('--lr',
                         help="The learning rate. Default 0.001.",
                         default=1e-3,
@@ -123,7 +133,7 @@ def main() -> None:
     if args.aware:
         aware = 'aware'
         channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
-        sigma = 1
+        sigma = args.sigma
     else:
         aware = 'unaware'
         channel_matrix = complex_tensor(torch.eye(args.receiver, args.transmitter))
@@ -151,6 +161,7 @@ def main() -> None:
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
                                 sigma=sigma,
+                                cost=args.cost,
                                 lr=args.lr)
 
     # Callbacks definition
@@ -166,7 +177,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}',
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

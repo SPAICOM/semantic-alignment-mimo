@@ -70,9 +70,14 @@ def main():
 
     parser.add_argument('-i',
                         '--iterations',
-                        help="The number of fitting iterations.",
+                        help="The number of fitting iterations. Default None.",
                         type=int,
-                        default=10)
+                        default=None)
+    
+    parser.add_argument('--cost',
+                        help="Transmission cost. Default None.",
+                        default=None,
+                        type=int)
 
     parser.add_argument('--seed',
                         help="The seed for the analysis. Default 42.",
@@ -111,19 +116,24 @@ def main():
                              output_dim=datamodule.output_size,
                              channel_matrix=channel_matrix,
                              white_noise_cov=white_noise_cov,
-                             sigma=args.sigma)
+                             sigma=args.sigma,
+                             cost=args.cost)
 
     # Fit the linear optimizer
     losses = opt.fit(input=datamodule.train_data.z,
-                     output=datamodule.train_data.r_decoder,
-                     iterations=args.iterations,
-                     eval=True)
+                     output=datamodule.train_data.z_decoder,
+                     iterations=args.iterations)
     
     # Eval the linear optimizer
-    print(opt.eval(input=datamodule.test_data.z,
-                   output=datamodule.test_data.r_decoder))
+    print("loss:",
+          opt.eval(input=datamodule.test_data.z,
+                   output=datamodule.test_data.z_decoder))
 
-    plot = sns.lineplot(x=range(0, len(losses)), y=losses).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")
+    print("trace(F^H F):", torch.trace(opt.F.H @ opt.F).item())
+
+    # print("lambda:", opt.lmb)
+    
+    plot = sns.lineplot(x=range(0, len(losses)), y=losses).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")#, yscale='log')
     plt.show()
 
     return None

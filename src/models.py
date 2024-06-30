@@ -580,6 +580,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
                  sigma: int = 0,
+                 cost: float = None,
                  lr: float = 1e-3):
         super().__init__()
 
@@ -616,6 +617,9 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Encoding in transmission
         z = complex_tensor(self.semantic_encoder(x))
+
+        # Save the latent
+        self.latent = z
         
         # Make the signal pass through the channel
         z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device))
@@ -659,6 +663,10 @@ class SemanticAutoEncoder(pl.LightningModule):
                 The output of the MLP and the loss.
         """
         y_hat = self(x)
+
+        if self.hparams["cost"]:
+            regularizer = torch.abs(torch.norm(self.latent, p=2) - self.hparams["cost"])
+            
         loss = nn.functional.mse_loss(y_hat, y)
         return y_hat, loss
 
