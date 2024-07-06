@@ -120,6 +120,10 @@ class LinearOptimizerSAE():
             The sigma square for the white noise.
         cost : float
             The transmition cost. Default None.
+        mu : float
+            The mu coeficient for the admm method. Default 1e-2.
+        rho : int
+            The rho coeficient for the admm method. Default 1.
 
     Attributes:
         self.<args_name>
@@ -132,7 +136,11 @@ class LinearOptimizerSAE():
         self.G : cp.Variable | torch.Tensor
             The G matrix.
         self.lmb : float
-            The lambda parameter for the constraint problem
+            The lambda parameter for the constraint problem.
+        self.Z : torch.Tensor
+            The Proximal variable for ADMM.
+        self.U : torch.Tensor
+            The Dual variable for ADMM.
     """
     def __init__(self,
                  input_dim: int,
@@ -140,22 +148,30 @@ class LinearOptimizerSAE():
                  channel_matrix: torch.Tensor,
                  white_noise_cov: torch.Tensor,
                  sigma: int,
-                 cost: float = None):
+                 cost: float = None,
+                 mu: float = 1e-4,
+                 rho: float = 1e3):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.white_noise_cov = white_noise_cov
+        self.white_noise_cov = complex_tensor(white_noise_cov)
         self.sigma = sigma
         self.cost = cost
+        self.mu = mu
+        self.rho = rho
         self.lmb: float = None
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
 
         # Variables
         self.F = None
         self.G = None
+
+        # ADMM variables
+        self.Z = torch.zeros(self.antennas_transmitter, self.input_dim)
+        self.U = torch.zeros(self.antennas_transmitter, self.input_dim)
 
 
     def __G_step(self,
@@ -181,15 +197,14 @@ class LinearOptimizerSAE():
             self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.white_noise_cov)  
         except:
             self.G = output @ A.H @ torch.linalg.pinv(A @ A.H + self.white_noise_cov)  
-            
-        
+        # self.G = self.G - 0.1 * ((self.G@self.channel_matrix@self.F@input - output)@A.H + self.G@self.white_noise_conv)
         return None
     
 
     def __F_step(self,
                  input: torch.Tensor,
                  output: torch.Tensor,
-                 cvxpy: bool = False) -> None:
+                 method: str = 'closed') -> None:
         """The F step that minimize the Lagrangian.
 
         Args:
@@ -197,12 +212,96 @@ class LinearOptimizerSAE():
                 The input tensor.
             output : torch.Tensor
                 The output tensor.
-            cvxpy : bool
-                Check for using cvxpy solvers.
+            method : str
+                The algorithm method, chose between 'admm', 'closed' and 'cvxpy'. Default 'closed'.
 
         Returns:
             None
         """
+        def __F_admm(input: torch.Tensor,
+                     output: torch.Tensor) -> None:
+            """Solving the F step using admm.
+            
+            Args:
+                input : torch.Tensor
+                    The input tensor.
+                output : torch.Tensor
+                    The output tensor.
+
+            Return:
+                None
+            """
+            def __rho_update(res_primal: torch.Tensor,
+                             res_dual: torch.Tensor,
+                             tau_incr: float = 2,
+                             tau_decr: float = 2,
+                             gamma: float = 10.) -> None:
+                """A function to handle the dynamic update of rho.
+                
+                Args:
+                    res_primal : torch.Tensor
+                        The primal residual.
+                    res_dual : torch.Tensor
+                        The dual residual.
+                    tau_incr : torch.Tensor
+                        The tau increase parameter. Default 2.
+                    tau_decr : torch.Tensor
+                        The tau decrease parameter. Default 2.
+                    gamma : float
+                        The gamma parameter for the check. Default 10.
+                        
+                Return:
+                    None
+                """
+                res_primal = torch.linalg.matrix_norm(res_primal)
+                res_dual = torch.linalg.matrix_norm(res_dual)
+
+                if res_primal > gamma*res_dual:
+                    self.rho *= tau_incr
+                    self.U /= tau_incr
+                elif res_dual > gamma*res_primal:
+                    self.rho /= tau_decr
+                    self.U *= tau_decr
+
+                return None
+
+            old_Z = self.Z
+            
+           
+            # The F step
+            A = self.G @ self.channel_matrix
+            self.F = self.F - self.mu * ( A.H @ ( A @ self.F @ input  - output ) @ input.H + self.rho * (self.F - self.Z + self.U) )
+            # self.F = self.F - self.mu * ( A.H @ ( A @ self.F @ input  - output ) @ input.H + self.rho * (self.F@input - self.Z + self.U)@input.T )
+
+            # The Proximal randnstep
+            B = self.F + self.U
+            # B = self.F@input + self.U
+            get_Z = lambda lmb: B/(1+lmb)
+            Z = get_Z(0)
+            if torch.trace(Z.H@Z).real.item() <= self.cost:
+            # if torch.linalg.matrix_norm(Z).real.item() <= self.cost:
+                self.Z = Z
+                self.lmb = 0
+            else:
+                self.lmb = torch.sqrt( torch.trace(B.H@B).real / self.cost ).item()-1
+                # self.lmb = torch.sqrt( torch.linalg.matrix_norm(B).real**2 / self.cost ).item()-1
+                self.Z = get_Z(self.lmb)
+
+            # print(torch.linalg.norm(self.Z).real**2)
+
+            # The dual step
+            self.U = self.U + self.F - self.Z
+            # self.U = self.U + self.F@input - self.Z
+
+            # Rho update
+            res_primal = self.F - self.Z
+            # res_primal = self.F@input - self.Z
+            res_dual = - self.rho * (self.Z - old_Z)
+            # print(res_primal, res_dual)
+            # __rho_update(res_primal, res_dual)
+            return None
+
+
         def __F_cvxpy(input: torch.Tensor,
                       output: torch.Tensor) -> None:
             """Solving the F step using cvxpy.
@@ -295,33 +394,44 @@ class LinearOptimizerSAE():
                     The contraint value.
             """
             F = __F_constrained(lmb, input, output)
-            return torch.trace(F.H @ F).real.item() - self.cost
+            # return torch.trace((F@input).H @ (F@input)).real.item() - self.cost
+            return torch.linalg.matrix_norm(F@input)**2 - self.cost
         
         input = complex_tensor(input)
         output = complex_tensor(output)
-
-        if cvxpy:
-            __F_cvxpy(input, output)
-        else:
-            self.lmb = None
-            A = self.G @ self.channel_matrix        
-            self.F = torch.linalg.pinv(A) @ output @ torch.linalg.pinv(input)
-
-            # If we're in the constraint problem
-            if self.cost:
+        
+        assert method in ["admm", "closed", "cvxpy"], 'The passed method is not in the possible values, please chose from "admm", "closed" and "cvxpy"'
+        
+        # If we're in the constraint problem
+        if self.cost:
+            if method == 'cvxpy':
+                __F_cvxpy(input, output)
+            elif method == 'admm':
+                __F_admm(input, output)
+            elif method == 'closed':
+                self.F = __F_constrained(1, input, output)
+                return None
+                A = self.G @ self.channel_matrix        
+                self.F = torch.linalg.pinv(A) @ output @ torch.linalg.pinv(input)
 
                 # We check if the solution with lambda = 0 is the optimum.
                 self.lmb = 0
 
                 # Check the KKT condition
-                if torch.trace(self.F.H @ self.F).real.item() - self.cost > 0:
+                # if torch.trace((self.F@input).H @ (self.F@input)).real.item() - self.cost > 0:
+                if torch.linalg.matrix_norm(self.F@input)**2 - self.cost > 0:
                     # It is not the optimum so we need to find lambda optimum
                     sol = root_scalar(__constraint, args=(input, output), x0=0, method='secant')
                     self.lmb = sol.root
 
                     # Get the optimal F
                     self.F = __F_constrained(self.lmb, input, output)
-        
+
+        # Not in the contrained problem
+        else:
+            A = self.G @ self.channel_matrix        
+            self.F = torch.linalg.pinv(A) @ output @ torch.linalg.pinv(input)
+
         return None
     
     
@@ -329,7 +439,7 @@ class LinearOptimizerSAE():
             input: torch.Tensor,
             output: torch.Tensor,
             iterations: int = None,
-            cvxpy: bool = False) -> list[float]:
+            method: str = 'closed') -> list[float]:
         """Fitting the F and G to the passed data.
 
         Args:
@@ -339,19 +449,23 @@ class LinearOptimizerSAE():
                 The output tensor.
             iterations : int
                 The number of iterations. Default None.
-            cvxpy : bool
-                Check for using cvxpy solvers.
+            method : str
+                The algorithm method, chose between 'admm', 'closed' and 'cvxpy'. Default 'closed'.
         
         Returns:
-            loss : list[float]
-                The list of all the losses during fit.
+            (losses, traces) : tuple[list[float], list[float]]
+                The losses and the traces during training.
         """
         input.to('cpu')
         output.to('cpu')
         
+        # self.Z = torch.zeros(self.antennas_transmitter, input.T.shape[-1])
+        # self.U = torch.zeros(self.antennas_transmitter, input.T.shape[-1])
+        
         with torch.no_grad():
             # Inizialize the F matrix
             self.F = complex_tensor(torch.randn(self.antennas_transmitter, self.input_dim))
+            # self.G = complex_tensor(torch.randn(self.output_dim, self.antennas_receiver))
 
             # Set the input and output in the right dimensions
             input = nn.functional.normalize(input, p=2, dim=-1)
@@ -360,23 +474,45 @@ class LinearOptimizerSAE():
 
             loss = np.inf
             losses = []
+            traces = []
             if iterations:
                 for _ in tqdm(range(iterations)):
                     self.__G_step(input=input, output=output)
-                    self.__F_step(input=input, output=output, cvxpy=cvxpy)
+                    self.__F_step(input=input, output=output, method=method)
+                    # if method != 'admm':
+                    #     self.__G_step(input=input, output=output)
+                    # print(self.G)
+                    # print(self.F)
                     loss = self.eval(input.T, output.T)
+                    trace = torch.trace(self.F.H@self.F).real.item()
+                    # trace = torch.trace((self.F@complex_tensor(input)).H@(self.F@complex_tensor(input))).real.item()
+                    # trace = torch.linalg.matrix_norm(self.F@complex_tensor(input)).real.item()**2
+                    # trace = torch.linalg.matrix_norm(self.F).real.item()**2
                     losses.append(loss)
+                    traces.append(trace)
                     
+                    # if self.cost:
+                    #     if trace <= self.cost:
+                    #         break
                     # if loss < 1e-1:
                     #     break
             else:
                 while loss > 1e-1:
-                    self.__G_step(input=input, output=output)
-                    self.__F_step(input=input, output=output, cvxpy=cvxpy)
+                    if method != 'admm':
+                        self.__G_step(input=input, output=output)
+                    self.__F_step(input=input, output=output, method=method)
                     loss = self.eval(input.T, output.T)
+                    trace = torch.trace(self.F.H@self.F).real.item()
+                    # trace = torch.trace((self.F@complex_tensor(input)).H@(self.F@complex_tensor(input))).real.item()
+                    # trace = torch.linalg.matrix_norm(self.F@complex_tensor(input)).real.item()**2
                     losses.append(loss)
+                    traces.append(trace)
+                    
+                    # if self.cost:
+                    #     if trace <= self.cost:
+                    #         break
 
-        return losses
+        return losses, traces
 
 
     def transform(self,

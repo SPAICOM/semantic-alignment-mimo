@@ -42,6 +42,13 @@ def main() -> None:
                         default='final_results',
                         type=str)
 
+    parser.add_argument('-t',
+                        '--train',
+                        help="Train the linear optimizer. Default True.",
+                        default=True,
+                        action=argparse.BooleanOptionalAction,
+                        type=bool)
+
     args = parser.parse_args()
     
     # Defining paths
@@ -142,7 +149,7 @@ def main() -> None:
         
         # Get the absolute representation in the decoder space
         z_psi_hat = torch.cat(trainer.predict(model=model, datamodule=datamodule))
-        # noise = datamodule.test_data.z_decoder - z_psi_hat
+        
         alignment_metrics = trainer.test(model=model, datamodule=datamodule)[0]
       
         # Get the predictions using as input the z_psi_hat
@@ -192,10 +199,24 @@ def main() -> None:
                                  sigma=sigma,
                                  cost=cost)
 
-        # Fit the linear optimizer
-        opt.fit(input=datamodule.train_data.z,
-                output=datamodule.train_data.z_decoder,
-                iterations=5)
+        # Check if the matrices F and G are pretrained
+        if args.train:
+            # Fit the linear optimizer
+            opt.fit(input=datamodule.train_data.z,
+                    output=datamodule.train_data.z_decoder,
+                    iterations=5,
+                    method='admm')
+        else:
+            import scipy.io
+
+            if awareness == 'aware':
+                matrices = scipy.io.loadmat(str(autoencoder_path.parent / f'seed_{seed}.mat'))
+            else:
+                matrices = scipy.io.loadmat(str(autoencoder_path.parent / f'no_seed.mat'))
+
+            # Get the pretrained matrices
+            opt.F = torch.tensor(matrices['F'], dtype=torch.complex64)
+            opt.G = torch.tensor(matrices['G'], dtype=torch.complex64)
 
         # Set the channel matrix andh white noise
         opt.channel_matrix = channel_matrix
@@ -203,7 +224,6 @@ def main() -> None:
 
         # Get the z_psi_hat
         z_psi_hat = opt.transform(datamodule.test_data.z)
-        # noise = datamodule.test_data.z_decoder - z_psi_hat
 
         # Get the predictions using as input the z_psi_hat
         dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)

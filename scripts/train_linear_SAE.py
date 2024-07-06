@@ -13,7 +13,7 @@ sys.path.append(str(Path(sys.path[0]).parent))
 
 from pytorch_lightning import Trainer, seed_everything
 
-from src.utils import complex_gaussian_matrix
+from src.utils import complex_gaussian_matrix, complex_tensor
 from src.linear_optim import  LinearOptimizerSAE
 from src.datamodules import DataModule
 
@@ -79,6 +79,21 @@ def main():
                         default=None,
                         type=int)
 
+    parser.add_argument('--method',
+                        help="Method for solving the constraint problem. Default 'closed'.",
+                        default='closed',
+                        type=str)
+
+    parser.add_argument('--mu',
+                        help="The mu parameter for admm. Default 1e-4.",
+                        default=1e-4,
+                        type=float)
+
+    parser.add_argument('--rho',
+                        help="The rho parameter for admm. Default 1e3.",
+                        default=1e3,
+                        type=float)
+
     parser.add_argument('--seed',
                         help="The seed for the analysis. Default 42.",
                         default=42,
@@ -103,7 +118,8 @@ def main():
                             encoder=args.encoder,
                             decoder=args.decoder,
                             num_anchors=args.anchors,
-                            case='abs')
+                            case='abs',
+                            target='abs')
     
     # Prepare and setup the data
     datamodule.prepare_data()
@@ -117,23 +133,46 @@ def main():
                              channel_matrix=channel_matrix,
                              white_noise_cov=white_noise_cov,
                              sigma=args.sigma,
-                             cost=args.cost)
+                             cost=args.cost,
+                             mu=args.mu,
+                             rho=args.rho)
 
     # Fit the linear optimizer
-    losses = opt.fit(input=datamodule.train_data.z,
-                     output=datamodule.train_data.z_decoder,
-                     iterations=args.iterations)
+    losses, traces = opt.fit(input=datamodule.train_data.z,
+                             output=datamodule.train_data.z_decoder,
+                             iterations=args.iterations,
+                             method=args.method)
     
     # Eval the linear optimizer
     print("loss:",
           opt.eval(input=datamodule.test_data.z,
                    output=datamodule.test_data.z_decoder))
 
-    print("trace(F^H F):", torch.trace(opt.F.H @ opt.F).item())
+    input = complex_tensor(datamodule.test_data.z.T)
+    
+    # print("trace(F^H F):", torch.trace((opt.F@input).H @ (opt.F@input)).item())
+    # if args.cost:
+    #     print(torch.trace((opt.F@input).H @ (opt.F@input)).real.item() <= args.cost)
+    # print("trace(F^H F):", torch.linalg.matrix_norm(opt.F@input).real.item()**2)
+    # if args.cost:
+    #     print(torch.linalg.matrix_norm(opt.F@input).real.item()**2 <= args.cost)
+    print("trace(F^H F):", torch.trace(opt.F.H@opt.F).real.item())
+    if args.cost:
+        print(torch.trace(opt.F.H@opt.F).real.item() <= args.cost)
 
     # print("lambda:", opt.lmb)
+    import polars as pl
+    pl.DataFrame({'Iterations':range(0, len(losses)),
+                  'Losses': losses,
+                  'Traces': traces}).write_parquet('eddaj.parquet')
+
+    print(pl.read_parquet('eddaj.parquet'))
     
-    plot = sns.lineplot(x=range(0, len(losses)), y=losses).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")#, yscale='log')
+    fig, axs = plt.subplots(ncols=2, nrows=2)
+    plot = sns.lineplot(x=range(0, len(losses)), y=losses, ax=axs[0, 0]).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")
+    plot = sns.lineplot(x=range(0, len(losses)), y=losses, ax=axs[0, 1]).set(title="Convergence Log Scaled", ylabel="MSE Loss", xlabel="Iteration", yscale='log')
+    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 0]).set(title="Convergence", ylabel="tr F^HF", xlabel="Iteration")
+    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 1]).set(title="Convergence Log Scaled", ylabel="tr F^HF", xlabel="Iteration", yscale='log')
     plt.show()
 
     return None

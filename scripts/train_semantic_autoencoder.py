@@ -78,6 +78,7 @@ def main() -> None:
     parser.add_argument('--aware',
                         help="The aweraness of the model. Default True.",
                         default=True,
+                        type=bool,
                         action=argparse.BooleanOptionalAction)
 
     parser.add_argument('--sigma',

@@ -15,6 +15,21 @@ from src.utils import complex_tensor
 #
 # ==================================================================
 
+class ComplexAct(nn.Module):
+    def __init__(self, act, use_phase=False):
+        # act can be either a function from nn.functional or a nn.Module if the
+        # activation has learnable parameters
+        super().__init__()
+        
+        self.act = act
+        self.use_phase = use_phase
+
+    def forward(self, z):
+        if self.use_phase:
+            return self.act(torch.abs(z)) * torch.exp(1.j * torch.angle(z)) 
+        else:
+            return self.act(z.real) + 1.j * self.act(z.imag)
+
 class MLP(nn.Module):
     """An implementation of a MLP in pytorch.
 
@@ -49,7 +64,7 @@ class MLP(nn.Module):
         # ================================================================
         self.input_layer = nn.Sequential(
                                          nn.Linear(self.input_dim, self.hidden_dim),
-                                         nn.GELU()
+                                         ComplexAct(act=nn.GELU(), use_phase=True)
                                          )
 
         # ================================================================
@@ -57,7 +72,7 @@ class MLP(nn.Module):
         # ================================================================
         self.hidden_layers = nn.ModuleList([nn.Sequential(
                                                           nn.Linear(self.hidden_dim, self.hidden_dim),
-                                                          nn.GELU()
+                                                          ComplexAct(act=nn.GELU(), use_phase=True)
                                                           ) for _ in range(self.hidden_size)])
 
         # ================================================================
@@ -581,6 +596,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  channel_matrix: torch.Tensor,
                  sigma: int = 0,
                  cost: float = None,
+                 mu: float = 1e-4,
                  lr: float = 1e-3):
         super().__init__()
 
@@ -600,6 +616,8 @@ class SemanticAutoEncoder(pl.LightningModule):
                                     self.hparams["hidden_dim"],
                                     self.hparams["hidden_size"])
 
+        self.type(torch.complex64)
+
         
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
@@ -614,9 +632,12 @@ class SemanticAutoEncoder(pl.LightningModule):
                 The output of the MLP.
         """
         x = nn.functional.normalize(x, p=2, dim=-1)
+
+        x = complex_tensor(x)
+        z = self.semantic_encoder(x)
         
         # Encoding in transmission
-        z = complex_tensor(self.semantic_encoder(x))
+        # z = complex_tensor(self.semantic_encoder(x))
 
         # Save the latent
         self.latent = z
@@ -625,10 +646,11 @@ class SemanticAutoEncoder(pl.LightningModule):
         z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device))
         
         # Add white noise
-        z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
+        # z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
+        z = z + complex_tensor(torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device))
         
         # Decoding in reception
-        return self.semantic_decoder(z)
+        return self.semantic_decoder(z).real
 
 
     def configure_optimizers(self) -> dict[str, object]:
@@ -663,11 +685,13 @@ class SemanticAutoEncoder(pl.LightningModule):
                 The output of the MLP and the loss.
         """
         y_hat = self(x)
+        
+        loss = nn.functional.mse_loss(y_hat, y)
 
         if self.hparams["cost"]:
             regularizer = torch.abs(torch.norm(self.latent, p=2) - self.hparams["cost"])
+            loss += self.hparams['mu'] * regularizer
             
-        loss = nn.functional.mse_loss(y_hat, y)
         return y_hat, loss
 
 
