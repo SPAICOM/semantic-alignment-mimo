@@ -27,9 +27,10 @@ def complex_compressed_tensor(x: torch.Tensor) -> torch.Tensor:
     """
     n, d = x.shape
     
-    assert d % 2 == 0, "The feature dimension must be even."
-
-    # Split the tensor into real and imaginary parts
+    if d % 2 != 0:
+        x = torch.cat((x, torch.zeros((n, 1), dtype=x.dtype, device=x.device)), dim=1)
+        d += 1   # Split the tensor into real and imaginary parts
+        
     real_part = x[:, :d//2]
     imaginary_part = x[:, d//2:]
 
@@ -136,7 +137,9 @@ def main() -> None:
     std: float = 1.
     size: tuple[int] = (4, 4)
 
-    x = torch.randn(4, 10)
+    n = 4
+    d = 9
+    x = torch.randn(n, d)
     # n = torch.normal(mean, std, size=x.shape)
     
     print("Performing first test...", end="\t")
@@ -162,7 +165,7 @@ def main() -> None:
     print("Performing fifth test...", end='\t')
     x_hat = decompress_complex_tensor(x_c)
 
-    if not torch.all(torch.eq(x_hat, x)):
+    if not torch.all(torch.eq(x_hat[:, :d], x)):
         raise Exception("The compression and decompression are not working as intended")
     
     print("[PASSED]")

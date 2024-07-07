@@ -686,8 +686,8 @@ class SemanticAutoEncoder(pl.LightningModule):
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
         
         # Halve the input and output dimension
-        input_dim //= 2
-        output_dim //= 2
+        input_dim = (input_dim + 1) // 2
+        output_dim = (output_dim + 1) // 2
 
         self.semantic_encoder = ComplexMLP(input_dim,
                                            self.hparams["antennas_transmitter"],
@@ -730,7 +730,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         z = z + torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape), torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape)), dim=-1)).to(self.device)
         
         # Decoding in reception
-        return decompress_complex_tensor(self.semantic_decoder(z))
+        return decompress_complex_tensor(self.semantic_decoder(z))[:, :self.hparams['output_dim']]
 
 
     def configure_optimizers(self) -> dict[str, object]:
