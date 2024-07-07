@@ -86,10 +86,14 @@ def main() -> None:
                         default=1,
                         type=float)
 
-    parser.add_argument('-n',
-                        '--neurons',
-                        help="The hidden layer dimension.",
-                        required=True,
+    parser.add_argument('--encneurons',
+                        help="The encoder hidden layer dimension.",
+                        default=192,
+                        type=int)
+
+    parser.add_argument('--decneurons',
+                        help="The dec hidden layer dimensionsion.",
+                        default=384,
                         type=int)
 
     parser.add_argument('-l',
@@ -158,7 +162,8 @@ def main() -> None:
                                 datamodule.output_size,
                                 antennas_transmitter=args.transmitter,
                                 antennas_receiver=args.receiver,
-                                hidden_dim=args.neurons,
+                                enc_hidden_dim=args.encneurons,
+                                dec_hidden_dim=args.decneurons,
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
                                 sigma=sigma,
