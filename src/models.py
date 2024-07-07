@@ -6,7 +6,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics.classification import MulticlassAccuracy
 
-from src.utils import complex_tensor
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
+# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
 
 
 # ==================================================================
@@ -30,7 +31,77 @@ class ComplexAct(nn.Module):
         else:
             return self.act(z.real) + 1.j * self.act(z.imag)
 
+
 class MLP(nn.Module):
+    """An implementation of a MLP in pytorch.
+
+    Args:
+        input_dim : int
+            The input dimension.
+        output_dim : int
+            The output dimension. Default 1.
+        hidden_dim : int
+            The hidden layer dimension. Default 10.
+        hidden_size : int
+            The number of hidden layers. Default 10.
+
+    Attributes:
+        self.<name-of-argument>:
+            ex. self.input_dim is where the 'input_dim' argument is stored.
+    """
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 hidden_dim: int,
+                 hidden_size: int):
+        super().__init__()
+
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.hidden_size = hidden_size
+        
+        # ================================================================
+        #                         Input Layer
+        # ================================================================
+        self.input_layer = nn.Sequential(
+                                         nn.Linear(self.input_dim, self.hidden_dim),
+                                         nn.GELU(),
+                                         )
+
+        # ================================================================
+        #                         Hidden Layers
+        # ================================================================
+        self.hidden_layers = nn.ModuleList([nn.Sequential(
+                                                          nn.Linear(self.hidden_dim, self.hidden_dim),
+                                                          nn.GELU(),
+                                                          ) for _ in range(self.hidden_size)])
+
+        # ================================================================
+        #                         Output Layer
+        # ================================================================
+        self.output_layer = nn.Linear(self.hidden_dim, self.output_dim)
+        
+
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
+        """The forward pass of the Relative Encoder.
+
+        Args:
+            x : torch.Tensor
+                The input tensor.
+
+        Returns:
+            torch.Tensor
+                The output of the MLP.
+        """
+        x = self.input_layer(x)
+        for layer in self.hidden_layers:
+            x = layer(x)
+        return self.output_layer(x)
+    
+
+class ComplexMLP(nn.Module):
     """An implementation of a MLP in pytorch.
 
     Args:
@@ -579,7 +650,11 @@ class SemanticAutoEncoder(pl.LightningModule):
             A complex matrix simulating a communication channel.
         sigma : int
             The sigma square for the white noise. Default 0.
-        lr : float)
+        cost: float
+            The cost for the constrainde version. Default None.
+        mu: float
+            The mu parameter for the constrained regularization. Default 1e-4
+        lr : float
             The learning rate. Default 1e-3. 
 
     Attributes:
@@ -591,7 +666,8 @@ class SemanticAutoEncoder(pl.LightningModule):
                  output_dim: int,
                  antennas_transmitter: int,
                  antennas_receiver: int,
-                 hidden_dim: int,
+                 enc_hidden_dim: int,
+                 dec_hidden_dim: int,
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
                  sigma: int = 0,
@@ -603,18 +679,25 @@ class SemanticAutoEncoder(pl.LightningModule):
         # Log the hyperparameters.
         self.save_hyperparameters()
 
+        assert input_dim % 2 == 0, "The input dimension must be even."
+        assert output_dim % 2 == 0, "The output dimension must be even."
+        
         # Example input
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
-
-        self.semantic_encoder = MLP(self.hparams["input_dim"],
-                                    self.hparams["antennas_transmitter"],
-                                    self.hparams["hidden_dim"],
-                                    self.hparams["hidden_size"])
         
-        self.semantic_decoder = MLP(self.hparams["antennas_receiver"],
-                                    self.hparams["output_dim"],
-                                    self.hparams["hidden_dim"],
-                                    self.hparams["hidden_size"])
+        # Halve the input and output dimension
+        input_dim //= 2
+        output_dim //= 2
+
+        self.semantic_encoder = ComplexMLP(input_dim,
+                                           self.hparams["antennas_transmitter"],
+                                           self.hparams["enc_hidden_dim"],
+                                           self.hparams["hidden_size"])
+        
+        self.semantic_decoder = ComplexMLP(self.hparams["antennas_receiver"],
+                                           output_dim,
+                                           self.hparams["dec_hidden_dim"],
+                                           self.hparams["hidden_size"])
 
         self.type(torch.complex64)
 
@@ -633,12 +716,9 @@ class SemanticAutoEncoder(pl.LightningModule):
         """
         x = nn.functional.normalize(x, p=2, dim=-1)
 
-        x = complex_tensor(x)
+        x = complex_compressed_tensor(x)
         z = self.semantic_encoder(x)
         
-        # Encoding in transmission
-        # z = complex_tensor(self.semantic_encoder(x))
-
         # Save the latent
         self.latent = z
         
@@ -647,10 +727,10 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         # z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
-        z = z + complex_tensor(torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device))
+        z = z + torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape), torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape)), dim=-1)).to(self.device)
         
         # Decoding in reception
-        return self.semantic_decoder(z).real
+        return decompress_complex_tensor(self.semantic_decoder(z))
 
 
     def configure_optimizers(self) -> dict[str, object]:
@@ -812,7 +892,7 @@ def main() -> None:
     print()
     
     # Variables definition
-    input_dim = 5
+    input_dim = 10
     output_dim = 2
     num_classes = 2
     hidden_dim = 10
@@ -823,7 +903,7 @@ def main() -> None:
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
     sigma = 1
     
-    data = torch.randn(1, input_dim)
+    data = torch.randn(10, input_dim)
     
     print("Test for RelativeEncoder...", end='\t')
     mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
@@ -838,7 +918,7 @@ def main() -> None:
     
     print()
     print("Test for SemanticAutoEncoder...", end='\t')
-    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_size, channel_matrix, sigma=sigma)
+    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_dim, hidden_size, channel_matrix, sigma=sigma)
     output = mlp(data)
     print("[Passed]")
 
