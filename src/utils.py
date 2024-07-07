@@ -13,6 +13,53 @@ import torch
 #
 # ================================================================
 
+def complex_compressed_tensor(x: torch.Tensor) -> torch.Tensor:
+    """The function compress the feature dimension of the tensor by converting
+    half as real part and the other half as imaginary part.
+
+    Args:
+        x : torch.Tensor
+            The input tensor to compress.
+
+    Returns:
+        torch.Tensor
+            The output tensor in complex format.
+    """
+    n, d = x.shape
+    
+    assert d % 2 == 0, "The feature dimension must be even."
+
+    # Split the tensor into real and imaginary parts
+    real_part = x[:, :d//2]
+    imaginary_part = x[:, d//2:]
+
+    # Combine real and imaginary parts into a complex tensor
+    x = torch.stack((real_part, imaginary_part), dim=-1)
+
+    return torch.view_as_complex(x)
+
+
+def decompress_complex_tensor(x: torch.Tensor) -> torch.Tensor:
+    """The function decompress the complex compressed tensor in the original real domain.
+
+    Args:
+        x : torch.Tensor
+            The input compressed tensor.
+
+    Returns:
+        torch.Tensor
+            The output decompressed tensor.
+    """
+    # Split the complex tensor into real and imaginary parts
+    real_part = x.real
+    imaginary_part = x.imag
+
+    # Concatenate the real and imaginary parts along the feature dimension
+    x = torch.cat((real_part, imaginary_part), dim=1)
+
+    return x
+
+
 def complex_tensor(x: torch.Tensor) -> torch.Tensor:
     """Get the complex form of a tensor.
 
@@ -98,13 +145,28 @@ def main() -> None:
 
     print()
     print("Performing second test...", end="\t")
-    x = complex_tensor(x)
+    complex_tensor(x)
     print("[PASSED]")
 
     print()
     print("Performing third test...", end='\t')
     sn_ratio = snr(x.real, std)
     print("[PASSED]")
+    
+    print()
+    print("Performing fourth test...", end='\t')
+    x_c = complex_compressed_tensor(x)
+    print("[PASSED]")
+
+    print()
+    print("Performing fifth test...", end='\t')
+    x_hat = decompress_complex_tensor(x_c)
+
+    if not torch.all(torch.eq(x_hat, x)):
+        raise Exception("The compression and decompression are not working as intended")
+    
+    print("[PASSED]")
+
     
     return None
 
