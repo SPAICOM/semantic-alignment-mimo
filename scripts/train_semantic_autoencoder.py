@@ -141,7 +141,7 @@ def main() -> None:
         sigma = args.sigma
     else:
         aware = 'unaware'
-        channel_matrix = complex_tensor(torch.eye(args.receiver, args.transmitter))
+        channel_matrix = torch.view_as_complex(torch.stack((torch.eye(args.receiver, args.transmitter), torch.eye(args.receiver, args.transmitter)), dim=-1))
         sigma = 0
 
     # Initialize the datamodule
@@ -183,7 +183,9 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
+                               name=f"seed_{args.seed}",
+                               id=f"seed_{args.seed}",
                                log_model='all')
     
     trainer = Trainer(num_sanity_val_steps=2,

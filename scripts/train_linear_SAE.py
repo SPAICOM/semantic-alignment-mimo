@@ -108,7 +108,8 @@ def main():
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
 
     # Set the white noise
-    white_noise_cov = args.sigma * torch.eye(args.receiver)
+    white_noise_cov = (args.sigma/2) * torch.view_as_complex(torch.stack((torch.eye(args.receiver), torch.eye(args.receiver)), dim=-1))
+    
     
     # =========================================================
     #                     Get the dataset
@@ -124,7 +125,8 @@ def main():
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
-
+    
+    
     # =========================================================
     #               Define the Linear Optimizer
     # =========================================================
@@ -138,8 +140,8 @@ def main():
                              rho=args.rho)
 
     # Fit the linear optimizer
-    losses, traces = opt.fit(input=datamodule.train_data.z,
-                             output=datamodule.train_data.z_decoder,
+    losses, traces = opt.fit(input=datamodule.train_data.z[:1000],
+                             output=datamodule.train_data.z_decoder[:1000],
                              iterations=args.iterations,
                              method=args.method)
     
@@ -150,12 +152,6 @@ def main():
 
     input = complex_tensor(datamodule.test_data.z.T)
     
-    # print("trace(F^H F):", torch.trace((opt.F@input).H @ (opt.F@input)).item())
-    # if args.cost:
-    #     print(torch.trace((opt.F@input).H @ (opt.F@input)).real.item() <= args.cost)
-    # print("trace(F^H F):", torch.linalg.matrix_norm(opt.F@input).real.item()**2)
-    # if args.cost:
-    #     print(torch.linalg.matrix_norm(opt.F@input).real.item()**2 <= args.cost)
     print("trace(F^H F):", torch.trace(opt.F.H@opt.F).real.item())
     if args.cost:
         print(torch.trace(opt.F.H@opt.F).real.item() <= args.cost)
@@ -164,9 +160,9 @@ def main():
     import polars as pl
     pl.DataFrame({'Iterations':range(0, len(losses)),
                   'Losses': losses,
-                  'Traces': traces}).write_parquet('eddaj.parquet')
+                  'Traces': traces}).write_parquet('convergence.parquet')
 
-    print(pl.read_parquet('eddaj.parquet'))
+    print(pl.read_parquet('convergence.parquet'))
     
     fig, axs = plt.subplots(ncols=2, nrows=2)
     plot = sns.lineplot(x=range(0, len(losses)), y=losses, ax=axs[0, 0]).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")

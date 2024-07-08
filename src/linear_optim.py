@@ -9,7 +9,7 @@ from pathlib import Path
 from tqdm.auto import tqdm
 from scipy.optimize import root_scalar
     
-from src.utils import complex_tensor
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
 
 # ============================================================
 #
@@ -150,14 +150,14 @@ class LinearOptimizerSAE():
                  sigma: int,
                  cost: float = None,
                  mu: float = 1e-4,
-                 rho: float = 1e3):
+                 rho: float = 1e2):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.white_noise_cov = complex_tensor(white_noise_cov)
+        self.white_noise_cov = white_noise_cov
         self.sigma = sigma
         self.cost = cost
         self.mu = mu
@@ -170,8 +170,8 @@ class LinearOptimizerSAE():
         self.G = None
 
         # ADMM variables
-        self.Z = torch.zeros(self.antennas_transmitter, self.input_dim)
-        self.U = torch.zeros(self.antennas_transmitter, self.input_dim)
+        self.Z = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) //2)
+        self.U = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) // 2)
 
 
     def __G_step(self,
@@ -188,16 +188,14 @@ class LinearOptimizerSAE():
         Returns:
             None
         """
-        input = complex_tensor(input)
-        output = complex_tensor(output)
         
         A = self.channel_matrix @ self.F @ input
 
-        try:
-            self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.white_noise_cov)  
-        except:
-            self.G = output @ A.H @ torch.linalg.pinv(A @ A.H + self.white_noise_cov)  
-        # self.G = self.G - 0.1 * ((self.G@self.channel_matrix@self.F@input - output)@A.H + self.G@self.white_noise_conv)
+        # try:
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.white_noise_cov)  
+        # self.G = output @ torch.linalg.pinv(A)  
+        # except:
+            # self.G = output @ A.H @ torch.linalg.pinv(A @ A.H + self.white_noise_cov)  
         return None
     
 
@@ -269,35 +267,34 @@ class LinearOptimizerSAE():
             
            
             # The F step
-            A = self.G @ self.channel_matrix
-            self.F = self.F - self.mu * ( A.H @ ( A @ self.F @ input  - output ) @ input.H + self.rho * (self.F - self.Z + self.U) )
-            # self.F = self.F - self.mu * ( A.H @ ( A @ self.F @ input  - output ) @ input.H + self.rho * (self.F@input - self.Z + self.U)@input.T )
+            # A = self.G @ self.channel_matrix
+            A = (self.G @ self.channel_matrix).H @ (self.G @ self.channel_matrix)
+            C = input @ input.H
+            D = self.rho*(self.Z - self.U) + (self.G@self.channel_matrix).H @ output @ input.H
+
+            # Being in this case C = C.H
+            kr = torch.kron(C, A)
+
+            n, m = kr.shape
+            vec_F = torch.linalg.inv(kr + self.rho * torch.eye(n, m)) @ (D.H.reshape(-1))
+            self.F = vec_F.reshape(list(self.F.shape)[::-1]).H
+            # self.F = self.F - self.mu * ( A.H @ ( A @ self.F @ input  - output ) @ input.H + self.rho * (self.F - self.Z + self.U) )
 
             # The Proximal randnstep
-            B = self.F + self.U
-            # B = self.F@input + self.U
-            get_Z = lambda lmb: B/(1+lmb)
-            Z = get_Z(0)
+            Z = self.F + self.U
             if torch.trace(Z.H@Z).real.item() <= self.cost:
-            # if torch.linalg.matrix_norm(Z).real.item() <= self.cost:
                 self.Z = Z
                 self.lmb = 0
             else:
-                self.lmb = torch.sqrt( torch.trace(B.H@B).real / self.cost ).item()-1
-                # self.lmb = torch.sqrt( torch.linalg.matrix_norm(B).real**2 / self.cost ).item()-1
-                self.Z = get_Z(self.lmb)
-
-            # print(torch.linalg.norm(self.Z).real**2)
+                self.lmb = torch.sqrt( torch.trace(Z.H@Z).real / self.cost ).item()-1
+                self.Z = Z/(1+self.lmb)
 
             # The dual step
             self.U = self.U + self.F - self.Z
-            # self.U = self.U + self.F@input - self.Z
 
             # Rho update
             res_primal = self.F - self.Z
-            # res_primal = self.F@input - self.Z
             res_dual = - self.rho * (self.Z - old_Z)
-            # print(res_primal, res_dual)
             # __rho_update(res_primal, res_dual)
             return None
 
@@ -368,9 +365,9 @@ class LinearOptimizerSAE():
             n, m = kr.shape
 
             try:
-                vec_F = torch.linalg.inv(kr + lmb.item() * torch.eye(n, m)) @ C.H.reshape(-1)
+                vec_F = torch.linalg.inv(kr + lmb * torch.eye(n, m)) @ C.H.reshape(-1)
             except:
-                vec_F = torch.linalg.pinv(kr + lmb.item() * torch.eye(n, m)) @ C.H.reshape(-1)
+                vec_F = torch.linalg.pinv(kr + lmb * torch.eye(n, m)) @ C.H.reshape(-1)
                 
             
             return vec_F.reshape(list(self.F.shape)[::-1]).H
@@ -394,11 +391,8 @@ class LinearOptimizerSAE():
                     The contraint value.
             """
             F = __F_constrained(lmb, input, output)
-            # return torch.trace((F@input).H @ (F@input)).real.item() - self.cost
             return torch.linalg.matrix_norm(F@input)**2 - self.cost
         
-        input = complex_tensor(input)
-        output = complex_tensor(output)
         
         assert method in ["admm", "closed", "cvxpy"], 'The passed method is not in the possible values, please chose from "admm", "closed" and "cvxpy"'
         
@@ -418,7 +412,6 @@ class LinearOptimizerSAE():
                 self.lmb = 0
 
                 # Check the KKT condition
-                # if torch.trace((self.F@input).H @ (self.F@input)).real.item() - self.cost > 0:
                 if torch.linalg.matrix_norm(self.F@input)**2 - self.cost > 0:
                     # It is not the optimum so we need to find lambda optimum
                     sol = root_scalar(__constraint, args=(input, output), x0=0, method='secant')
@@ -459,18 +452,20 @@ class LinearOptimizerSAE():
         input.to('cpu')
         output.to('cpu')
         
-        # self.Z = torch.zeros(self.antennas_transmitter, input.T.shape[-1])
-        # self.U = torch.zeros(self.antennas_transmitter, input.T.shape[-1])
-        
         with torch.no_grad():
-            # Inizialize the F matrix
-            self.F = complex_tensor(torch.randn(self.antennas_transmitter, self.input_dim))
-            # self.G = complex_tensor(torch.randn(self.output_dim, self.antennas_receiver))
+            # Inizialize the F matrix at random
+            self.F = torch.view_as_complex(torch.stack((torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2), torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2)), dim=-1))
 
+            # Save the decompressed version
+            old_input = input
+            old_output = output
+            
             # Set the input and output in the right dimensions
+            # input = input / torch.norm(input)#nn.functional.normalize(input, p=2, dim=-1)
             input = nn.functional.normalize(input, p=2, dim=-1)
-            input = input.T
-            output = output.T
+            
+            input = complex_compressed_tensor(input).H
+            output = complex_compressed_tensor(output).H
 
             loss = np.inf
             losses = []
@@ -479,39 +474,21 @@ class LinearOptimizerSAE():
                 for _ in tqdm(range(iterations)):
                     self.__G_step(input=input, output=output)
                     self.__F_step(input=input, output=output, method=method)
-                    # if method != 'admm':
-                    #     self.__G_step(input=input, output=output)
-                    # print(self.G)
-                    # print(self.F)
-                    loss = self.eval(input.T, output.T)
+                    loss = self.eval(old_input, old_output)
                     trace = torch.trace(self.F.H@self.F).real.item()
-                    # trace = torch.trace((self.F@complex_tensor(input)).H@(self.F@complex_tensor(input))).real.item()
-                    # trace = torch.linalg.matrix_norm(self.F@complex_tensor(input)).real.item()**2
-                    # trace = torch.linalg.matrix_norm(self.F).real.item()**2
                     losses.append(loss)
                     traces.append(trace)
                     
-                    # if self.cost:
-                    #     if trace <= self.cost:
-                    #         break
-                    # if loss < 1e-1:
-                    #     break
             else:
                 while loss > 1e-1:
                     if method != 'admm':
                         self.__G_step(input=input, output=output)
                     self.__F_step(input=input, output=output, method=method)
-                    loss = self.eval(input.T, output.T)
+                    loss = self.eval(old_input, old_output)
                     trace = torch.trace(self.F.H@self.F).real.item()
-                    # trace = torch.trace((self.F@complex_tensor(input)).H@(self.F@complex_tensor(input))).real.item()
-                    # trace = torch.linalg.matrix_norm(self.F@complex_tensor(input)).real.item()**2
                     losses.append(loss)
                     traces.append(trace)
                     
-                    # if self.cost:
-                    #     if trace <= self.cost:
-                    #         break
-
         return losses, traces
 
 
@@ -528,13 +505,23 @@ class LinearOptimizerSAE():
                 The transformed version of the input.
         """
         input.to('cpu')
-        input = nn.functional.normalize(input, p=2, dim=-1)
-        input = complex_tensor(input.T)
-        z = self.channel_matrix @ self.F @ input
-        wn = complex_tensor(torch.normal(0, self.sigma, size=z.shape))
-        output = self.G @ (z + wn)
 
-        return output.real.T
+        # Normalize the input
+        # input = input / torch.norm(input)#
+        input = nn.functional.normalize(input, p=2, dim=-1)
+
+        # Complex Compress the input
+        input = complex_compressed_tensor(input).H
+
+        # Transmit the input through the channel H
+        z = self.channel_matrix @ self.F @ input
+        wn = torch.view_as_complex(torch.stack((torch.normal(0, self.sigma / 2, size=z.shape), torch.normal(0, self.sigma / 2, size=z.shape)), dim=-1))
+        output = self.G @ (z + wn)
+        
+        # Decompress the transmitted signal
+        output = decompress_complex_tensor(output.H)
+
+        return output
     
 
     def eval(self,
@@ -554,8 +541,17 @@ class LinearOptimizerSAE():
         """
         input.to('cpu')
         output.to('cpu')
-        preds = self.transform(input)
-        return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
+        # preds = self.transform(input)
+        
+        input = nn.functional.normalize(input, p=2, dim=-1)
+        # input = input / torch.norm(input)#nn.functional.normalize(input, p=2, dim=-1)
+        
+        input = complex_compressed_tensor(input).H
+        output = complex_compressed_tensor(output).H
+
+        return torch.trace((output - self.G @ self.channel_matrix @ self.F @ input)@(output - self.G @ self.channel_matrix @ self.F @ input).H + self.G@self.white_noise_cov@self.G.H).real.item() / (output.shape[-1]*output.shape[0]*2)
+        # return torch.trace((output - self.G @ self.channel_matrix @ self.F @ input)@(output - self.G @ self.channel_matrix @ self.F @ input).H).real.item() / (output.shape[-1]*output.shape[0]*2)
+        # return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
 
 
 
