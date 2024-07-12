@@ -714,6 +714,7 @@ class SemanticAutoEncoder(pl.LightningModule):
             torch.Tensor
                 The output of the MLP.
         """
+        x = x.real
         x = nn.functional.normalize(x, p=2, dim=-1)
 
         x = complex_compressed_tensor(x)
@@ -769,7 +770,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         loss = nn.functional.mse_loss(y_hat, y)
 
         if self.hparams["cost"]:
-            regularizer = torch.abs(torch.norm(self.latent, p=2) - self.hparams["cost"])
+            regularizer = ((torch.norm(self.latent, p=2, dim=-1) - self.hparams["cost"])**2).mean()
             loss += self.hparams['mu'] * regularizer
             
         return y_hat, loss

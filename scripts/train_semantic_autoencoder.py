@@ -12,11 +12,23 @@ import torch
 import wandb
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
 
 from src.models import SemanticAutoEncoder
 from src.utils import complex_gaussian_matrix, complex_tensor
 from src.datamodules import DataModule    
+
+def compute_amount(epoch) -> float:
+    # the sum of all returned values need to be smaller than 1
+    if epoch == 10:
+        return 0.5
+
+    elif epoch == 50:
+        return 0.25
+
+    elif 75 < epoch < 99:
+        return 0.01
+
 
 def main() -> None:
     """The main script loop.
@@ -83,7 +95,7 @@ def main() -> None:
 
     parser.add_argument('--sigma',
                         help="The sigma of the white noise. Default 1.",
-                        default=1,
+                        default=1.,
                         type=float)
 
     parser.add_argument('--encneurons',
@@ -176,14 +188,21 @@ def main() -> None:
                             log_momentum=True),
         EarlyStopping(monitor='valid/loss_epoch', patience=10),
         ModelCheckpoint(monitor='valid/loss_epoch',
+                        save_top_k=1,
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
-                        max_trials=8)
+                        max_trials=8),
+        ModelPruning(pruning_fn='l1_unstructured',
+                     amount=compute_amount,
+                     make_pruning_permanent=True,
+                     use_lottery_ticket_hypothesis=True,
+                     resample_parameters=True,
+                     use_global_unstructured=True)
     ]
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_boh_sparse_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
                                name=f"seed_{args.seed}",
                                id=f"seed_{args.seed}",
                                log_model='all')
