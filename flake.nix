@@ -15,11 +15,14 @@
         (python311.withPackages (ps: with ps; [
           datasets
           gdown
+          matplotlib
           numpy
           pip
           polars
           python-dotenv
           pytorch-lightning
+          scipy
+          seaborn
           timm
           torch
           torchvision

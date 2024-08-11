@@ -15,7 +15,7 @@ def main() -> None:
     """
     # Define some paths
     CURRENT: Path = Path('.')
-    PARQUET_PATH: Path = CURRENT / 'final_results.parquet'
+    PARQUET_PATH: Path = CURRENT / 'final_results_sparse.parquet'
     IMG_PATH: Path = CURRENT / 'img'
 
     # Create the 'img' folder if it doesn't exist

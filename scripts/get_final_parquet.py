@@ -178,6 +178,7 @@ def main() -> None:
                        in_place=True)
 
 
+        continue
         # =========================================================================
         #                             Linear Optimizer
         # =========================================================================
@@ -250,8 +251,8 @@ def main() -> None:
                        }),
                        in_place=True)
 
-        results = results.with_columns(pl.col('Anchors').cast(pl.Int64))
-        results.write_parquet(f'{args.name}.parquet')
+    results = results.with_columns(pl.col('Anchors').cast(pl.Int64))
+    results.write_parquet(f'{args.name}.parquet')
     print(results)
     
     return None
