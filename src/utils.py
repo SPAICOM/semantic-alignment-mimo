@@ -137,8 +137,8 @@ def main() -> None:
     std: float = 1.
     size: tuple[int] = (4, 4)
 
-    n = 4
-    d = 9
+    n = 10
+    d = 4
     x = torch.randn(n, d)
     # n = torch.normal(mean, std, size=x.shape)
     
@@ -168,6 +168,11 @@ def main() -> None:
     if not torch.all(torch.eq(x_hat[:, :d], x)):
         raise Exception("The compression and decompression are not working as intended")
     
+    print("[PASSED]")
+    
+    print()
+    print("Performing sixth test...", end="\t")
+    prewhiten(x)
     print("[PASSED]")
 
     

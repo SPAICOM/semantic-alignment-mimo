@@ -75,17 +75,17 @@ def main() -> None:
                         type=int,
                         required=True)
 
-    parser.add_argument('-c',
-                        '--case',
-                        help="The case of the network input. Default 'abs'.",
-                        default='abs',
-                        type=str)
+    # parser.add_argument('-c',
+    #                     '--case',
+    #                     help="The case of the network input. Default 'abs'.",
+    #                     default='abs',
+    #                     type=str)
 
-    parser.add_argument('-t',
-                        '--target',
-                        help="The target of the neural network. Default 'abs'.",
-                        default='abs',
-                        type=str)
+    # parser.add_argument('-t',
+    #                     '--target',
+    #                     help="The target of the neural network. Default 'abs'.",
+    #                     default='abs',
+    #                     type=str)
 
     parser.add_argument('--aware',
                         help="The aweraness of the model. Default True.",
@@ -160,9 +160,9 @@ def main() -> None:
     datamodule = DataModule(dataset=args.dataset,
                             encoder=args.encoder,
                             decoder=args.decoder,
-                            num_anchors=args.anchors,
-                            case=args.case,
-                            target=args.target,
+                            # num_anchors=args.anchors,
+                            # case=args.case,
+                            # target=args.target,
                             num_workers=args.workers)
 
     # Prepare and setup the data
@@ -191,18 +191,18 @@ def main() -> None:
                         save_top_k=1,
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
-                        max_trials=8),
-        ModelPruning(pruning_fn='l1_unstructured',
-                     amount=compute_amount,
-                     make_pruning_permanent=True,
-                     use_lottery_ticket_hypothesis=True,
-                     resample_parameters=True,
-                     use_global_unstructured=True)
+                        max_trials=5),
+        # ModelPruning(pruning_fn='l1_unstructured',
+        #              amount=compute_amount,
+        #              make_pruning_permanent=True,
+        #              use_lottery_ticket_hypothesis=True,
+        #              resample_parameters=True,
+        #              use_global_unstructured=True)
     ]
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_boh_sparse_{args.target}_{args.case}_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
                                name=f"seed_{args.seed}",
                                id=f"seed_{args.seed}",
                                log_model='all')

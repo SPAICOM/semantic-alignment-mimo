@@ -672,7 +672,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  channel_matrix: torch.Tensor,
                  sigma: int = 0,
                  cost: float = None,
-                 mu: float = 1e-4,
+                 mu: float = 1e-8,
                  lr: float = 1e-3):
         super().__init__()
 
