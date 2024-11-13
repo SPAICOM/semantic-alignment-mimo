@@ -5,6 +5,7 @@
 """
 
 import torch
+import math
 
 
 # ================================================================
@@ -121,6 +122,26 @@ def snr(signal: torch.Tensor,
     return 10*torch.log10(torch.mean(signal**2)/sigma**2).item()
 
 
+def sigma_given_snr(snr: float,
+                    receiving_antennas: int,
+                    cost: float = 1.0) -> float:
+    """Given a fixed value of SNR, receiving antennas and cost, retrieve the correspoding value of sigma.
+
+    Args:
+        snr : float
+            The Signal to Noise Ration.
+        receiving_antennas : int
+            The number of receiving antennas.
+        cost : float
+            The cost for the transmitter.
+
+    Returns:
+        float
+            The corresponding sigma given snr, receiving antennas and cost.
+    """
+    return math.sqrt(cost/(snr*receiving_antennas))
+
+
 def prewhiten(x_train: torch.Tensor,
               x_test: torch.Tensor = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     """Prewhiten the training and test data using only training data statistics.
@@ -201,6 +222,12 @@ def main() -> None:
     print()
     print("Performing sixth test...", end="\t")
     prewhiten(x)
+    print("[PASSED]")
+
+    print()
+    print("Performing seventh test...", end="\t")
+    sigma = sigma_given_snr(snr=10, receiving_antennas=100)
+    assert sigma > 0, "[Error]: sigma is not positive."
     print("[PASSED]")
 
     
