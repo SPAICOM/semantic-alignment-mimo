@@ -119,8 +119,36 @@ def snr(signal: torch.Tensor,
             The Signal to Noise Ratio.
     """
     return 10*torch.log10(torch.mean(signal**2)/sigma**2).item()
+
+
+def prewhiten(x_train: torch.Tensor,
+              x_test: torch.Tensor = None) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Prewhiten the training and test data using only training data statistics.
     
+    Args:
+        x_train : torch.Tensor
+            The training torch.Tensor matrix.
+        x_test : torch.Tensor
+            The testing torch.Tensor matrix. Default None.
+            
+    Returns:
+        z_train : torch.Tensor
+            Prewhitened training matrix.
+        z_test : torch.Tensor
+            Prewhitened test matrix.
+    """
+    # --- Prewhiten the training set ---
+    C = torch.cov(x_train)  # Training set covariance
+    L = torch.linalg.cholesky(C)  # Cholesky decomposition C = LL^H
+    z_train = x_train - x_train.mean(axis=1)[:,None] # Center the training set
+    z_train = torch.linalg.solve(L, z_train)  # Prewhitened training set
+
+    if x_test is not None:
+        z_test = x_test - x_train.mean(axis=1)[:,None]  # Center the test set
+        z_test = torch.linalg.solve(L, x_test)  # Prewhitened training set
+        return z_train, z_test
     
+    return z_train
 
 # ================================================================
 #
@@ -138,7 +166,7 @@ def main() -> None:
     size: tuple[int] = (4, 4)
 
     n = 10
-    d = 4
+    d = 20
     x = torch.randn(n, d)
     # n = torch.normal(mean, std, size=x.shape)
     
