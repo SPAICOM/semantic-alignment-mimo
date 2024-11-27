@@ -17,7 +17,9 @@ from src.utils import complex_tensor, complex_compressed_tensor, decompress_comp
 # ==================================================================
 
 class ComplexAct(nn.Module):
-    def __init__(self, act, use_phase=False):
+    def __init__(self,
+                 act,
+                 use_phase: bool = False):
         # act can be either a function from nn.functional or a nn.Module if the
         # activation has learnable parameters
         super().__init__()
@@ -56,10 +58,10 @@ class MLP(nn.Module):
                  hidden_size: int):
         super().__init__()
 
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
-        self.hidden_size = hidden_size
+        self.input_dim: int = input_dim
+        self.output_dim: int = output_dim
+        self.hidden_dim: int = hidden_dim
+        self.hidden_size: int = hidden_size
         
         # ================================================================
         #                         Input Layer

@@ -51,19 +51,9 @@ class CustomDataset(Dataset):
     """
     def __init__(self,
                  encoder_path: Path,
-                 decoder_path: Path,
-                 # num_anchors: int,
-                 # case: str,
-                 # target: str = 'rel'
-             ):
+                 decoder_path: Path):
         self.encoder_path: Path = encoder_path
         self.decoder_path: Path = decoder_path
-        # self.num_anchors: int = num_anchors
-        # self.case: str = case
-        # self.target: str = target
-
-        # assert self.case in ['rel', 'abs', 'abs_anch'], "Wrong case passed, choose between 'rel', 'abs' or 'abs_anch'."
-        # assert self.target in ['rel', 'abs'], "Wrong target passed, choose between 'rel' or 'abs'."
         
         # =================================================
         #                 Encoder Stuff
@@ -73,23 +63,7 @@ class CustomDataset(Dataset):
         # Retrieve the absolute representation from the encoder
         self.z = encoder_blob['absolute']
 
-        # Retrieve the anchors from the encoder
-        # self.anchors = encoder_blob['anchors_latents']
-
-        # if self.num_anchors is None:
-        #     self.num_anchors = len(self.anchors)
-
-        # assert self.z.shape[-1] == self.anchors.shape[-1], "The dimension of the anchors and of the absolute representation must be equal."
-        # assert self.num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
-        
-        # Select the wanted anchors
-        # self.anchors = self.anchors[:num_anchors]
-
-        # Retrieve the relative representation from the encoder
-        # self.r_econder = encoder_blob['relative'][:, :self.num_anchors]
-
         # Retrieve the labels
-        # self.labels = encoder_blob['coarse_labels']
         self.labels = encoder_blob['labels']
 
         del encoder_blob
@@ -98,9 +72,6 @@ class CustomDataset(Dataset):
         #                 Decoder Stuff
         # =================================================
         decoder_blob = torch.load(self.decoder_path)
-
-        # Retrieve the relative representation from the decoder
-        # self.r_decoder = decoder_blob['relative'][:, :self.num_anchors]
 
         # Retrieve the absolute representation from the decoder
         self.z_decoder = decoder_blob['absolute']
@@ -111,21 +82,9 @@ class CustomDataset(Dataset):
         #         Get the input and the output size
         # =================================================
         # When the input is only the absolute representation
-        # if self.case == 'abs':
         self.input_size = self.z.shape[-1]
 
-        # When the input is both the absolute representation and the anchors
-        # elif self.case == 'abs_anch':
-        #     self.input_size = self.z.shape[-1] + self.anchors.shape[-1]*self.num_anchors
-
-        # When the input is only the relative representation
-        # elif self.case == 'rel':
-        #     self.input_size = self.r_econder.shape[-1]
-            
-        # if self.target == 'abs':
         self.output_size = self.z_decoder.shape[-1]
-        # elif self.target == 'rel':
-            # self.output_size = self.num_anchors
 
 
     def __len__(self) -> int:
@@ -150,29 +109,10 @@ class CustomDataset(Dataset):
             (input, r_i) : tuple[torch.Tensor, torch.Tensor]
                 The inputs and target as a tuple of tensors.
         """
-        # If input is only the absolute representation
-        # if self.case == 'abs':
-            # Get the absolute representation of element idx
+        # Get the absolute representation of element idx
         input = self.z[idx]
 
-        # If the input is both the absolute representation and the anchors
-        # elif self.case == 'abs_anch':
-        #     # Get the absolute representation of element idx
-        #     z_i = self.z[idx]
-
-        #     # Define an input of the shape [z_i, a_1, ..., a_n]
-        #     input = torch.cat((z_i.unsqueeze(0), self.anchors), dim=0)
-        #     input = torch.flatten(input)
-
-        # If the input is only the relative representation
-        # elif self.case == 'rel':
-        #     input = self.r_econder[idx]
-        
-        # if self.target == 'rel':
-        #     # Get the relative representation of element idx
-        #     output = self.r_decoder[idx]
-        # elif self.target == 'abs':
-            # Get the absolute representation of element idx
+        # Get the absolute representation of element idx
         output = self.z_decoder[idx]
 
         return input, output
@@ -203,43 +143,20 @@ class DatasetClassifier(Dataset):
             The size of the number of classes.
     """
     def __init__(self,
-                 path: Path,
-                 # num_anchors: int,
-                 # case: str
-             ):
+                 path: Path):
         self.path: Path = path
-        # self.num_anchors: int = num_anchors
-        # self.case: str = case
                 
         # =================================================
         #                 Get the Data
         # =================================================
         decoder_blob = torch.load(self.path)
 
-        # Retrieve the anchors from the decoder
-        # self.anchors = decoder_blob['anchors_latents']
-        
-        # if self.num_anchors is None:
-            # self.num_anchors = len(self.anchors)
-
-        # assert self.num_anchors <= len(self.anchors), "The passed number of anchors exceed the total number of available anchors."
-
-        # Select the wanted anchors
-        # self.anchors = self.anchors[:num_anchors]
-
-        # Retrieve the relative representation from the decoder
-        # self.r = decoder_blob['relative'][:, :self.num_anchors]
-
         # Retrieve the absolute representation from the decoder
         self.z = decoder_blob['absolute']
         
-        # if self.case == 'rel':
-        #     self.input = self.r
-        # elif self.case == 'abs':
         self.input = self.z
 
         # Retrieve the labels
-        # self.labels = decoder_blob['coarse_labels']
         self.labels = decoder_blob['labels']
 
         del decoder_blob
@@ -317,9 +234,6 @@ class DataModule(LightningDataModule):
                  dataset: str,
                  encoder: str,
                  decoder: str,
-                 # num_anchors: int,
-                 # case: str,
-                 # target: str = 'rel',
                  batch_size: int = 128,
                  num_workers: int = 0) -> None:
         super().__init__()
@@ -327,9 +241,6 @@ class DataModule(LightningDataModule):
         self.dataset: str = dataset
         self.encoder: str = encoder
         self.decoder: str = decoder
-        # self.case: str = case
-        # self.target: str = target
-        # self.num_anchors: int = num_anchors
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
 
@@ -384,23 +295,11 @@ class DataModule(LightningDataModule):
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
         self.train_data = CustomDataset(encoder_path=GENERAL_PATH / 'train' / f'{self.encoder}.pt',
-                                        decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                        # num_anchors=self.num_anchors,
-                                        # case=self.case,
-                                        # target=self.target
-                                    )
+                                        decoder_path=GENERAL_PATH / 'train' / f'{self.decoder}.pt')
         self.test_data = CustomDataset(encoder_path=GENERAL_PATH / 'test' / f'{self.encoder}.pt',
-                                       decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                       # num_anchors=self.num_anchors,
-                                       # case=self.case,
-                                       # target=self.target
-                                   )
+                                       decoder_path=GENERAL_PATH / 'test' / f'{self.decoder}.pt')
         self.val_data = CustomDataset(encoder_path=GENERAL_PATH / 'val' / f'{self.encoder}.pt',
-                                      decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                      # num_anchors=self.num_anchors,
-                                      # case=self.case,
-                                      # target=self.target
-                                  )
+                                      decoder_path=GENERAL_PATH / 'val' / f'{self.decoder}.pt')
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.output_size == self.test_data.output_size and self.train_data.output_size == self.val_data.output_size, "Output size must match between train, test and val data."
@@ -478,7 +377,6 @@ class DataModuleClassifier(LightningDataModule):
     def __init__(self,
                  dataset: str,
                  decoder: str,
-                 # num_anchors: int,
                  case: str = 'rel',
                  batch_size: int = 128,
                  num_workers: int = 0) -> None:
@@ -486,7 +384,6 @@ class DataModuleClassifier(LightningDataModule):
 
         self.dataset: str = dataset
         self.decoder: str = decoder
-        # self.num_anchors: int = num_anchors
         self.case: str = case
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
@@ -541,18 +438,9 @@ class DataModuleClassifier(LightningDataModule):
         CURRENT = Path('.')
         GENERAL_PATH: Path = CURRENT / 'data/latents' / self.dataset
 
-        self.train_data = DatasetClassifier(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt',
-                                            # num_anchors=self.num_anchors,
-                                            # case=self.case
-                                        )
-        self.test_data = DatasetClassifier(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt',
-                                           # num_anchors=self.num_anchors,
-                                           # case=self.case
-                                       )
-        self.val_data = DatasetClassifier(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt',
-                                          # num_anchors=self.num_anchors,
-                                          # case=self.case
-                                      )
+        self.train_data = DatasetClassifier(path=GENERAL_PATH / 'train' / f'{self.decoder}.pt')
+        self.test_data = DatasetClassifier(path=GENERAL_PATH / 'test' / f'{self.decoder}.pt')
+        self.val_data = DatasetClassifier(path=GENERAL_PATH / 'val' / f'{self.decoder}.pt')
 
         assert self.train_data.input_size == self.test_data.input_size and self.train_data.input_size == self.val_data.input_size, "Input size must match between train, test and val data."
         assert self.train_data.num_classes == self.test_data.num_classes and self.train_data.num_classes == self.val_data.num_classes, "The number of classes must match between train, test and val data."
