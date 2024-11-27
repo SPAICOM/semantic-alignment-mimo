@@ -25,25 +25,15 @@ class CustomDataset(Dataset):
             The path to the encoder.
         decider_path : Path
             The path to the decoder.
-        num_anchors : int
-            The number of anchors to use.
-        case : str
-            The input case. Choose between 'rel', 'abs' or 'abs_anch'.
-        target : str
-            The output target. Choose between 'abs' or 'rel'. Default 'rel'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
         self.z : torch.Tensor
             The absolute representation of the Dataset encoder side.
-        self.anchors : torch.Tensor
-            The absolute representation of the anchors encoder side.
-        self.r_encoder : torch.Tensor
-            The relative representation of the Dataset encoder side.
         self.labels : torch.Tensor
             The labels of the Dataset.
-        self.r_decoder : torch.Tensor
-            The relative representation of the Dataset decoder side.
+        self.z_decoder : torch.Tensor
+            The absolute representation of the Dataset decoder side.
         self.input_size : int
             The size of the input of the network.
         self.output_size : int
@@ -58,7 +48,7 @@ class CustomDataset(Dataset):
         # =================================================
         #                 Encoder Stuff
         # =================================================
-        encoder_blob = torch.load(self.encoder_path)
+        encoder_blob = torch.load(self.encoder_path, weights_only=True)
 
         # Retrieve the absolute representation from the encoder
         self.z = encoder_blob['absolute']
@@ -71,7 +61,7 @@ class CustomDataset(Dataset):
         # =================================================
         #                 Decoder Stuff
         # =================================================
-        decoder_blob = torch.load(self.decoder_path)
+        decoder_blob = torch.load(self.decoder_path, weights_only=True)
 
         # Retrieve the absolute representation from the decoder
         self.z_decoder = decoder_blob['absolute']
@@ -124,17 +114,11 @@ class DatasetClassifier(Dataset):
     Args:
         path : Path
             The path to the data.
-        num_anchors : int
-            The number of anchors to use.
-        case : str
-            The type of input. Default 'rel'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
-        self.anchors : torch.Tensor
-            The absolute representation of the anchors.
-        self.r : torch.Tensor
-            The relative representation of the Dataset.
+        self.input: torch.Tensor
+            The absolute representation the decoder.
         self.labels : torch.Tensor
             The labels of the Dataset.
         self.input_size : int
@@ -149,13 +133,11 @@ class DatasetClassifier(Dataset):
         # =================================================
         #                 Get the Data
         # =================================================
-        decoder_blob = torch.load(self.path)
+        decoder_blob = torch.load(self.path, weights_only=True)
 
         # Retrieve the absolute representation from the decoder
-        self.z = decoder_blob['absolute']
+        self.input = decoder_blob['absolute']
         
-        self.input = self.z
-
         # Retrieve the labels
         self.labels = decoder_blob['labels']
 
@@ -215,12 +197,6 @@ class DataModule(LightningDataModule):
             The name of the encoder.
         decoder : str
             The name of the decoder.
-        num_anchors : int
-            The number of anchors to use.
-        case : str
-            The case argument of the Dataset.
-        target : str
-            The target type. Default 'rel'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -361,10 +337,6 @@ class DataModuleClassifier(LightningDataModule):
             The name of the dataset.
         decoder : str
             The name of the decoder.
-        num_anchors : int
-            The number of anchors to use.
-        case : str
-            The type of the input. Default 'rel'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -377,14 +349,12 @@ class DataModuleClassifier(LightningDataModule):
     def __init__(self,
                  dataset: str,
                  decoder: str,
-                 case: str = 'rel',
                  batch_size: int = 128,
                  num_workers: int = 0) -> None:
         super().__init__()
 
         self.dataset: str = dataset
         self.decoder: str = decoder
-        self.case: str = case
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
 
@@ -496,23 +466,16 @@ def main() -> None:
     """
     print("Start performing sanity tests...")
     print()
-
-    print("Running first test...", end='\t')
     
     # Setting inputs
-    dataset = 'cifar100'
-    encoder = 'mobilenetv3_small_100'
-    decoder = 'rexnet_100'
-    num_anchors = 1024
-    case = 'rel'
-    target = 'abs'
+    dataset = 'cifar10'
+    encoder = 'vit_small_patch16_224'
+    decoder = 'vit_base_patch16_224'
     
+    print("Running first test...", end='\t')
     data = DataModule(dataset=dataset,
                       encoder=encoder,
-                      decoder=decoder,
-                      num_anchors=num_anchors,
-                      case=case,
-                      target=target)
+                      decoder=decoder)
 
     data.prepare_data()
     data.setup()
@@ -523,17 +486,9 @@ def main() -> None:
     print('[Passed]')
 
     print("Running second test...", end='\t')
-    
-    # Setting inputs
-    dataset = 'cifar100'
-    encoder = 'mobilenetv3_small_100'
-    decoder = 'rexnet_100'
-    num_anchors = 1024
-    
     data = DataModuleClassifier(dataset=dataset,
-                                decoder=decoder,
-                                num_anchors=num_anchors,
-                                case='abs')
+                                decoder=decoder)
+    
     data.prepare_data()
     data.setup()
     next(iter(data.train_dataloader()))
