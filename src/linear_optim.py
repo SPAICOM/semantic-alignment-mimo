@@ -10,8 +10,8 @@ from pathlib import Path
 from tqdm.auto import tqdm
 from scipy.optimize import root_scalar
     
-# from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten
-from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten
+# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
 
 # ============================================================
 #
@@ -294,7 +294,7 @@ class LinearOptimizerBaseline():
     def eval(self,
              input: torch.Tensor,
              output: torch.Tensor) -> float:
-        """
+        """Eval an input given an expected output.
 
         Returns:
             float
