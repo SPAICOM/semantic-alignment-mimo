@@ -600,6 +600,10 @@ class LinearOptimizerSAE():
         """
         input.to('cpu')
         output.to('cpu')
+
+        # Check if self.F and self.G are fitted
+        assert (self.F is not None)&(self.G is not None), "You have to fit the solver first by calling the '.fit()' method."
+        
         preds = self.transform(input)
 
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
