@@ -3,12 +3,10 @@
 
 import math
 import torch
-# import cvxpy as cp
 import numpy as np
 from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
-from scipy.optimize import root_scalar
     
 from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten
 # from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
@@ -343,9 +341,9 @@ class LinearOptimizerSAE():
             The number of antennas transmitting the signal.
         self.antennas_receiver : int
             The number of antennas receiving the signal.
-        self.F : cp.Variable | torch.Tensor
+        self.F : torch.Tensor
             The F matrix.
-        self.G : cp.Variable | torch.Tensor
+        self.G : torch.Tensor
             The G matrix.
         self.Z : torch.Tensor
             The Proximal variable for ADMM.
