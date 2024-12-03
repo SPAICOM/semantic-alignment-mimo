@@ -1,15 +1,17 @@
 """This module defines the functions/classes needed for the linear optimization.
 """
 
+import math
 import torch
-import cvxpy as cp
+# import cvxpy as cp
 import numpy as np
 from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
 from scipy.optimize import root_scalar
     
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
+# from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten
+from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
 
 # ============================================================
 #
@@ -102,6 +104,210 @@ class LinearOptimizerRE():
         """
         preds = self.transform(input)
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
+
+
+class LinearOptimizerBaseline():
+    """A linear version of the baseline in which we're not taking into account the advantages of semantic communication.
+
+    Args:
+        input_dim : int
+            The input dimension.
+        output_dim : int
+            The output dimension.
+        channel_matrix : torch.Tensor
+            The channel matrix H in torch.Tensor format.
+        
+    """
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 channel_matrix: torch.Tensor,
+                 sigma: int):
+        
+        assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
+        
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.channel_matrix = channel_matrix
+        self.sigma = sigma
+        
+        # Get the receiver and transmitter antennas
+        self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
+
+        # Instantiate the alignment matrix A
+        self.A = None 
+
+        # Perform the SVD of the channel matrix, save the U, S and Vt.
+        U, S, Vt = torch.linalg.svd(self.channel_matrix)
+        S = torch.diag(S).to(torch.complex64)
+
+        # Auxiliary matrix
+        B = U @ S
+
+        # Define the decoder and precoder
+        # self.G = torch.linalg.inv(S) @ U.H
+        self.G = B.H @ torch.linalg.pinv(B@B.H + (1/snr(torch.ones(1), self.sigma/2)) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
+        self.F = Vt.H
+
+        return None
+
+
+    def __packets_precoding(self,
+                            input: torch.Tensor) -> list[torch.Tensor]:
+        """Precoding of packets given an input.
+
+        Args:
+            input : torch.Tensor
+                The input to transmit, expected as features x number of observations.
+
+        Returns
+            list[torch.Tensor]
+                The list of precoded packets, each of them of dimension self.antennas_transmitter.
+        """
+        input_dim, n = input.shape
+        assert input_dim > self.antennas_transmitter, "The input dimension must be greater than the number of transmitting antennas"
+
+        # Get the number of packets required for the transmission and the relative needed padding
+        n_packets: int = math.ceil(input_dim / self.antennas_transmitter)
+        padding_size: int = n_packets * self.antennas_transmitter - input_dim
+
+        # Add padding rows wise (i.e. to the features)
+        padded_input = torch.nn.functional.pad(input, (0, 0, 0, padding_size))
+        
+        # Create the packets of size self.antennas_transmitter
+        packets = torch.split(padded_input, self.antennas_transmitter, dim=0)
+        
+        # Return the precoded packets
+        return [self.F @ p for p in packets]
+        
+
+    def __packets_decoding(self,
+                           packets: list[torch.Tensor]) -> list[torch.Tensor]:
+        """Decoding the transmitted packets.
+
+        Args:
+            packets : list[torch.Tensor]
+                The list of the received packets.
+
+        Returns
+            received : torch.Tensor
+                The output seen as a single torch.Tensor of dimension self.antennas_receiver x num. of observation.
+        """
+        # Decode the packets
+        packets = [self.G @ p for p in packets]
+
+        # Combined packets
+        received = torch.cat(packets, dim=0)[:self.input_dim//2,:]
+
+        return received
+
+
+    def __transmit_message(self,
+                           input: torch.Tensor) -> torch.Tensor:
+        """Function that implements the transmission of a message.
+
+        Args:
+            input : torch.Tensor
+                The input to transmit.
+
+        Returns:
+            output : torch.Tensor
+                The output transmitted.
+        """
+        # Perform the prewhitening step
+        input, L, mean = prewhiten(input)
+
+        # Complex Compress the input
+        input = complex_compressed_tensor(input.T).H
+        
+        # Performing the precoding packets
+        packets = self.__packets_precoding(input)
+
+        # Transmit the packets and add the AWGN
+        packets = [self.channel_matrix @ p + torch.view_as_complex(torch.stack((torch.normal(0, self.sigma / 2, size=p.shape), torch.normal(0, self.sigma / 2, size=p.shape)), dim=-1)) for p in packets]
+
+        # Decode the packets
+        output = self.__packets_decoding(packets)
+
+        # Decompress the transmitted signal
+        output = decompress_complex_tensor(output.H).T
+
+        # Remove whitening
+        output = L @ output + mean
+
+        return output.T
+        
+
+    def fit(self,
+            input: torch.Tensor,
+            output: torch.Tensor) -> None:
+        """Fitting method of the linear baseline.
+        This function performs the semantic alignment between input and output.
+
+        Args:
+            input : torch.Tensor
+                The input to transmit.
+            output : torch.Tensor
+                The output to allign to.
+            
+        Returns:
+            None
+        """
+        input.to('cpu')
+        output.to('cpu')
+
+        # Normalize the input
+        input = nn.functional.normalize(input, p=2, dim=-1)
+
+        # Alignment of the input to the output
+        self.A = torch.linalg.lstsq(input, output).solution.T
+        
+        return None
+        
+
+    def transform(self,
+                  input: torch.Tensor) -> torch.Tensor:
+        """Transform the passed input.
+
+        Args:
+            input : torch.Tensor
+                The input tensor.
+
+        Returns:
+            output : torch.Tensor
+                The transformed version of the input.
+        """
+        input.to('cpu')
+
+        # Normalize the input
+        input = nn.functional.normalize(input, p=2, dim=-1)
+
+        # Align the input
+        input = self.A @ input.T
+
+        # Transmit the input
+        output = self.__transmit_message(input)
+                
+        return output
+
+    
+    def eval(self,
+             input: torch.Tensor,
+             output: torch.Tensor) -> float:
+        """
+
+        Returns:
+            float
+                The mse loss.
+        """
+        # Check if self.A is fitted
+        assert self.A is not None, "You have to fit the solver first by calling the '.fit()' method."
+
+        # Get the predictions
+        preds = self.transform(input)
+        
+        return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
+    
 
     
 class LinearOptimizerSAE():
@@ -299,44 +505,44 @@ class LinearOptimizerSAE():
             return None
 
 
-        def __F_cvxpy(input: torch.Tensor,
-                      output: torch.Tensor) -> None:
-            """Solving the F step using cvxpy.
+        # def __F_cvxpy(input: torch.Tensor,
+        #               output: torch.Tensor) -> None:
+        #     """Solving the F step using cvxpy.
 
-            Args:
-                input : torch.Tensor
-                    The input tensor.
-                output : torch.Tensor
-                    The output tensor.
+        #     Args:
+        #         input : torch.Tensor
+        #             The input tensor.
+        #         output : torch.Tensor
+        #             The output tensor.
 
-            Return:
-                None
-            """
-            F = cp.Variable(tuple(self.F.shape), complex=True)
-            if self.F is not None:
-                F.value = self.F.numpy()
+        #     Return:
+        #         None
+        #     """
+        #     F = cp.Variable(tuple(self.F.shape), complex=True)
+        #     if self.F is not None:
+        #         F.value = self.F.numpy()
 
-            GH = (self.G @ self.channel_matrix).numpy()
-            GH = cp.Constant(GH)
-            cost = cp.Constant(self.cost)
-            input = cp.Constant(input.numpy())
-            output = cp.Constant(output.numpy())
+        #     GH = (self.G @ self.channel_matrix).numpy()
+        #     GH = cp.Constant(GH)
+        #     cost = cp.Constant(self.cost)
+        #     input = cp.Constant(input.numpy())
+        #     output = cp.Constant(output.numpy())
 
-            transmitted = cp.matmul(F, input)
-            received = cp.matmul(GH, transmitted)
+        #     transmitted = cp.matmul(F, input)
+        #     received = cp.matmul(GH, transmitted)
 
-            obj = received - output
-            norm = cp.norm(obj, 'fro')
+        #     obj = received - output
+        #     norm = cp.norm(obj, 'fro')
 
-            objective = cp.Minimize(norm)
+        #     objective = cp.Minimize(norm)
 
-            constraints = [cp.norm(F, 'fro') <= cost]
+        #     constraints = [cp.norm(F, 'fro') <= cost]
 
-            problem = cp.Problem(objective, constraints)
-            problem.solve(solver=cp.MOSEK, verbose=True)
+        #     problem = cp.Problem(objective, constraints)
+        #     problem.solve(solver=cp.MOSEK, verbose=True)
 
-            self.F = torch.from_numpy(F.value)
-            return None
+        #     self.F = torch.from_numpy(F.value)
+        #     return None
 
         
         def __F_constrained(lmb: float,
@@ -398,9 +604,9 @@ class LinearOptimizerSAE():
         
         # If we're in the constraint problem
         if self.cost:
-            if method == 'cvxpy':
-                __F_cvxpy(input, output)
-            elif method == 'admm':
+            # if method == 'cvxpy':
+            #     __F_cvxpy(input, output)
+            if method == 'admm':
                 __F_admm(input, output)
             elif method == 'closed':
                 self.F = __F_constrained(1, input, output)
@@ -432,7 +638,7 @@ class LinearOptimizerSAE():
             input: torch.Tensor,
             output: torch.Tensor,
             iterations: int = None,
-            method: str = 'closed') -> list[float]:
+            method: str = 'closed') -> tuple[list[float], list[float]]:
         """Fitting the F and G to the passed data.
 
         Args:
@@ -564,6 +770,30 @@ class LinearOptimizerSAE():
 def main() -> None:
     """Some sanity tests...
     """
+    from utils import complex_gaussian_matrix
+    
+    print("Start performing sanity tests...")
+    print()
+    
+    # Variables definition
+    input_dim = 10
+    output_dim = 2
+    antennas_transmitter = 4
+    antennas_receiver = 4
+    channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
+    sigma = 1
+    
+    data = torch.randn(1000, input_dim)
+    
+    print("Test for Linear Optimizer Baseline...", end='\t')
+    baseline = LinearOptimizerBaseline(input_dim=input_dim,
+                                       output_dim=output_dim,
+                                       channel_matrix=channel_matrix,
+                                       sigma=sigma)
+    baseline.fit(data, data)
+    baseline.transform(data)
+    print("[Passed]")
+        
     return None
 
 
