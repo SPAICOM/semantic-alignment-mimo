@@ -354,7 +354,6 @@ class LinearOptimizerSAE():
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 white_noise_cov: torch.Tensor,
                  sigma: int,
                  cost: float = 1.0,
                  rho: float = 1e2):
@@ -364,7 +363,6 @@ class LinearOptimizerSAE():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.white_noise_cov = white_noise_cov
         self.sigma = sigma
         self.cost = cost
         self.rho = rho
@@ -399,7 +397,7 @@ class LinearOptimizerSAE():
         A = self.channel_matrix @ self.F @ input
 
         # try:
-        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.white_noise_cov)  
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + (self.sigma/2)* torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
         # except:
             # self.G = output @ A.H @ torch.linalg.pinv(A @ A.H + self.white_noise_cov)  
         return None
@@ -631,7 +629,6 @@ def main() -> None:
     antennas_transmitter: int = 4
     antennas_receiver: int = 4
     channel_matrix: torch.Tensor = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
-    white_noise_cov: torch.Tensor = (sigma/2) * torch.view_as_complex(torch.stack((torch.eye(antennas_receiver), torch.eye(antennas_receiver)), dim=-1))
     
     data = torch.randn(1000, input_dim)
     
@@ -652,7 +649,6 @@ def main() -> None:
     linear_sae = LinearOptimizerSAE(input_dim=input_dim,
                                     output_dim=output_dim,
                                     channel_matrix=channel_matrix,
-                                    white_noise_cov=white_noise_cov,
                                     sigma=sigma,
                                     cost=cost)
     linear_sae.fit(data, data, iterations)
