@@ -7,6 +7,9 @@ models/
 *.csv
 *.parquet
 *.pt
+*.mat
+*.pdf
+*.zip
 
 *.ckpt
 
