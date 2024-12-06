@@ -59,12 +59,6 @@ def main() -> None:
                         type=str,
                         required=True)
 
-    parser.add_argument('-a',
-                        '--anchors',
-                        help="The number of anchors. Default None.",
-                        type=int,
-                        default=None)
-    
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
                         type=int,
@@ -75,21 +69,15 @@ def main() -> None:
                         type=int,
                         required=True)
 
-    # parser.add_argument('-c',
-    #                     '--case',
-    #                     help="The case of the network input. Default 'abs'.",
-    #                     default='abs',
-    #                     type=str)
-
-    # parser.add_argument('-t',
-    #                     '--target',
-    #                     help="The target of the neural network. Default 'abs'.",
-    #                     default='abs',
-    #                     type=str)
-
     parser.add_argument('--aware',
                         help="The aweraness of the model. Default True.",
                         default=True,
+                        type=bool,
+                        action=argparse.BooleanOptionalAction)
+
+    parser.add_argument('--prune',
+                        help="The aweraness of the model. Default True.",
+                        default=False,
                         type=bool,
                         action=argparse.BooleanOptionalAction)
 
@@ -160,15 +148,12 @@ def main() -> None:
     datamodule = DataModule(dataset=args.dataset,
                             encoder=args.encoder,
                             decoder=args.decoder,
-                            # num_anchors=args.anchors,
-                            # case=args.case,
-                            # target=args.target,
                             num_workers=args.workers)
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
-
+    
     # Initialize the model
     model = SemanticAutoEncoder(datamodule.input_size,
                                 datamodule.output_size,
@@ -192,13 +177,15 @@ def main() -> None:
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
                         max_trials=5),
-        # ModelPruning(pruning_fn='l1_unstructured',
-        #              amount=compute_amount,
-        #              make_pruning_permanent=True,
-        #              use_lottery_ticket_hypothesis=True,
-        #              resample_parameters=True,
-        #              use_global_unstructured=True)
     ]
+
+    if args.prune:
+        callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
+                                      amount=compute_amount,
+                                      make_pruning_permanent=True,
+                                      use_lottery_ticket_hypothesis=True,
+                                      resample_parameters=True,
+                                      use_global_unstructured=True))
     
     # W&B login and Logger intialization
     wandb.login()
