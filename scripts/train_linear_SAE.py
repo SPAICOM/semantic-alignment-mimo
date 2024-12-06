@@ -76,8 +76,8 @@ def main():
                         type=int)
 
     parser.add_argument('--rho',
-                        help="The rho parameter for admm. Default 1e3.",
-                        default=1e3,
+                        help="The rho parameter for admm. Default 1e5.",
+                        default=1e5,
                         type=float)
 
     parser.add_argument('--seed',

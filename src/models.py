@@ -656,7 +656,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         cost: float
             The cost for the constrainde version. Default None.
         mu: float
-            The mu parameter for the constrained regularization. Default 1e-4
+            The mu parameter for the constrained regularization. Default 1e5
         lr : float
             The learning rate. Default 1e-3. 
 
@@ -675,7 +675,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  channel_matrix: torch.Tensor,
                  sigma: float = 0,
                  cost: float = None,
-                 mu: float = 1e-8,
+                 mu: float = 1e5,
                  lr: float = 1e-3):
         super().__init__()
 

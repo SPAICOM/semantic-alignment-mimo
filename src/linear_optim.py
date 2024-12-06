@@ -341,7 +341,7 @@ class LinearOptimizerSAE():
         cost : float
             The transmition cost. Default 1.0.
         rho : int
-            The rho coeficient for the admm method. Default 1.
+            The rho coeficient for the admm method. Default 1e5.
 
     Attributes:
         self.<args_name>
@@ -364,7 +364,7 @@ class LinearOptimizerSAE():
                  channel_matrix: torch.Tensor,
                  sigma: int,
                  cost: float = 1.0,
-                 rho: float = 1e2):
+                 rho: float = 1e5):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
