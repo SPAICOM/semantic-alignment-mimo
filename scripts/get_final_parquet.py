@@ -6,15 +6,15 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(sys.path[0]).parent))
 
+import math
 import torch
 import polars as pl
-from timm import create_model
 from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
-from src.linear_optim import LinearOptimizerRE, LinearOptimizerSAE
-from src.utils import complex_gaussian_matrix, complex_tensor, snr, prewhiten
-from src.models import RelativeEncoder, Classifier, SemanticAutoEncoder
+from src.linear_optim import LinearOptimizerSAE, LinearOptimizerBaseline
+from src.utils import complex_gaussian_matrix, complex_tensor, snr
+from src.models import Classifier, SemanticAutoEncoder
 from src.datamodules import DataModule, DataModuleClassifier
 
 def main() -> None:
@@ -42,13 +42,6 @@ def main() -> None:
                         default='final_results',
                         type=str)
 
-    parser.add_argument('-t',
-                        '--train',
-                        help="Train the linear optimizer. Default True.",
-                        default=True,
-                        action=argparse.BooleanOptionalAction,
-                        type=bool)
-
     args = parser.parse_args()
     
     # Defining paths
@@ -70,8 +63,6 @@ def main() -> None:
                                    ('Transmitting Antennas', pl.Int64),
                                    ('Receiving Antennas', pl.Int64),
                                    ('Awareness', pl.String),
-                                   # ('Target', pl.String),
-                                   ('Anchors', pl.Int64),
                                    ('Sigma', pl.Float64),
                                    ('Seed', pl.Int64),
                                    ('Cost', pl.Int64),
@@ -83,8 +74,6 @@ def main() -> None:
     # ==============================================================================
     #                      Get results for the SAE absolute
     # ==============================================================================
-    # target = 'abs'
-    # for autoencoder_path in (MODELS_DIR / f'{args.checkpoints}/{target}').rglob('*.ckpt'):
     for autoencoder_path in (MODELS_DIR / f'{args.checkpoints}/').rglob('*.ckpt'):
         print()
         print()
@@ -95,6 +84,7 @@ def main() -> None:
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         # case = case.split('_')[-1]
         sigma = float(sigma.split('_')[-1])
+        c_sigma = sigma / math.sqrt(2)
         seed = int(seed.split('.')[0].split('_')[-1])
 
         if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('Sigma')==sigma)&(pl.col('Awareness')==awareness)).is_empty():
@@ -110,9 +100,6 @@ def main() -> None:
         datamodule = DataModule(dataset=dataset,
                                 encoder=encoder,
                                 decoder=decoder,
-                                # num_anchors=None,
-                                # case=case,
-                                # target=target,
                                 batch_size=batch_size)
         datamodule.prepare_data()
         datamodule.setup()
@@ -121,7 +108,6 @@ def main() -> None:
         #                            Classfier Stuff
         # =========================================================================
         # Define the path towards the classifier
-        # clf_path: Path = MODELS_DIR / f"classifiers/{target}/{dataset}/{decoder}/seed_{seed}.ckpt"
         clf_path: Path = MODELS_DIR / f"classifiers/{dataset}/{decoder}/seed_{seed}.ckpt"
 
         # Load the classifier model
@@ -131,8 +117,6 @@ def main() -> None:
         # Get and setup the classifier datamodule
         clf_datamodule = DataModuleClassifier(dataset=dataset,
                                               decoder=decoder,
-                                              # num_anchors=None,
-                                              # case=target,
                                               batch_size=batch_size)
         clf_datamodule.prepare_data()
         clf_datamodule.setup()
@@ -167,29 +151,27 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           # 'Target': target,
-                           'Anchors': None,
                            'Sigma': sigma,
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=datamodule.test_data.z_decoder, sigma=sigma)
+                           'SNR': snr(signal=model.get_precodings(datamodule.test_data.z).H, sigma=c_sigma)
                        }),
                        in_place=True)
 
 
         # =========================================================================
-        #                             Linear Optimizer
+        #                           Linear Optimizer SAE
         # =========================================================================
         # Set awareness
         if awareness == 'aware':
             ch_matrix = channel_matrix
-            white_noise_cov = (sigma/2) * torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
+            sigma_0 = sigma
         elif awareness == 'unaware':
             ch_matrix = torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
-            white_noise_cov = 0*torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
+            sigma_0 = 0
         else:
             raise Exception(f'Wrong awareness passed: {awareness}')
                 
@@ -197,40 +179,20 @@ def main() -> None:
         opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
                                  output_dim=datamodule.output_size,
                                  channel_matrix=ch_matrix,
-                                 white_noise_cov=white_noise_cov,
-                                 sigma=sigma,
+                                 sigma=sigma_0,
                                  cost=cost)
 
-        # Check if the matrices F and G are pretrained
-        if args.train:
-            # Fit the linear optimizer
-            opt.fit(input=prewhiten(datamodule.train_data.z[:1000]),
-                    output=datamodule.train_data.z_decoder[:1000],
-                    iterations=15,
-                    method='admm')
-            test_input = prewithen(datamodule.test_data.z)
-        else:
-            import scipy.io
+        # Fit the linear optimizer
+        opt.fit(input=datamodule.train_data.dataset.z[:1000],
+                output=datamodule.train_data.dataset.z_decoder[:1000],
+                iterations=30)
 
-            if awareness == 'aware':
-                matrices = scipy.io.loadmat(str(autoencoder_path.parent / f'seed_{seed}.mat'))
-            else:
-                matrices = scipy.io.loadmat(str(autoencoder_path.parent / f'no_seed.mat'))
-
-            prewhiten_data = scipy.io.loadmat(str(MODELS_DIR / f'{args.checkpoints}/{dataset}/prewhiten.mat'))
-
-            # Get the pretrained matrices
-            opt.F = torch.tensor(matrices['F'], dtype=torch.complex64)
-            opt.G = torch.tensor(matrices['G'], dtype=torch.complex64)
-            test_input = torch.tensor(prewhiten_data['test_input'], dtype=datamodule.test_data.z.dtype).T
-            test_input = datamodule.test_data.z
-
-        # Set the channel matrix and white noise
+        # Set the channel matrix and white noise sigma
         opt.channel_matrix = channel_matrix
-        opt.white_noise_cov = (sigma/2) * torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
+        opt.sigma = sigma
 
         # Get the z_psi_hat
-        z_psi_hat = opt.transform(test_input)
+        z_psi_hat = opt.transform(datamodule.test_data.z)
 
         # Get the predictions using as input the z_psi_hat
         dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
@@ -245,20 +207,72 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           # 'Target': target,
-                           'Anchors': None,
                            'Sigma': sigma,
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=datamodule.test_data.z_decoder, sigma=sigma)
+                           'SNR': snr(signal=opt.get_precodings(datamodule.test_data.z), sigma=c_sigma)
                        }),
                        in_place=True)
 
-        results = results.with_columns(pl.col('Anchors').cast(pl.Int64))
+        
+        # =========================================================================
+        #                        Linear Optimizer Baseline
+        # =========================================================================
+        # Set awareness
+        if awareness == 'aware':
+            ch_matrix = channel_matrix
+            sigma_0 = sigma
+        elif awareness == 'unaware':
+            ch_matrix = torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
+            sigma_0 = 0
+        else:
+            raise Exception(f'Wrong awareness passed: {awareness}')
+                
+        # Get the optimizer
+        opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
+                                      output_dim=datamodule.output_size,
+                                      channel_matrix=ch_matrix,
+                                      sigma=sigma_0)
+
+        # Fit the linear optimizer
+        opt.fit(input=datamodule.train_data.dataset.z[:1000],
+                output=datamodule.train_data.dataset.z_decoder[:1000])
+
+        # Set the channel matrix and white noise sigma
+        opt.channel_matrix = channel_matrix
+        opt.sigma = sigma
+
+        # Get the z_psi_hat
+        z_psi_hat = opt.transform(datamodule.test_data.z)
+
+        # Get the predictions using as input the z_psi_hat
+        dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+        results.vstack(pl.DataFrame(
+                       {
+                           'Dataset': dataset,
+                           'Encoder': encoder,
+                           'Decoder': decoder,
+                           'Case': f'Baseline - Channel {awareness.capitalize()}',
+                           'Transmitting Antennas': transmitter,
+                           'Receiving Antennas': receiver,
+                           'Awareness': awareness,
+                           'Sigma': sigma,
+                           'Seed': seed,
+                           'Cost': cost,
+                           'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
+                           'Classifier Loss': clf_metrics['test/loss_epoch'],
+                           'Accuracy': clf_metrics['test/acc_epoch'],
+                           'SNR': snr(signal=torch.ones(1), sigma=c_sigma)
+                       }),
+                       in_place=True)
+
         results.write_parquet(f'{args.name}.parquet')
+        
     print(results)
     
     return None

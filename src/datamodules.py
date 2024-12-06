@@ -73,7 +73,6 @@ class CustomDataset(Dataset):
         # =================================================
         # When the input is only the absolute representation
         self.input_size = self.z.shape[-1]
-
         self.output_size = self.z_decoder.shape[-1]
 
 

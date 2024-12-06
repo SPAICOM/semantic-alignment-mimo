@@ -119,7 +119,7 @@ def snr(signal: torch.Tensor,
         float
             The Signal to Noise Ratio.
     """
-    return 10*torch.log10(torch.mean(signal**2)/sigma**2).item()
+    return 10*torch.log10(torch.mean(torch.abs(signal)**2)/sigma**2).item()
 
 
 def sigma_given_snr(snr: float,
@@ -197,7 +197,6 @@ def main() -> None:
     n = 10
     d = 20
     x = torch.randn(n, d)
-    # n = torch.normal(mean, std, size=x.shape)
     
     print("Performing first test...", end="\t")
     complex_matrix = complex_gaussian_matrix(mean=mean, std=std, size=size)

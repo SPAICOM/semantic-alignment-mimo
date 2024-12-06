@@ -15,7 +15,7 @@ def main() -> None:
     """
     # Define some paths
     CURRENT: Path = Path('.')
-    PARQUET_PATH: Path = CURRENT / 'final_results_cost.parquet'
+    PARQUET_PATH: Path = CURRENT / 'final_results.parquet'
     IMG_PATH: Path = CURRENT / 'img'
 
     # Create the 'img' folder if it doesn't exist
@@ -50,14 +50,10 @@ def main() -> None:
     # "Accuracy Vs Antennas", 
     plot = sns.lineplot(df.filter(filter).to_pandas(), 
                         x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
-    # plt.xticks(plt.xticks()[0][2:], plt.xticks()[1][2:])
-    # plt.legend(loc=(0.45, 0.16), fontsize='small')
     plt.xlabel("Number of Antennas", fontsize=14)  # X-axis label font size
     plt.ylabel("Accuracy", fontsize=14)     # Y-axis label font size
     plt.xticks(fontsize=12)               # X-axis tick font size
     plt.yticks(fontsize=12)               # Y-axis tick font size
-    # Change legend font size
-    # plt.legend(fontsize=12, title_fontsize=14, loc=(0.25, 0.28))
     plt.legend(loc=(0.25, 0.28))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
     plt.show()
@@ -83,26 +79,26 @@ def main() -> None:
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
     filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))&(pl.col('Transmitting Antennas')<= 10)&(pl.col('Seed')!=144)&(pl.col('Seed')!=27)&(pl.col('Seed')!=100)
-    plot = sns.lineplot(df.filter(filter).to_pandas(), 
+    snr_df = df.filter(filter).group_by(["Case", "Sigma"]).agg(pl.col("SNR").mean(), pl.col("Accuracy")).explode("Accuracy")
+    
+    plot = sns.lineplot(snr_df.to_pandas(), 
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio (Tx=8, Rx=8)", xlabel="Signal to Noise Ratio (dB)")
     plt.savefig(str(IMG_PATH / 'snr_absolute.png'))
     plt.show()
     
-    # title="Accuracy Vs Signal to Noise Ratio (Tx=8, Rx=8)",
-    plot = sns.lineplot(df.filter(filter).to_pandas(), 
+    plot = sns.lineplot(snr_df.to_pandas(), 
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
     plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)  # X-axis label font size
     plt.ylabel("Accuracy", fontsize=14)     # Y-axis label font size
     plt.xticks(fontsize=12)               # X-axis tick font size
     plt.yticks(fontsize=12)               # Y-axis tick font size
     plt.legend()
-    # plt.legend(fontsize='small')
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
     plt.show()
     
     ticks = df.filter(filter)['Sigma'].unique()
        
-    plot = sns.lineplot(df.filter(filter).to_pandas(), 
+    plot = sns.lineplot(snr_df.to_pandas(), 
                         x='Sigma', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xscale='log', ylim=(0, 1), xlim=(ticks[0], ticks[-1]), title="Accuracy Vs Sigma (Tx=8, Rx=8)")
     plt.savefig(str(IMG_PATH / 'sigma_absolute.png'))
     plt.show()

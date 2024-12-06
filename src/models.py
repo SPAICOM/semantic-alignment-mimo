@@ -1,6 +1,7 @@
 """In this python module there are the models needed for the projects.
 """
 
+import math
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -650,7 +651,7 @@ class SemanticAutoEncoder(pl.LightningModule):
             The number of hidden layers.
         channel_matrix : torch.Tensor
             A complex matrix simulating a communication channel.
-        sigma : int
+        sigma : float
             The sigma square for the white noise. Default 0.
         cost: float
             The cost for the constrainde version. Default None.
@@ -672,7 +673,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  dec_hidden_dim: int,
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
-                 sigma: int = 0,
+                 sigma: float = 0,
                  cost: float = None,
                  mu: float = 1e-8,
                  lr: float = 1e-3):
@@ -686,6 +687,9 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Example input
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
+        
+        # Get the modified sigma for the CN
+        self.hparams['c_sigma'] = sigma / math.sqrt(2)
         
         # Halve the input and output dimension
         input_dim = (input_dim + 1) // 2
@@ -703,6 +707,30 @@ class SemanticAutoEncoder(pl.LightningModule):
 
         self.type(torch.complex64)
 
+
+    def get_precodings(self,
+                       x: torch.Tensor) -> torch.Tensor:
+        """Get the semantic precodings of the passed tensor x:
+
+        Args:
+            x : torch.Tensor
+                The input tensor x.
+
+        Returns:
+            z : torch.Tensor
+                The precodings of the input tensor x.
+        """
+        x = x.real
+        x = nn.functional.normalize(x, p=2, dim=-1)
+
+        # Complex Compression
+        x = complex_compressed_tensor(x)
+
+        # Precode the signal
+        z = self.semantic_encoder(x)
+        
+        return z
+    
         
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
@@ -730,7 +758,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         # z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
-        z = z + torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape), torch.normal(mean=0, std=self.hparams['sigma']/2, size=z.real.shape)), dim=-1)).to(self.device)
+        z = z + torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
         
         # Decoding in reception
         return decompress_complex_tensor(self.semantic_decoder(z))[:, :self.hparams['output_dim']]

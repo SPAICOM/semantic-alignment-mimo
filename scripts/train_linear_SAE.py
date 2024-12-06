@@ -7,10 +7,11 @@ To check available parameters run 'python /path/to/train_linear_SAE.py --help'.
 import sys
 import torch
 from pathlib import Path
-import seaborn as sns
-import matplotlib.pyplot as plt
 sys.path.append(str(Path(sys.path[0]).parent))
 
+import polars as pl
+import seaborn as sns
+import matplotlib.pyplot as plt
 from pytorch_lightning import Trainer, seed_everything
 
 from src.utils import complex_gaussian_matrix, complex_tensor
@@ -46,17 +47,11 @@ def main():
                         type=str,
                         required=True)
 
-    parser.add_argument('-a',
-                        '--anchors',
-                        help="The number of anchors. Default None.",
-                        type=int,
-                        default=None)
-    
     parser.add_argument('-s',
                         '--sigma',
                         help="The sigma squared of the white noise. Default 0.",
-                        type=int,
-                        default=0)
+                        type=float,
+                        default=1.)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
@@ -74,20 +69,11 @@ def main():
                         type=int,
                         default=None)
     
-    parser.add_argument('--cost',
-                        help="Transmission cost. Default None.",
-                        default=None,
+    parser.add_argument('-c',
+                        '--cost',
+                        help="Transmission cost. Default 1.",
+                        default=1,
                         type=int)
-
-    parser.add_argument('--method',
-                        help="Method for solving the constraint problem. Default 'closed'.",
-                        default='closed',
-                        type=str)
-
-    parser.add_argument('--mu',
-                        help="The mu parameter for admm. Default 1e-4.",
-                        default=1e-4,
-                        type=float)
 
     parser.add_argument('--rho',
                         help="The rho parameter for admm. Default 1e3.",
@@ -107,9 +93,6 @@ def main():
     # Get the channel matrix
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
 
-    # Set the white noise
-    white_noise_cov = (args.sigma/2) * torch.view_as_complex(torch.stack((torch.eye(args.receiver), torch.eye(args.receiver)), dim=-1))
-    
     
     # =========================================================
     #                     Get the dataset
@@ -117,10 +100,7 @@ def main():
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
                             encoder=args.encoder,
-                            decoder=args.decoder,
-                            num_anchors=args.anchors,
-                            case='abs',
-                            target='abs')
+                            decoder=args.decoder)
     
     # Prepare and setup the data
     datamodule.prepare_data()
@@ -133,31 +113,24 @@ def main():
     opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
                              output_dim=datamodule.output_size,
                              channel_matrix=channel_matrix,
-                             white_noise_cov=white_noise_cov,
                              sigma=args.sigma,
                              cost=args.cost,
-                             mu=args.mu,
                              rho=args.rho)
 
     # Fit the linear optimizer
-    losses, traces = opt.fit(input=datamodule.train_data.z[:1000],
-                             output=datamodule.train_data.z_decoder[:1000],
-                             iterations=args.iterations,
-                             method=args.method)
+    losses, traces = opt.fit(input=datamodule.train_data.dataset.z[:1000],
+                             output=datamodule.train_data.dataset.z_decoder[:1000],
+                             iterations=args.iterations)
     
     # Eval the linear optimizer
     print("loss:",
           opt.eval(input=datamodule.test_data.z,
                    output=datamodule.test_data.z_decoder))
 
-    input = complex_tensor(datamodule.test_data.z.T)
-    
-    print("trace(F^H F):", torch.trace(opt.F.H@opt.F).real.item())
+    print("trace(FF^H):", torch.trace(opt.F@opt.F.H).real.item())
     if args.cost:
         print(torch.trace(opt.F.H@opt.F).real.item() <= args.cost)
 
-    # print("lambda:", opt.lmb)
-    import polars as pl
     pl.DataFrame({'Iterations':range(0, len(losses)),
                   'Losses': losses,
                   'Traces': traces}).write_parquet('convergence.parquet')
@@ -167,8 +140,8 @@ def main():
     fig, axs = plt.subplots(ncols=2, nrows=2)
     plot = sns.lineplot(x=range(0, len(losses)), y=losses, ax=axs[0, 0]).set(title="Convergence", ylabel="MSE Loss", xlabel="Iteration")
     plot = sns.lineplot(x=range(0, len(losses)), y=losses, ax=axs[0, 1]).set(title="Convergence Log Scaled", ylabel="MSE Loss", xlabel="Iteration", yscale='log')
-    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 0]).set(title="Convergence", ylabel="tr F^HF", xlabel="Iteration")
-    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 1]).set(title="Convergence Log Scaled", ylabel="tr F^HF", xlabel="Iteration", yscale='log')
+    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 0]).set(title="Convergence", ylabel="tr FF^H", xlabel="Iteration")
+    plot = sns.lineplot(x=range(0, len(traces)), y=traces, ax=axs[1, 1]).set(title="Convergence Log Scaled", ylabel="tr FF^H", xlabel="Iteration", yscale='log')
     plt.show()
 
     return None

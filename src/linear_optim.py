@@ -8,7 +8,7 @@ from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
     
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
 # from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
 
 # ============================================================
@@ -128,6 +128,7 @@ class LinearOptimizerBaseline():
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
         self.sigma = sigma
+        self.c_sigma = self.sigma / math.sqrt(2)
         
         # Get the receiver and transmitter antennas
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
@@ -144,7 +145,7 @@ class LinearOptimizerBaseline():
 
         # Define the decoder and precoder
         # self.G = torch.linalg.inv(S) @ U.H
-        self.G = B.H @ torch.linalg.inv(B@B.H + (1/snr(torch.ones(1), self.sigma/2)) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
+        self.G = B.H @ torch.linalg.inv(B@B.H + (1/snr(torch.ones(1), self.c_sigma)) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
         self.F = Vt.H
 
         return None
@@ -162,12 +163,12 @@ class LinearOptimizerBaseline():
             list[torch.Tensor]
                 The list of precoded packets, each of them of dimension self.antennas_transmitter.
         """
-        input_dim, n = input.shape
-        assert input_dim > self.antennas_transmitter, "The input dimension must be greater than the number of transmitting antennas"
+        assert self.output_dim // 2 == input.shape[0], "The feature dimensions must be half of the output dimensions"
+        assert self.output_dim // 2 > self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
 
         # Get the number of packets required for the transmission and the relative needed padding
-        n_packets: int = math.ceil(input_dim / self.antennas_transmitter)
-        padding_size: int = n_packets * self.antennas_transmitter - input_dim
+        n_packets: int = math.ceil( (self.output_dim // 2) / self.antennas_transmitter)
+        padding_size: int = n_packets * self.antennas_transmitter - self.output_dim // 2
 
         # Add padding rows wise (i.e. to the features)
         padded_input = torch.nn.functional.pad(input, (0, 0, 0, padding_size))
@@ -195,7 +196,7 @@ class LinearOptimizerBaseline():
         packets = [self.G @ p for p in packets]
 
         # Combined packets
-        received = torch.cat(packets, dim=0)[:self.input_dim//2,:]
+        received = torch.cat(packets, dim=0)[:self.output_dim//2,:]
 
         return received
 
@@ -213,26 +214,26 @@ class LinearOptimizerBaseline():
                 The output transmitted.
         """
         with torch.no_grad():
-            # Perform the prewhitening step
-            input, L, mean = prewhiten(input)
-        
             # Complex Compress the input
             input = complex_compressed_tensor(input.T).H
+        
+            # Perform the prewhitening step
+            input = torch.linalg.solve(self.L, input - self.mean)
         
             # Performing the precoding packets
             packets = self.__packets_precoding(input)
 
             # Transmit the packets and add the AWGN
-            packets = [self.channel_matrix @ p + torch.view_as_complex(torch.stack((torch.normal(0, self.sigma / 2, size=p.shape), torch.normal(0, self.sigma / 2, size=p.shape)), dim=-1)) for p in packets]
+            packets = [self.channel_matrix @ p + torch.view_as_complex(torch.stack((torch.normal(0, self.c_sigma, size=p.shape), torch.normal(0, self.c_sigma, size=p.shape)), dim=-1)) for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
+            
+            # Remove whitening
+            output = self.L @ output + self.mean
 
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T
-
-            # Remove whitening
-            output = L @ output + mean
 
         return output.T
         
@@ -256,11 +257,20 @@ class LinearOptimizerBaseline():
         output.to('cpu')
 
         # Normalize the input
-        input = nn.functional.normalize(input, p=2, dim=-1)
+        # input = nn.functional.normalize(input, p=2, dim=-1)
 
         with torch.no_grad():
             # Alignment of the input to the output
             self.A = torch.linalg.lstsq(input, output).solution.T
+            
+            # Align the input
+            input = self.A @ input.T
+            
+            # Complex Compress the input
+            input = complex_compressed_tensor(input.T).H
+
+            # Learn L and the mean
+            _, self.L, self.mean = prewhiten(input)
         
         return None
         
@@ -280,7 +290,7 @@ class LinearOptimizerBaseline():
         input.to('cpu')
 
         # Normalize the input
-        input = nn.functional.normalize(input, p=2, dim=-1)
+        # input = nn.functional.normalize(input, p=2, dim=-1)
 
         # Transpose
         input = input.T
@@ -313,7 +323,7 @@ class LinearOptimizerBaseline():
         preds = self.transform(input)
         
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
-    
+
 
     
 class LinearOptimizerSAE():
@@ -326,8 +336,6 @@ class LinearOptimizerSAE():
             The output dimension.
         channel_matrix : torch.Tensor
             The Complex Gaussian Matrix simulating the communication channel.
-        white_noise_cov: torch.Tensor
-            The covariance matrix of white noise.
         sigma : int
             The sigma square for the white noise.
         cost : float
@@ -367,6 +375,7 @@ class LinearOptimizerSAE():
         self.cost = cost
         self.rho = rho
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
+        self.c_sigma = sigma / math.sqrt(2)
 
         # Variables
         self.F = None
@@ -396,10 +405,7 @@ class LinearOptimizerSAE():
         # Get the auxiliary matrix A
         A = self.channel_matrix @ self.F @ input
 
-        # try:
-        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + (self.sigma/2)* torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
-        # except:
-            # self.G = output @ A.H @ torch.linalg.pinv(A @ A.H + self.white_noise_cov)  
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.c_sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
         return None
     
 
@@ -497,19 +503,21 @@ class LinearOptimizerSAE():
             old_output = output
             
             # Set the input and output in the right dimensions
-            input = nn.functional.normalize(input, p=2, dim=-1)
+            # input = nn.functional.normalize(input, p=2, dim=-1)
 
             # Transpose
             input = input.T
             output = output.T
 
-            # Perform the prewhitening step
-            input, _, _, output = prewhiten(input, output)
+            # output, self.L_output, self.mean_output = prewhiten(output)
 
             # Complex compression
             input = complex_compressed_tensor(input.T).H
             output = complex_compressed_tensor(output.T).H
 
+            # Perform the prewhitening step
+            input, self.L_input, self.mean_input = prewhiten(input)
+            
             loss = np.inf
             losses = []
             traces = []
@@ -554,27 +562,27 @@ class LinearOptimizerSAE():
 
         with torch.no_grad():
             # Normalize the input
-            input = nn.functional.normalize(input, p=2, dim=-1)
+            # input = nn.functional.normalize(input, p=2, dim=-1)
 
             # Transpose
             input = input.T
 
-            # Perform the prewhitening step
-            input, L, mean = prewhiten(input)
-        
             # Complex Compress the input
             input = complex_compressed_tensor(input.T).H
+            
+            # Perform the prewhitening step
+            input = torch.linalg.solve(self.L_input, input - self.mean_input)
 
             # Transmit the input through the channel H
             z = self.channel_matrix @ self.F @ input
-            wn = torch.view_as_complex(torch.stack((torch.normal(0, self.sigma / 2, size=z.shape), torch.normal(0, self.sigma / 2, size=z.shape)), dim=-1))
+            wn = torch.view_as_complex(torch.stack((torch.normal(0, self.c_sigma, size=z.shape), torch.normal(0, self.c_sigma, size=z.shape)), dim=-1))
             output = self.G @ (z + wn)
         
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T
         
             # Remove whitening
-            output = L @ output + mean
+            # output = self.L_output @ output + self.mean_output
 
         return output.T
     
@@ -605,6 +613,35 @@ class LinearOptimizerSAE():
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
 
 
+    def get_precodings(self,
+                       input: torch.Tensor) -> torch.Tensor:
+        """The function returns the precodings of a passed input tensor.
+
+        Args:
+            input : torch.Tensor
+                The input tensor
+
+        Returns:
+            precoded : torch.Tensor
+                The precoded version of the passed input tensor.
+        """
+        input.to('cpu')
+
+        with torch.no_grad():
+            # Transpose
+            input = input.T
+
+            # Complex Compress the input
+            input = complex_compressed_tensor(input.T).H
+            
+            # Perform the prewhitening step
+            input = torch.linalg.solve(self.L_input, input - self.mean_input)
+
+            # Transmit the input through the channel H
+            precoded = self.F @ input
+
+        return precoded
+
 
 # ============================================================
 #
@@ -624,22 +661,23 @@ def main() -> None:
     cost: int = 1
     sigma: int = 1
     iterations: int = 10
-    input_dim: int = 10
-    output_dim: int = 2
+    input_dim: int = 20
+    output_dim: int = 40
     antennas_transmitter: int = 4
     antennas_receiver: int = 4
     channel_matrix: torch.Tensor = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
     
-    data = torch.randn(1000, input_dim)
+    input = torch.randn(1000, input_dim)
+    output = torch.randn(1000, output_dim)
     
     print("Test for Linear Optimizer Baseline...", end='\t')
     baseline = LinearOptimizerBaseline(input_dim=input_dim,
                                        output_dim=output_dim,
                                        channel_matrix=channel_matrix,
                                        sigma=sigma)
-    baseline.fit(data, data)
-    baseline.transform(data)
-    # print(baseline.eval(data, data))
+    baseline.fit(input, output)
+    baseline.transform(input)
+    print(baseline.eval(input, output))
     print("[Passed]")
     
     print()
@@ -651,9 +689,9 @@ def main() -> None:
                                     channel_matrix=channel_matrix,
                                     sigma=sigma,
                                     cost=cost)
-    linear_sae.fit(data, data, iterations)
-    linear_sae.transform(data)
-    # print(linear_sae.eval(data, data))
+    linear_sae.fit(input, output, iterations)
+    linear_sae.transform(input)
+    print(linear_sae.eval(input, output))
     print("[Passed]")
         
     return None
