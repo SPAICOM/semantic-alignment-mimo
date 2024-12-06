@@ -79,7 +79,7 @@ def main() -> None:
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
     filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))&(pl.col('Transmitting Antennas')<= 10)&(pl.col('Seed')!=144)&(pl.col('Seed')!=27)&(pl.col('Seed')!=100)
-    snr_df = df.filter(filter).group_by(["Case", "Sigma"]).agg(pl.col("SNR").mean(), pl.col("Accuracy")).explode("Accuracy")
+    snr_df = df.filter(filter).group_by(["Case", "Sigma"], maintain_order=True).agg(pl.col("SNR").mean(), pl.col("Accuracy")).explode("Accuracy")
     
     plot = sns.lineplot(snr_df.to_pandas(), 
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio (Tx=8, Rx=8)", xlabel="Signal to Noise Ratio (dB)")
