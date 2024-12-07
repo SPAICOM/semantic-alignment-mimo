@@ -800,8 +800,17 @@ class SemanticAutoEncoder(pl.LightningModule):
         loss = nn.functional.mse_loss(y_hat, y)
 
         if self.hparams["cost"]:
-            regularizer = ((torch.norm(self.latent, p=2, dim=-1) - self.hparams["cost"])**2).mean()
-            loss += self.hparams['mu'] * regularizer
+            dual_loss = ((torch.norm(self.latent, p="fro", dim=-1) - self.hparams["cost"])**2).mean()
+            regularizer = self.hparams['mu'] * dual_loss            
+            
+            # Log the losses and trace
+            self.log("primal_loss", loss, on_step=True, on_epoch=True)
+            self.log("dual_loss", dual_loss, on_step=True, on_epoch=True)
+            self.log("regularizer_term", regularizer, on_step=True, on_epoch=True)
+            self.log("trace", (torch.norm(self.latent, p="fro", dim=-1)**2).mean(), on_step=True, on_epoch=True)
+
+            # Get Total Loss
+            loss += regularizer
             
         return y_hat, loss
 
