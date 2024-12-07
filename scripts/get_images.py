@@ -1,5 +1,8 @@
-"""A python module to create the visualizations.
+"""This python module handles the final visualizations.
+
+    To check available parameters run 'python /path/to/get_images.py --help'.
 """
+
 # Add root to the path
 import sys
 from pathlib import Path
@@ -13,9 +16,27 @@ import matplotlib.pyplot as plt
 def main() -> None:
     """The main loop.
     """
+    import argparse
+
+    description = """
+    This python module handles the final visualizations.
+
+    To check available parameters run 'python /path/to/get_images.py --help'.
+    """
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('-f',
+                        '--file',
+                        help="The parquet file with the results.",
+                        type=str,
+                        default="final_results.parquet")
+
+    args = parser.parse_args()
+
     # Define some paths
     CURRENT: Path = Path('.')
-    PARQUET_PATH: Path = CURRENT / 'final_results.parquet'
+    PARQUET_PATH: Path = CURRENT / args.file
     IMG_PATH: Path = CURRENT / 'img'
 
     # Create the 'img' folder if it doesn't exist
@@ -50,12 +71,23 @@ def main() -> None:
     # "Accuracy Vs Antennas", 
     plot = sns.lineplot(df.filter(filter).to_pandas(), 
                         x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
-    plt.xlabel("Number of Antennas", fontsize=14)  # X-axis label font size
-    plt.ylabel("Accuracy", fontsize=14)     # Y-axis label font size
-    plt.xticks(fontsize=12)               # X-axis tick font size
-    plt.yticks(fontsize=12)               # Y-axis tick font size
+    plt.xlabel("Number of Antennas", fontsize=14)
+    plt.ylabel("Accuracy", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
     plt.legend(loc=(0.25, 0.28))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
+    plt.show()
+    
+    # "Accuracy Vs Antennas Normalized", 
+    plot = sns.lineplot(df.filter(filter).with_columns(pl.col("Accuracy")*(pl.col("Simbols")/pl.col("Transmitting Antennas"))).to_pandas(), 
+                        x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
+    plt.xlabel("Number of Antennas", fontsize=14)
+    plt.ylabel("Accuracy", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(loc=(0.25, 0.28))
+    plt.savefig(str(IMG_PATH / 'accuracy_absolute_normalized.pdf'), format='pdf')
     plt.show()
     
     plot = sns.lineplot(df.filter(filter).to_pandas(), 
@@ -88,10 +120,10 @@ def main() -> None:
     
     plot = sns.lineplot(snr_df.to_pandas(), 
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
-    plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)  # X-axis label font size
-    plt.ylabel("Accuracy", fontsize=14)     # Y-axis label font size
-    plt.xticks(fontsize=12)               # X-axis tick font size
-    plt.yticks(fontsize=12)               # Y-axis tick font size
+    plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)
+    plt.ylabel("Accuracy", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
     plt.legend()
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
     plt.show()
