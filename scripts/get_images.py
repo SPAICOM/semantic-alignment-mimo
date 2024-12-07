@@ -65,7 +65,7 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
-    filter = (pl.col('Sigma')==0.1)&(pl.col('Seed')!=144)&(pl.col('Seed')!=27)&(pl.col('Seed')!=100)&(pl.col("Transmitting Antennas")<=12)
+    filter = (pl.col('Sigma')==0.1)
     ticks = df.filter(filter)['Transmitting Antennas'].unique()
     
     # "Accuracy Vs Antennas", 
@@ -110,7 +110,7 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
-    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))&(pl.col('Transmitting Antennas')<= 10)&(pl.col('Seed')!=144)&(pl.col('Seed')!=27)&(pl.col('Seed')!=100)
+    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))
     snr_df = df.filter(filter).group_by(["Case", "Sigma"], maintain_order=True).agg(pl.col("SNR").mean(), pl.col("Accuracy")).explode("Accuracy")
     
     plot = sns.lineplot(snr_df.to_pandas(), 
