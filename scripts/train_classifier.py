@@ -40,23 +40,11 @@ def main() -> None:
                         type=str,
                         required=True)
 
-    # parser.add_argument('-a',
-    #                     '--anchors',
-    #                     help="The number of anchors. Default None.",
-    #                     type=int,
-    #                     default=None)
-
     parser.add_argument('-n',
                         '--neurons',
                         help="The hidden layer dimension.",
                         required=True,
                         type=int)
-
-    # parser.add_argument('-c',
-    #                     '--case',
-    #                     help="The case of the input. Default 'abs'.",
-    #                     default='abs',
-    #                     type=str)
 
     parser.add_argument('-w',
                         '--workers',
@@ -88,8 +76,6 @@ def main() -> None:
     # Initialize the datamodule
     datamodule = DataModuleClassifier(dataset=args.dataset,
                                       decoder=args.decoder,
-                                      # num_anchors=args.anchors,
-                                      # case=args.case,
                                       num_workers=args.workers)
 
     # Prepare and setup the data
@@ -116,8 +102,6 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    # wandb_logger = WandbLogger(project=f'Classifier_{args.case}_{args.decoder}',
-    #                            log_model='all')
     wandb_logger = WandbLogger(project=f'Classifier_{args.decoder}',
                                log_model='all')
     
