@@ -68,7 +68,7 @@ def main() -> None:
     filter = (pl.col('Sigma')==0.1)
     ticks = df.filter(filter)['Transmitting Antennas'].unique()
     
-    # "Accuracy Vs Antennas", 
+    # "Accuracy Vs Antennas" 
     plot = sns.lineplot(df.filter(filter).to_pandas(), 
                         x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
     plt.xlabel("Number of Antennas", fontsize=14)
@@ -79,8 +79,8 @@ def main() -> None:
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
     plt.show()
     
-    # "Accuracy Vs Antennas Normalized", 
-    plot = sns.lineplot(df.filter(filter).with_columns(pl.col("Accuracy")*(pl.col("Simbols")/pl.col("Transmitting Antennas"))).to_pandas(), 
+    # "Accuracy Vs Antennas Normalized"
+    plot = sns.lineplot(df.filter(filter).with_columns(pl.col("Accuracy")*(pl.col("Transmitting Antennas")/pl.col("Simbols"))).to_pandas(), 
                         x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
     plt.xlabel("Number of Antennas", fontsize=14)
     plt.ylabel("Accuracy", fontsize=14)
@@ -111,7 +111,7 @@ def main() -> None:
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
     filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))
-    snr_df = df.filter(filter).group_by(["Case", "Sigma"], maintain_order=True).agg(pl.col("SNR").mean(), pl.col("Accuracy")).explode("Accuracy")
+    snr_df = df.filter(filter).group_by(["Case", "Sigma"], maintain_order=True).agg(pl.col("SNR").mean(), pl.col("Accuracy"), pl.col("Transmitting Antennas"), pl.col("Simbols")).explode(["Accuracy", "Transmitting Antennas", "Simbols"])
     
     plot = sns.lineplot(snr_df.to_pandas(), 
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(ylim=(0, 1), title="Accuracy Vs Signal to Noise Ratio (Tx=8, Rx=8)", xlabel="Signal to Noise Ratio (dB)")
@@ -126,6 +126,16 @@ def main() -> None:
     plt.yticks(fontsize=12)
     plt.legend()
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
+    plt.show()
+    
+    plot = sns.lineplot(snr_df.with_columns(pl.col("Accuracy")*(pl.col("Transmitting Antennas")/pl.col("Simbols"))).to_pandas(), 
+                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
+    plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)
+    plt.ylabel("Accuracy", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend()
+    plt.savefig(str(IMG_PATH / 'snr_zoom_absolute_normalized.pdf'), format='pdf')
     plt.show()
     
     ticks = df.filter(filter)['Sigma'].unique()
