@@ -201,9 +201,6 @@ class LinearOptimizerBaseline():
         """
         input.to('cpu')
 
-        # Normalize the input
-        # input = nn.functional.normalize(input, p=2, dim=-1)
-
         # Transpose
         input = input.T
 
@@ -414,14 +411,9 @@ class LinearOptimizerSAE():
             old_input = input
             old_output = output
             
-            # Set the input and output in the right dimensions
-            # input = nn.functional.normalize(input, p=2, dim=-1)
-
             # Transpose
             input = input.T
             output = output.T
-
-            # output, self.L_output, self.mean_output = prewhiten(output)
 
             # Complex compression
             input = complex_compressed_tensor(input.T).H
@@ -473,9 +465,6 @@ class LinearOptimizerSAE():
         input.to('cpu')
 
         with torch.no_grad():
-            # Normalize the input
-            # input = nn.functional.normalize(input, p=2, dim=-1)
-
             # Transpose
             input = input.T
 
@@ -493,9 +482,6 @@ class LinearOptimizerSAE():
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T
         
-            # Remove whitening
-            # output = self.L_output @ output + self.mean_output
-
         return output.T
     
 
