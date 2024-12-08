@@ -114,13 +114,19 @@ def main() -> None:
                         default=-1,
                         type=int)
 
+    parser.add_argument('-m',
+                        '--mu',
+                        help="The mu coefficient for the regularizer. Default 1.",
+                        default=1.,
+                        type=float)
+
     parser.add_argument('--cost',
                         help="Transmission cost. Default None.",
                         default=None,
                         type=int)
 
     parser.add_argument('--lr',
-                        help="The learning rate. Default 0.001.",
+                        help="The learning rate. Default 1e-3.",
                         default=1e-3,
                         type=float)
 
@@ -163,6 +169,7 @@ def main() -> None:
                                 dec_hidden_dim=args.decneurons,
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
+                                mu=args.mu,
                                 sigma=sigma,
                                 cost=args.cost,
                                 lr=args.lr)
@@ -179,6 +186,7 @@ def main() -> None:
                         max_trials=5),
     ]
 
+    # Add pruninig to the callbacks if prune is True
     if args.prune:
         callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
                                       amount=compute_amount,
