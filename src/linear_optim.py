@@ -168,9 +168,6 @@ class LinearOptimizerBaseline():
         input.to('cpu')
         output.to('cpu')
 
-        # Normalize the input
-        # input = nn.functional.normalize(input, p=2, dim=-1)
-
         with torch.no_grad():
             # Alignment of the input to the output
             self.A = torch.linalg.lstsq(input, output).solution.T

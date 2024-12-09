@@ -167,7 +167,7 @@ def prewhiten(x_train: torch.Tensor,
     """
     # --- Prewhiten the training set ---
     C = torch.cov(x_train)  # Training set covariance
-    L = torch.linalg.cholesky(C)  # Cholesky decomposition C = LL^H
+    L, _ = torch.linalg.cholesky_ex(C)  # Cholesky decomposition C = LL^H
     mean = x_train.mean(axis=1)[:, None]
     z_train = x_train - mean # Center the training set
     z_train = torch.linalg.solve(L, z_train)  # Prewhitened training set
