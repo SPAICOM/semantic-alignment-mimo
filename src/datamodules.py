@@ -282,8 +282,6 @@ class DataModule(LightningDataModule):
         self.input_size = self.train_data.input_size
         self.output_size = self.train_data.output_size
 
-        # Just to train on the first 1000 samples as the linear couterpart
-        self.train_data = Subset(self.train_data, list(range(1000)))
         return None
 
 

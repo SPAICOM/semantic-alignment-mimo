@@ -96,8 +96,8 @@ def main():
                                   sigma=args.sigma)
 
     # Fit the linear optimizer
-    opt.fit(input=datamodule.train_data.dataset.z[:1000],
-            output=datamodule.train_data.dataset.z_decoder[:1000])
+    opt.fit(input=datamodule.train_data.z,
+            output=datamodule.train_data.z_decoder)
     
     # Eval the linear optimizer
     print("loss:",

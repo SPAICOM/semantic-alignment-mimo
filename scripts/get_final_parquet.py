@@ -185,8 +185,8 @@ def main() -> None:
                                  cost=cost)
 
         # Fit the linear optimizer
-        opt.fit(input=datamodule.train_data.dataset.z[:1000],
-                output=datamodule.train_data.dataset.z_decoder[:1000],
+        opt.fit(input=datamodule.train_data.z,
+                output=datamodule.train_data.z_decoder,
                 iterations=30)
 
         # Set the channel matrix and white noise sigma
@@ -241,8 +241,8 @@ def main() -> None:
                                       sigma=sigma_0)
 
         # Fit the linear optimizer
-        opt.fit(input=datamodule.train_data.dataset.z[:1000],
-                output=datamodule.train_data.dataset.z_decoder[:1000])
+        opt.fit(input=datamodule.train_data.z,
+                output=datamodule.train_data.z_decoder)
 
         # Set the channel matrix and white noise sigma
         opt.channel_matrix = channel_matrix

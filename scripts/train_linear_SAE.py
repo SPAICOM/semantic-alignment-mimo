@@ -118,8 +118,8 @@ def main():
                              rho=args.rho)
 
     # Fit the linear optimizer
-    losses, traces = opt.fit(input=datamodule.train_data.dataset.z[:1000],
-                             output=datamodule.train_data.dataset.z_decoder[:1000],
+    losses, traces = opt.fit(input=datamodule.train_data.z,
+                             output=datamodule.train_data.z_decoder,
                              iterations=args.iterations)
     
     # Eval the linear optimizer

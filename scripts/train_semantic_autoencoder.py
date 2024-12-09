@@ -183,7 +183,7 @@ def main() -> None:
                         save_top_k=1,
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
-                        max_trials=5),
+                        max_trials=8),
     ]
 
     # Add pruninig to the callbacks if prune is True
