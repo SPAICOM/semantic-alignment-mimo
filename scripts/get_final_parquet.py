@@ -172,7 +172,7 @@ def main() -> None:
             ch_matrix = channel_matrix
             sigma_0 = sigma
         elif awareness == 'unaware':
-            ch_matrix = torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
+            ch_matrix = torch.eye(receiver, transmitter, dtype=torch.complex64)
             sigma_0 = 0
         else:
             raise Exception(f'Wrong awareness passed: {awareness}')
@@ -224,16 +224,6 @@ def main() -> None:
         # =========================================================================
         #                        Linear Optimizer Baseline
         # =========================================================================
-        # Set awareness
-        if awareness == 'aware':
-            ch_matrix = channel_matrix
-            sigma_0 = sigma
-        elif awareness == 'unaware':
-            ch_matrix = torch.view_as_complex(torch.stack((torch.eye(receiver), torch.eye(receiver)), dim=-1))
-            sigma_0 = 0
-        else:
-            raise Exception(f'Wrong awareness passed: {awareness}')
-                
         # Get the optimizer
         opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                       output_dim=datamodule.output_size,
