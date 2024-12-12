@@ -55,6 +55,11 @@ def main():
                         type=int,
                         required=True)
     
+    parser.add_argument('--typology',
+                        help="The typology of baseline, possible vales 'pre' or 'post'. Default 'pre'.",
+                        type=str,
+                        default="pre")
+    
     parser.add_argument('--receiver',
                         help="The number of antennas for the receiver.",
                         type=int,
@@ -93,7 +98,8 @@ def main():
     opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                   output_dim=datamodule.output_size,
                                   channel_matrix=channel_matrix,
-                                  sigma=args.sigma)
+                                  sigma=args.sigma,
+                                  typology=args.typology)
 
     # Fit the linear optimizer
     opt.fit(input=datamodule.train_data.z,

@@ -222,13 +222,14 @@ def main() -> None:
 
         
         # =========================================================================
-        #                        Linear Optimizer Baseline
+        #               Linear Optimizer Baseline Alignment pre SVD
         # =========================================================================
         # Get the optimizer
         opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                       output_dim=datamodule.output_size,
                                       channel_matrix=ch_matrix,
-                                      sigma=sigma_0)
+                                      sigma=sigma_0,
+                                      typology="pre")
 
         # Fit the linear optimizer
         opt.fit(input=datamodule.train_data.z,
@@ -250,7 +251,52 @@ def main() -> None:
                            'Dataset': dataset,
                            'Encoder': encoder,
                            'Decoder': decoder,
-                           'Case': f'Baseline - Channel {awareness.capitalize()}',
+                           'Case': f'Baseline Alignment pre SVD - Channel {awareness.capitalize()}',
+                           'Simbols': datamodule.test_data.input_size,
+                           'Transmitting Antennas': transmitter,
+                           'Receiving Antennas': receiver,
+                           'Awareness': awareness,
+                           'Sigma': sigma,
+                           'Seed': seed,
+                           'Cost': cost,
+                           'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
+                           'Classifier Loss': clf_metrics['test/loss_epoch'],
+                           'Accuracy': clf_metrics['test/acc_epoch'],
+                           'SNR': snr(signal=torch.ones(1), sigma=c_sigma)
+                       }),
+                       in_place=True)
+
+        # =========================================================================
+        #               Linear Optimizer Baseline Alignment post SVD
+        # =========================================================================
+        # Get the optimizer
+        opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
+                                      output_dim=datamodule.output_size,
+                                      channel_matrix=ch_matrix,
+                                      sigma=sigma_0,
+                                      typology="post")
+
+        # Fit the linear optimizer
+        opt.fit(input=datamodule.train_data.z,
+                output=datamodule.train_data.z_decoder)
+
+        # Set the channel matrix and white noise sigma
+        opt.channel_matrix = channel_matrix
+        opt.sigma = sigma
+
+        # Get the z_psi_hat
+        z_psi_hat = opt.transform(datamodule.test_data.z)
+
+        # Get the predictions using as input the z_psi_hat
+        dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+        results.vstack(pl.DataFrame(
+                       {
+                           'Dataset': dataset,
+                           'Encoder': encoder,
+                           'Decoder': decoder,
+                           'Case': f'Baseline Alignment post SVD - Channel {awareness.capitalize()}',
                            'Simbols': datamodule.test_data.input_size,
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,

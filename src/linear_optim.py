@@ -26,13 +26,17 @@ class LinearOptimizerBaseline():
             The output dimension.
         channel_matrix : torch.Tensor
             The channel matrix H in torch.Tensor format.
-        
+        sigma : float
+            The sigma of the additive white gaussian noise.
+        typology : str
+            The typology of baseline, possible values 'pre' or 'post'. Default 'pre'.
     """
     def __init__(self,
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 sigma: int):
+                 sigma: float,
+                 typology: str = "pre"):
         
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
@@ -40,8 +44,12 @@ class LinearOptimizerBaseline():
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
         self.sigma = sigma
+        self.typology = typology
         self.c_sigma = self.sigma / math.sqrt(2)
-        
+
+        # Check value of typology
+        assert self.typology in ["pre", "post"], f"The passed typology {self.typology} is not supported."        
+
         # Get the receiver and transmitter antennas
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
 
@@ -75,12 +83,13 @@ class LinearOptimizerBaseline():
             list[torch.Tensor]
                 The list of precoded packets, each of them of dimension self.antennas_transmitter.
         """
-        assert self.output_dim // 2 == input.shape[0], "The feature dimensions must be half of the output dimensions"
-        assert self.output_dim // 2 > self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
+        d = input.shape[0]
+
+        assert d > self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
 
         # Get the number of packets required for the transmission and the relative needed padding
-        n_packets: int = math.ceil( (self.output_dim // 2) / self.antennas_transmitter)
-        padding_size: int = n_packets * self.antennas_transmitter - self.output_dim // 2
+        n_packets: int = math.ceil( d / self.antennas_transmitter)
+        padding_size: int = n_packets * self.antennas_transmitter - d
 
         # Add padding rows wise (i.e. to the features)
         padded_input = torch.nn.functional.pad(input, (0, 0, 0, padding_size))
@@ -108,7 +117,13 @@ class LinearOptimizerBaseline():
         packets = [self.G @ p for p in packets]
 
         # Combined packets
-        received = torch.cat(packets, dim=0)[:self.output_dim//2,:]
+        match self.typology:
+            case "pre":
+                received = torch.cat(packets, dim=0)[:self.output_dim//2,:]
+            case "post":
+                received = torch.cat(packets, dim=0)[:self.input_dim//2,:]
+            case _:
+                raise Exception(f"The passed typology {self.typology} is not supported.")
 
         return received
 
@@ -169,18 +184,33 @@ class LinearOptimizerBaseline():
         output.to('cpu')
 
         with torch.no_grad():
-            # Alignment of the input to the output
-            self.A = torch.linalg.lstsq(input, output).solution.T
-            
-            # Align the input
-            input = self.A @ input.T
-            
-            # Complex Compress the input
-            input = complex_compressed_tensor(input.T).H
+            match self.typology:
+                case "pre":
+                    # Alignment of the input to the output
+                    self.A = torch.linalg.lstsq(input, output).solution.T
 
-            # Learn L and the mean
-            _, self.L, self.mean = prewhiten(input)
-        
+                    # Align the input
+                    input = self.A @ input.T
+            
+                    # Complex Compress the input
+                    input = complex_compressed_tensor(input.T).H
+
+                    # Learn L and the mean
+                    _, self.L, self.mean = prewhiten(input)
+                
+                case "post":
+                    # Learn L and the mean
+                    _, self.L, self.mean = prewhiten(complex_compressed_tensor(input).H)
+
+                    # Transmit the input
+                    transmitted = self.__transmit_message(input.T)
+
+                    # Alignment of the input to the output
+                    self.A = torch.linalg.lstsq(transmitted, output).solution.T
+
+                case _:
+                    raise Exception(f"The passed typology {self.typology} is not supported.")
+            
         return None
         
 
@@ -201,12 +231,21 @@ class LinearOptimizerBaseline():
         # Transpose
         input = input.T
 
-        # Align the input
-        input = self.A @ input
+        match self.typology:
+            case "pre":
+                # Align the input
+                input = self.A @ input
 
-        # Transmit the input
-        output = self.__transmit_message(input)
-                
+                # Transmit the input
+                output = self.__transmit_message(input)
+
+            case "post":
+                # Transmit the input
+                output = self.__transmit_message(input)
+
+                # Align the output
+                output = (self.A @ output.T).T
+
         return output
 
     
