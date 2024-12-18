@@ -105,6 +105,30 @@ def complex_gaussian_matrix(mean: float,
     return torch.view_as_complex(complex_matrix)
 
 
+def awgn(sigma: float,
+         size: torch.Size) -> torch.Tensor:
+    """A function that returns a noise vector sampled by a complex gaussian of a specified sigma.
+
+    Args:
+        sigma : float
+            The sigma (std) of a REAL awgn.
+        size : torch.Size
+            The size of the noise vector.
+
+    Returns:
+        torch.Tensor
+            The sempled noise vector.
+    """
+    # Get the complex sigma
+    sigma = sigma / math.sqrt(2)
+    
+    # Get the real and imaginary parts
+    r = torch.normal(mean=0, std=sigma, size=size)
+    i = torch.normal(mean=0, std=sigma, size=size)
+    
+    return torch.view_as_complex(torch.stack((r, i), dim=-1))
+
+
 def snr(signal: torch.Tensor,
         sigma: float) -> float:
     """Return the Signal to Noise Ratio.
@@ -113,7 +137,7 @@ def snr(signal: torch.Tensor,
         signal : torch.Tensor
             The signal vector.
         sigma : float
-            The sigma squared of the noise.
+            The sigma of the noise.
 
     Return:
         float
@@ -236,6 +260,11 @@ def main() -> None:
     print("Performing seventh test...", end="\t")
     sigma = sigma_given_snr(snr=10, signal=x)
     assert sigma > 0, "[Error]: sigma is not positive."
+    print("[PASSED]")
+
+    print()
+    print("Performing eight test...", end="\t")
+    awgn(sigma=sigma, size=x.shape)
     print("[PASSED]")
 
     
