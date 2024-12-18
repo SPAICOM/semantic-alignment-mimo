@@ -48,10 +48,10 @@ def main():
                         required=True)
 
     parser.add_argument('-s',
-                        '--sigma',
-                        help="The sigma squared of the white noise. Default 0.",
+                        '--snr',
+                        help="The snr of the communication channel in dB. Set to None if unaware. Default 20.",
                         type=float,
-                        default=1.)
+                        default=20.)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
@@ -76,8 +76,8 @@ def main():
                         type=int)
 
     parser.add_argument('--rho',
-                        help="The rho parameter for admm. Default 1e5.",
-                        default=1e5,
+                        help="The rho parameter for admm. Default 1e2.",
+                        default=1e2,
                         type=float)
 
     parser.add_argument('--seed',
@@ -113,7 +113,7 @@ def main():
     opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
                              output_dim=datamodule.output_size,
                              channel_matrix=channel_matrix,
-                             sigma=args.sigma,
+                             snr=args.snr,
                              cost=args.cost,
                              rho=args.rho)
 

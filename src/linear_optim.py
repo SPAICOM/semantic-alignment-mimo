@@ -8,8 +8,8 @@ from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
     
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
-# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, snr
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
+# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
 
 # ============================================================
 #
@@ -28,6 +28,8 @@ class LinearOptimizerBaseline():
             The channel matrix H in torch.Tensor format.
         sigma : float
             The sigma of the additive white gaussian noise.
+        snr : float
+            The snr in dB of the communication channel. Set to None if unaware.
         typology : str
             The typology of baseline, possible values 'pre' or 'post'. Default 'pre'.
     """
@@ -35,7 +37,8 @@ class LinearOptimizerBaseline():
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 sigma: float,
+                 # sigma: float,
+                 snr: float,
                  typology: str = "pre"):
         
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
@@ -43,9 +46,10 @@ class LinearOptimizerBaseline():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.sigma = sigma
+        # self.sigma = sigma
+        self.snr = snr
         self.typology = typology
-        self.c_sigma = self.sigma / math.sqrt(2)
+        # self.c_sigma = self.sigma / math.sqrt(2)
 
         # Check value of typology
         assert self.typology in ["pre", "post"], f"The passed typology {self.typology} is not supported."        
@@ -65,7 +69,7 @@ class LinearOptimizerBaseline():
 
         # Define the decoder and precoder
         # self.G = torch.linalg.inv(S) @ U.H
-        self.G = B.H @ torch.linalg.inv(B@B.H + (1/snr(torch.ones(1), self.c_sigma)) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
+        self.G = B.H @ torch.linalg.inv(B@B.H + (1/self.snr) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
         self.F = Vt.H
 
         return None
@@ -150,8 +154,14 @@ class LinearOptimizerBaseline():
             # Performing the precoding packets
             packets = self.__packets_precoding(input)
 
-            # Transmit the packets and add the AWGN
-            packets = [self.channel_matrix @ p + torch.view_as_complex(torch.stack((torch.normal(0, self.c_sigma, size=p.shape), torch.normal(0, self.c_sigma, size=p.shape)), dim=-1)) for p in packets]
+            # Transmit the packets
+            packets = [self.channel_matrix @ p for p in packets]
+
+            # Add the white gaussian noise
+            if self.snr:
+                # Get the sigma
+                sigma = sigma_given_snr(snr=self.snr, signal=input)
+                packets = [p + awgn(sigma=sigma, size=p.shape) for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
@@ -283,6 +293,8 @@ class LinearOptimizerSAE():
             The Complex Gaussian Matrix simulating the communication channel.
         sigma : int
             The sigma square for the white noise.
+        snr : float
+            The snr in dB of the communication channel. Set to None if unaware.
         cost : float
             The transmition cost. Default 1.0.
         rho : int
@@ -307,7 +319,8 @@ class LinearOptimizerSAE():
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 sigma: int,
+                 # sigma: int,
+                 snr: float,
                  cost: float = 1.0,
                  rho: float = 1e2):
 
@@ -316,11 +329,12 @@ class LinearOptimizerSAE():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        self.sigma = sigma
+        # self.sigma = sigma
+        self.snr = snr
         self.cost = cost
         self.rho = rho
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
-        self.c_sigma = sigma / math.sqrt(2)
+        # self.c_sigma = sigma / math.sqrt(2)
 
         # Variables
         self.F = None
@@ -352,8 +366,11 @@ class LinearOptimizerSAE():
 
         # Get the number of samples
         _, n = input.shape
+
+        # Get sigma
+        sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
         
-        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + n * self.c_sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
         return None
     
 
@@ -519,8 +536,9 @@ class LinearOptimizerSAE():
 
             # Transmit the input through the channel H
             z = self.channel_matrix @ self.F @ input
-            wn = torch.view_as_complex(torch.stack((torch.normal(0, self.c_sigma, size=z.shape), torch.normal(0, self.c_sigma, size=z.shape)), dim=-1))
-            output = self.G @ (z + wn)
+            sigma = sigma_given_snr(snr=self.snr, signal=z)
+            w = awgn(sigma=sigma, size=z.shape)
+            output = self.G @ (z + w)
         
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T
@@ -600,7 +618,7 @@ def main() -> None:
     
     # Variables definition
     cost: int = 1
-    sigma: int = 1
+    snr: float = 20
     iterations: int = 10
     input_dim: int = 20
     output_dim: int = 40
@@ -615,7 +633,7 @@ def main() -> None:
     baseline = LinearOptimizerBaseline(input_dim=input_dim,
                                        output_dim=output_dim,
                                        channel_matrix=channel_matrix,
-                                       sigma=sigma)
+                                       snr=snr)
     baseline.fit(input, output)
     baseline.transform(input)
     print(baseline.eval(input, output))
@@ -628,7 +646,7 @@ def main() -> None:
     linear_sae = LinearOptimizerSAE(input_dim=input_dim,
                                     output_dim=output_dim,
                                     channel_matrix=channel_matrix,
-                                    sigma=sigma,
+                                    snr=snr,
                                     cost=cost)
     linear_sae.fit(input, output, iterations)
     linear_sae.transform(input)

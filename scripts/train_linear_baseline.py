@@ -45,10 +45,10 @@ def main():
                         required=True)
 
     parser.add_argument('-s',
-                        '--sigma',
-                        help="The sigma squared of the white noise. Default 0.",
+                        '--snr',
+                        help="The snr of the communication channel. Set to None for unaware. Default 20.",
                         type=float,
-                        default=1.)
+                        default=20.)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
@@ -98,7 +98,7 @@ def main():
     opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                   output_dim=datamodule.output_size,
                                   channel_matrix=channel_matrix,
-                                  sigma=args.sigma,
+                                  snr=args.snr,
                                   typology=args.typology)
 
     # Fit the linear optimizer
