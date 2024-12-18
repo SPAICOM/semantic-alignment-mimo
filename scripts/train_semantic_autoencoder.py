@@ -81,9 +81,9 @@ def main() -> None:
                         type=bool,
                         action=argparse.BooleanOptionalAction)
 
-    parser.add_argument('--sigma',
-                        help="The sigma of the white noise. Default 1.",
-                        default=1.,
+    parser.add_argument('--snr',
+                        help="The snr of the communication channel in dB. Set to None if unaware. Default 20.",
+                        default=20.,
                         type=float)
 
     parser.add_argument('--encneurons',
@@ -144,11 +144,13 @@ def main() -> None:
     if args.aware:
         aware = 'aware'
         channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
-        sigma = args.sigma
+        snr = args.snr
+        # sigma = args.sigma
     else:
         aware = 'unaware'
         channel_matrix = torch.eye(args.receiver, args.transmitter, dtype=torch.complex64)
-        sigma = 0
+        snr = None
+        # sigma = 0
 
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
@@ -170,7 +172,7 @@ def main() -> None:
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
                                 mu=args.mu,
-                                sigma=sigma,
+                                snr=snr,
                                 cost=args.cost,
                                 lr=args.lr)
 
@@ -197,7 +199,7 @@ def main() -> None:
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{sigma}_{args.cost}',
+    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}',
                                name=f"seed_{args.seed}",
                                id=f"seed_{args.seed}",
                                log_model='all')
