@@ -123,23 +123,24 @@ def snr(signal: torch.Tensor,
 
 
 def sigma_given_snr(snr: float,
-                    receiving_antennas: int,
-                    cost: float = 1.0) -> float:
-    """Given a fixed value of SNR, receiving antennas and cost, retrieve the correspoding value of sigma.
+                    signal: torch.Tensor) -> float:
+    """Given a fixed value of SNR and signal, retrieve the correspoding value of sigma.
 
     Args:
         snr : float
-            The Signal to Noise Ration.
-        receiving_antennas : int
+            The Signal to Noise Ration in dB.
+        signal : torch.Tensor
             The number of receiving antennas.
         cost : float
             The cost for the transmitter.
 
     Returns:
         float
-            The corresponding sigma given snr, receiving antennas and cost.
+            The corresponding sigma given snr and a signal.
     """
-    return math.sqrt(cost/(snr*receiving_antennas))
+    snr_no_db = math.pow(10, snr/10)
+    signal_power = torch.mean(torch.abs(signal)**2)
+    return math.sqrt(signal_power/snr_no_db)
 
 
 def prewhiten(x_train: torch.Tensor,
@@ -233,7 +234,7 @@ def main() -> None:
 
     print()
     print("Performing seventh test...", end="\t")
-    sigma = sigma_given_snr(snr=10, receiving_antennas=100)
+    sigma = sigma_given_snr(snr=10, signal=x)
     assert sigma > 0, "[Error]: sigma is not positive."
     print("[PASSED]")
 
