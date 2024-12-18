@@ -7,8 +7,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics.classification import MulticlassAccuracy
 
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
-# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
+# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
 
 
 # ==================================================================
@@ -419,6 +419,8 @@ class SemanticAutoEncoder(pl.LightningModule):
             A complex matrix simulating a communication channel.
         sigma : float
             The sigma square for the white noise. Default 0.
+        snr : float
+            The snr in dB of the communication channel. Set to None if unaware. Default 20.
         cost: float
             The cost for the constrainde version. Default None.
         mu: float
@@ -439,7 +441,8 @@ class SemanticAutoEncoder(pl.LightningModule):
                  dec_hidden_dim: int,
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
-                 sigma: float = 0,
+                 # sigma: float = 0,
+                 snr: float = 20.,
                  cost: float = None,
                  mu: float = 1,
                  lr: float = 1e-3):
@@ -455,7 +458,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
         
         # Get the modified sigma for the CN
-        self.hparams['c_sigma'] = sigma / math.sqrt(2)
+        # self.hparams['c_sigma'] = sigma / math.sqrt(2)
         
         # Halve the input and output dimension
         input_dim = (input_dim + 1) // 2
@@ -523,9 +526,13 @@ class SemanticAutoEncoder(pl.LightningModule):
         z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device))
         
         # Add white noise
-        # z = z.real + torch.normal(mean=0, std=self.hparams['sigma'], size=z.real.shape).to(self.device)
-        z = z + torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
-        
+        if self.hparams["snr"]:
+            with torch.no_grad():
+                # w = torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
+                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z)
+                w = awgn(sigma=sigma, size=z.real.shape).to(self.device)
+                z = z + w
+            
         # Decoding in reception
         return decompress_complex_tensor(self.semantic_decoder(z))[:, :self.hparams['output_dim']]
 
@@ -707,15 +714,10 @@ def main() -> None:
     antennas_transmitter = 10
     antennas_receiver = 10
     channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
-    sigma = 1
+    snr = 20
     
     data = torch.randn(10, input_dim)
     
-    print("Test for RelativeEncoder...", end='\t')
-    mlp = RelativeEncoder(input_dim, output_dim, hidden_dim, hidden_size, activ_type)
-    output = mlp(data)
-    print("[Passed]")
-
     print()
     print("Test for Classifier...", end='\t')
     mlp = Classifier(input_dim, num_classes, hidden_dim, hidden_size)
@@ -724,7 +726,7 @@ def main() -> None:
     
     print()
     print("Test for SemanticAutoEncoder...", end='\t')
-    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_dim, hidden_size, channel_matrix, sigma=sigma)
+    mlp = SemanticAutoEncoder(input_dim, output_dim, antennas_transmitter, antennas_receiver, hidden_dim, hidden_dim, hidden_size, channel_matrix, snr=snr)
     output = mlp(data)
     print("[Passed]")
 

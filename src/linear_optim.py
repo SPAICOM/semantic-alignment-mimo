@@ -286,7 +286,7 @@ class LinearOptimizerSAE():
         cost : float
             The transmition cost. Default 1.0.
         rho : int
-            The rho coeficient for the admm method. Default 1e5.
+            The rho coeficient for the admm method. Default 1e2.
 
     Attributes:
         self.<args_name>
@@ -309,7 +309,7 @@ class LinearOptimizerSAE():
                  channel_matrix: torch.Tensor,
                  sigma: int,
                  cost: float = 1.0,
-                 rho: float = 1e5):
+                 rho: float = 1e2):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
@@ -350,7 +350,10 @@ class LinearOptimizerSAE():
         # Get the auxiliary matrix A
         A = self.channel_matrix @ self.F @ input
 
-        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + self.c_sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
+        # Get the number of samples
+        _, n = input.shape
+        
+        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + n * self.c_sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
         return None
     
 
@@ -368,16 +371,20 @@ class LinearOptimizerSAE():
         Returns:
             None
         """
+        # Get the number of samples
+        _, n = input.shape
+        
         # Get the auxiliary matrixes
+        rho = self.rho * n
         O = self.G @ self.channel_matrix
         A = O.H @ O
         Bh = (input @ input.H).H
-        C = self.rho * (self.Z - self.U) + O.H @ output @ input.H
+        C = rho * (self.Z - self.U) + O.H @ output @ input.H
 
         kron = torch.kron(Bh.contiguous(), A.contiguous()) 
         n, m = kron.shape
         
-        vec_F = torch.linalg.inv(kron + self.rho * torch.eye(n, m)) @ C.T.reshape(-1)
+        vec_F = torch.linalg.inv(kron + rho * torch.eye(n, m)) @ C.T.reshape(-1)
         self.F = vec_F.reshape(self.F.T.shape).T
     
         return None
