@@ -46,7 +46,9 @@ def main() -> None:
     sns.set_style('whitegrid')
     
     # Read the parquet
-    df = pl.read_parquet(PARQUET_PATH)
+    df = pl.read_parquet(PARQUET_PATH).sort(by=["Awareness", "Case"], descending=[False, True]).with_columns(pl.when(pl.col("Case").str.contains("Baseline")).then((5, 5)).otherwise(()).alias("dashes"))
+    dashes = df.select(["Case", "dashes"]).unique(subset=["Case"]).to_dict(as_series= False)
+    dashes = dict(zip(dashes["Case"], dashes["dashes"]))
 
     # Set the font to Times-Roman (or Times New Roman)
     plt.rcParams['font.family'] = 'serif'
@@ -58,24 +60,22 @@ def main() -> None:
                         'axes.labelsize': 14,  # X and Y label size
                         'xtick.labelsize': 12,  # X-tick label size
                         'ytick.labelsize': 12,  # Y-tick label size
-                        'legend.fontsize': 10,  # Legend font size
-                        'legend.title_fontsize': 14  # Legend title font size
+                        'legend.fontsize': 9,  # Legend font size
+                        'legend.title_fontsize': 12  # Legend title font size
                         })
     
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
-    filter = (pl.col('Sigma')==0.1)
+    filter = (pl.col('SNR')==20)
     ticks = df.filter(filter)['Transmitting Antennas'].unique()
     
     # "Accuracy Vs Antennas" 
     plot = sns.lineplot(df.filter(filter).to_pandas(), 
-                        x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
-    plt.xlabel("Number of Antennas", fontsize=14)
-    plt.ylabel("Accuracy", fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.legend(loc=(0.25, 0.28))
+                        x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
+    plt.xlabel("Number of Antennas")
+    plt.ylabel("Accuracy")
+    plt.legend(loc=(0.3, 0.25))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
     plt.show()
     
@@ -84,8 +84,6 @@ def main() -> None:
                         x='Transmitting Antennas', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1), xlabel="Number of Antennas")
     plt.xlabel("Number of Antennas", fontsize=14)
     plt.ylabel("Accuracy", fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
     plt.legend(loc=(0.25, 0.28))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute_normalized.pdf'), format='pdf')
     plt.show()
@@ -110,7 +108,7 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
-    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware'))
+    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col('Case').str.contains(' Aware')&(pl.col('SNR')!=0))
     snr_df = df.filter(filter).group_by(["Case", "Sigma"], maintain_order=True).agg(pl.col("SNR").mean(), pl.col("Accuracy"), pl.col("Transmitting Antennas"), pl.col("Simbols")).explode(["Accuracy", "Transmitting Antennas", "Simbols"])
     
     plot = sns.lineplot(snr_df.to_pandas(), 
@@ -119,11 +117,9 @@ def main() -> None:
     plt.show()
     
     plot = sns.lineplot(snr_df.to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
-    plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)
-    plt.ylabel("Accuracy", fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
+                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
+    plt.xlabel("Signal to Noise Ratio (dB)")
+    plt.ylabel("Accuracy")
     plt.legend()
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
     plt.show()
@@ -132,8 +128,6 @@ def main() -> None:
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=False, markersize=10).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
     plt.xlabel("Signal to Noise Ratio (dB)", fontsize=14)
     plt.ylabel("Accuracy", fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
     plt.legend()
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute_normalized.pdf'), format='pdf')
     plt.show()

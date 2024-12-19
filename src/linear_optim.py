@@ -26,8 +26,6 @@ class LinearOptimizerBaseline():
             The output dimension.
         channel_matrix : torch.Tensor
             The channel matrix H in torch.Tensor format.
-        sigma : float
-            The sigma of the additive white gaussian noise.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware.
         typology : str
@@ -37,7 +35,6 @@ class LinearOptimizerBaseline():
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 # sigma: float,
                  snr: float,
                  typology: str = "pre"):
         
@@ -46,10 +43,8 @@ class LinearOptimizerBaseline():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        # self.sigma = sigma
         self.snr = snr
         self.typology = typology
-        # self.c_sigma = self.sigma / math.sqrt(2)
 
         # Check value of typology
         assert self.typology in ["pre", "post"], f"The passed typology {self.typology} is not supported."        
@@ -68,9 +63,11 @@ class LinearOptimizerBaseline():
         B = U @ S
 
         # Define the decoder and precoder
-        # self.G = torch.linalg.inv(S) @ U.H
-        self.G = B.H @ torch.linalg.inv(B@B.H + (1/self.snr) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
         self.F = Vt.H
+        if self.snr:
+            self.G = B.H @ torch.linalg.inv(B@B.H + (1/self.snr) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
+        else:
+            self.G = torch.linalg.inv(S) @ U.H
 
         return None
 
@@ -160,8 +157,7 @@ class LinearOptimizerBaseline():
             # Add the white gaussian noise
             if self.snr:
                 # Get the sigma
-                sigma = sigma_given_snr(snr=self.snr, signal=input)
-                packets = [p + awgn(sigma=sigma, size=p.shape) for p in packets]
+                packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
@@ -256,6 +252,9 @@ class LinearOptimizerBaseline():
                 # Align the output
                 output = (self.A @ output.T).T
 
+            case _:
+                raise Exception(f"Unrecognised case of self.typology parameter, set to '{self.typology}'.")
+
         return output
 
     
@@ -279,6 +278,46 @@ class LinearOptimizerBaseline():
         
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
 
+    def get_precodings(self,
+                       input: torch.Tensor) -> torch.Tensor:
+        """The function returns the precodings of a passed input tensor.
+
+        Args:
+            input : torch.Tensor
+                The input tensor
+
+        Returns:
+            precoded : torch.Tensor
+                The precoded version of the passed input tensor.
+        """
+        input.to('cpu')
+
+        # Transpose
+        input = input.T
+
+        match self.typology:
+            case "pre":
+                # Align the input
+                input = self.A @ input
+                
+                # Complex compression
+                input = complex_compressed_tensor(input.T).H
+                
+                # Perform the prewhitening step
+                precoded = torch.linalg.solve(self.L, input - self.mean)
+
+            case "post":
+                # Complex compression
+                input = complex_compressed_tensor(input.T).H
+                
+                # Perform the prewhitening step
+                precoded = torch.linalg.solve(self.L, input - self.mean)
+                
+            case _:
+                raise Exception(f"Unrecognised case of self.typology parameter, set to '{self.typology}'.")
+
+        return precoded.T
+
 
     
 class LinearOptimizerSAE():
@@ -291,8 +330,6 @@ class LinearOptimizerSAE():
             The output dimension.
         channel_matrix : torch.Tensor
             The Complex Gaussian Matrix simulating the communication channel.
-        sigma : int
-            The sigma square for the white noise.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware.
         cost : float
@@ -319,7 +356,6 @@ class LinearOptimizerSAE():
                  input_dim: int,
                  output_dim: int,
                  channel_matrix: torch.Tensor,
-                 # sigma: int,
                  snr: float,
                  cost: float = 1.0,
                  rho: float = 1e2):
@@ -329,12 +365,10 @@ class LinearOptimizerSAE():
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
-        # self.sigma = sigma
         self.snr = snr
         self.cost = cost
         self.rho = rho
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
-        # self.c_sigma = sigma / math.sqrt(2)
 
         # Variables
         self.F = None
@@ -368,7 +402,9 @@ class LinearOptimizerSAE():
         _, n = input.shape
 
         # Get sigma
-        sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
+        sigma = 0
+        if self.snr:
+            sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
         
         self.G = output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
         return None
@@ -536,9 +572,14 @@ class LinearOptimizerSAE():
 
             # Transmit the input through the channel H
             z = self.channel_matrix @ self.F @ input
-            sigma = sigma_given_snr(snr=self.snr, signal=z)
-            w = awgn(sigma=sigma, size=z.shape)
-            output = self.G @ (z + w)
+
+            # Add the additive white gaussian noise
+            if self.snr:
+                sigma = sigma_given_snr(snr=self.snr, signal=z)
+                w = awgn(sigma=sigma, size=z.shape)
+                z += w
+                
+            output = self.G @ z
         
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T

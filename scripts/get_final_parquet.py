@@ -9,11 +9,12 @@ sys.path.append(str(Path(sys.path[0]).parent))
 import math
 import torch
 import polars as pl
+from tqdm.auto import tqdm
 from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.linear_optim import LinearOptimizerSAE, LinearOptimizerBaseline
-from src.utils import complex_gaussian_matrix, complex_tensor, snr
+from src.utils import complex_gaussian_matrix, complex_tensor, sigma_given_snr
 from src.models import Classifier, SemanticAutoEncoder
 from src.datamodules import DataModule, DataModuleClassifier
 
@@ -75,26 +76,24 @@ def main() -> None:
     # ==============================================================================
     #                      Get results for the SAE absolute
     # ==============================================================================
-    for autoencoder_path in (MODELS_DIR / f'{args.checkpoints}/').rglob('*.ckpt'):
+    for autoencoder_path in tqdm(list((MODELS_DIR / f'{args.checkpoints}/').rglob('*.ckpt'))):
         print()
         print()
         print('#'*100)
         print(autoencoder_path)
         # Getting the settings
-        _, _, dataset, encoder, decoder, awareness, antennas, sigma, seed = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, awareness, antennas, snr, seed = str(autoencoder_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
-        # case = case.split('_')[-1]
-        sigma = float(sigma.split('_')[-1])
-        c_sigma = sigma / math.sqrt(2)
+        snr = float(snr.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])
 
-        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('Sigma')==sigma)&(pl.col('Awareness')==awareness)).is_empty():
+        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)).is_empty():
             continue
         
         # Setting the seed
         seed_everything(seed, workers=True)
 
-        # Get the channel matrix and white noise sigma
+        # Get the channel matrix
         channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(receiver, transmitter))
 
         # Get and setup the datamodule
@@ -132,7 +131,7 @@ def main() -> None:
 
         if awareness == 'unaware':
             model.hparams['channel_matrix'] = channel_matrix
-            model.hparams['sigma'] = sigma
+            model.hparams['snr'] = snr
         
         # Get the absolute representation in the decoder space
         z_psi_hat = torch.cat(trainer.predict(model=model, datamodule=datamodule))
@@ -153,13 +152,13 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           'Sigma': sigma,
+                           'Sigma': sigma_given_snr(snr, model.get_precodings(datamodule.test_data.z).H),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=model.get_precodings(datamodule.test_data.z).H, sigma=c_sigma)
+                           'SNR': snr
                        }),
                        in_place=True)
 
@@ -170,10 +169,10 @@ def main() -> None:
         # Set awareness
         if awareness == 'aware':
             ch_matrix = channel_matrix
-            sigma_0 = sigma
+            snr_0 = snr
         elif awareness == 'unaware':
             ch_matrix = torch.eye(receiver, transmitter, dtype=torch.complex64)
-            sigma_0 = 0
+            snr_0 = None
         else:
             raise Exception(f'Wrong awareness passed: {awareness}')
                 
@@ -181,17 +180,17 @@ def main() -> None:
         opt = LinearOptimizerSAE(input_dim=datamodule.input_size,
                                  output_dim=datamodule.output_size,
                                  channel_matrix=ch_matrix,
-                                 sigma=sigma_0,
+                                 snr=snr_0,
                                  cost=cost)
 
         # Fit the linear optimizer
         opt.fit(input=datamodule.train_data.z,
                 output=datamodule.train_data.z_decoder,
-                iterations=30)
+                iterations=20)
 
-        # Set the channel matrix and white noise sigma
+        # Set the channel matrix and the snr
         opt.channel_matrix = channel_matrix
-        opt.sigma = sigma
+        opt.snr = snr
 
         # Get the z_psi_hat
         z_psi_hat = opt.transform(datamodule.test_data.z)
@@ -210,13 +209,13 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           'Sigma': sigma,
+                           'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=opt.get_precodings(datamodule.test_data.z), sigma=c_sigma)
+                           'SNR': snr
                        }),
                        in_place=True)
 
@@ -228,16 +227,16 @@ def main() -> None:
         opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                       output_dim=datamodule.output_size,
                                       channel_matrix=ch_matrix,
-                                      sigma=sigma_0,
+                                      snr=snr_0,
                                       typology="pre")
 
         # Fit the linear optimizer
         opt.fit(input=datamodule.train_data.z,
                 output=datamodule.train_data.z_decoder)
 
-        # Set the channel matrix and white noise sigma
+        # Set the channel matrix and the snr
         opt.channel_matrix = channel_matrix
-        opt.sigma = sigma
+        opt.snr = snr
 
         # Get the z_psi_hat
         z_psi_hat = opt.transform(datamodule.test_data.z)
@@ -256,13 +255,13 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           'Sigma': sigma,
+                           'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=torch.ones(1), sigma=c_sigma)
+                           'SNR': snr
                        }),
                        in_place=True)
 
@@ -273,16 +272,16 @@ def main() -> None:
         opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                       output_dim=datamodule.output_size,
                                       channel_matrix=ch_matrix,
-                                      sigma=sigma_0,
+                                      snr=snr_0,
                                       typology="post")
 
         # Fit the linear optimizer
         opt.fit(input=datamodule.train_data.z,
                 output=datamodule.train_data.z_decoder)
 
-        # Set the channel matrix and white noise sigma
+        # Set the channel matrix and the snr
         opt.channel_matrix = channel_matrix
-        opt.sigma = sigma
+        opt.snr = snr
 
         # Get the z_psi_hat
         z_psi_hat = opt.transform(datamodule.test_data.z)
@@ -301,13 +300,13 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
-                           'Sigma': sigma,
+                           'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr(signal=torch.ones(1), sigma=c_sigma)
+                           'SNR': snr
                        }),
                        in_place=True)
 

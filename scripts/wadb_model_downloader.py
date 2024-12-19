@@ -49,28 +49,28 @@ def main() -> None:
     run = wandb.init()
 
     seeds = [27, 42, 100, 123, 144, 200]
-    antennas = [1, 2, 4, 6, 8, 10, 12, 14] 
-    sigmas = [0.0001, 0.001, 0.01, 0.1, 10., 100., 1000., 0.0005, 0.005, 0.05, 0.5, 5., 50., 500.]
+    antennas = [1, 2, 4, 6, 8, 10, 12, 14, 16] 
+    snr = [-30.0, -20.0, -10.0, 0.0, 10.0, 30.0]
     costs = [1]
-
+    
     for ant in tqdm(antennas):
         for cost in costs:
             for seed in seeds:
-                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_0_{cost}/model-seed_{seed}:best', type='model').download()
+                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_{ant}_{ant}_aware_20.0_{cost}/model-seed_{seed}:best', type='model').download()
 
-                find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/sigma_0.1/', str(seed))
+                find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_{ant}_{ant}/snr_20.0/', str(seed))
 
             for seed in seeds:
-                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_{ant}_{ant}_aware_0.1_{cost}/model-seed_{seed}:best', type='model').download()
+                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}/model-seed_{seed}:best', type='model').download()
 
-                find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_{ant}_{ant}/sigma_0.1/', str(seed))
+                find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/snr_20.0/', str(seed))
 
-    for sigma in tqdm(sigmas):
+    for s in tqdm(snr):
         for cost in costs:
             for seed in seeds:
-                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_8_8_aware_{sigma}_{cost}/model-seed_{seed}:best', type='model').download()
+                run.use_artifact(f'jrhin-org/SemanticAutoEncoder_wn_8_8_aware_{s}_{cost}/model-seed_{seed}:best', type='model').download()
             
-                find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_8_8/sigma_{sigma}/', str(seed))
+                find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_8_8/snr_{s}/', str(seed))
             
     wandb.finish()
     

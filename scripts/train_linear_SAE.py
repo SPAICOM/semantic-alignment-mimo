@@ -49,9 +49,9 @@ def main():
 
     parser.add_argument('-s',
                         '--snr',
-                        help="The snr of the communication channel in dB. Set to None if unaware. Default 20.",
+                        help="The snr of the communication channel in dB. Set to None if unaware. Default None.",
                         type=float,
-                        default=20.)
+                        default=None)
     
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",

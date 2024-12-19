@@ -82,8 +82,8 @@ def main() -> None:
                         action=argparse.BooleanOptionalAction)
 
     parser.add_argument('--snr',
-                        help="The snr of the communication channel in dB. Set to None if unaware. Default 20.",
-                        default=20.,
+                        help="The snr of the communication channel in dB. Set to None if unaware. Default None.",
+                        default=None,
                         type=float)
 
     parser.add_argument('--encneurons',
@@ -145,12 +145,10 @@ def main() -> None:
         aware = 'aware'
         channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
         snr = args.snr
-        # sigma = args.sigma
     else:
         aware = 'unaware'
         channel_matrix = torch.eye(args.receiver, args.transmitter, dtype=torch.complex64)
         snr = None
-        # sigma = 0
 
     # Initialize the datamodule
     datamodule = DataModule(dataset=args.dataset,
