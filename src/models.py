@@ -489,14 +489,15 @@ class SemanticAutoEncoder(pl.LightningModule):
             z : torch.Tensor
                 The precodings of the input tensor x.
         """
-        x = x.real
-        x = nn.functional.normalize(x, p=2, dim=-1)
+        with torch.no_grad():
+            x = x.real
+            x = nn.functional.normalize(x, p=2, dim=-1)
 
-        # Complex Compression
-        x = complex_compressed_tensor(x)
+            # Complex Compression
+            x = complex_compressed_tensor(x)
 
-        # Precode the signal
-        z = self.semantic_encoder(x)
+            # Precode the signal
+            z = self.semantic_encoder(x)
         
         return z
     
@@ -527,11 +528,10 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         if self.hparams["snr"]:
-            with torch.no_grad():
-                # w = torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
-                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z)
-                w = awgn(sigma=sigma, size=z.real.shape).to(self.device)
-                z = z + w
+            # w = torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
+            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z)
+            w = awgn(sigma=sigma, size=z.real.shape).to(self.device)
+            z = z + w.detach()
             
         # Decoding in reception
         return decompress_complex_tensor(self.semantic_decoder(z))[:, :self.hparams['output_dim']]
