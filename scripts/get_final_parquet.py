@@ -43,6 +43,18 @@ def main() -> None:
                         default='final_results',
                         type=str)
 
+    parser.add_argument('--pre',
+                        help="Perform the pre baseline. Default True.",
+                        default=True,
+                        type=bool,
+                        action=argparse.BooleanOptionalAction)
+
+    parser.add_argument('--post',
+                        help="Perform the post baseline. Default True.",
+                        default=True,
+                        type=bool,
+                        action=argparse.BooleanOptionalAction)
+
     args = parser.parse_args()
     
     # Defining paths
@@ -61,7 +73,7 @@ def main() -> None:
                                    ('Encoder', pl.String),
                                    ('Decoder', pl.String),
                                    ('Case', pl.String),
-                                   ('Simbols', pl.Int64),
+                                   ('Symbols', pl.Int64),
                                    ('Transmitting Antennas', pl.Int64),
                                    ('Receiving Antennas', pl.Int64),
                                    ('Awareness', pl.String),
@@ -79,7 +91,7 @@ def main() -> None:
     for autoencoder_path in tqdm(list((MODELS_DIR / f'{args.checkpoints}/').rglob('*.ckpt'))):
         print()
         print()
-        print('#'*100)
+        print('#'*150)
         print(autoencoder_path)
         # Getting the settings
         _, _, dataset, encoder, decoder, awareness, antennas, snr, seed = str(autoencoder_path.as_posix()).split('/')
@@ -128,10 +140,12 @@ def main() -> None:
         model.eval()
 
         cost = model.hparams['cost']
+        case = 'Neural Semantic Precoding/Decoding'
 
         if awareness == 'unaware':
             model.hparams['channel_matrix'] = channel_matrix
             model.hparams['snr'] = snr
+            case = 'Neural Semantic Precoding/Decoding - Channel Unaware'
         
         # Get the absolute representation in the decoder space
         z_psi_hat = torch.cat(trainer.predict(model=model, datamodule=datamodule))
@@ -147,8 +161,8 @@ def main() -> None:
                            'Dataset': dataset,
                            'Encoder': encoder,
                            'Decoder': decoder,
-                           'Case': f'Neural Semantic Precoding/Decoding - Channel {awareness.capitalize()}',
-                           'Simbols': transmitter,
+                           'Case': case,
+                           'Symbols': transmitter,
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
@@ -170,9 +184,11 @@ def main() -> None:
         if awareness == 'aware':
             ch_matrix = channel_matrix
             snr_0 = snr
+            case = 'Linear Semantic Precoding/Decoding'
         elif awareness == 'unaware':
             ch_matrix = torch.eye(receiver, transmitter, dtype=torch.complex64)
             snr_0 = None
+            case = 'Linear Semantic Precoding/Decoding - Channel Unaware'
         else:
             raise Exception(f'Wrong awareness passed: {awareness}')
                 
@@ -204,8 +220,8 @@ def main() -> None:
                            'Dataset': dataset,
                            'Encoder': encoder,
                            'Decoder': decoder,
-                           'Case': f'Linear Semantic Precoding/Decoding - Channel {awareness.capitalize()}',
-                           'Simbols': transmitter,
+                           'Case': case,
+                           'Symbols': transmitter,
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
@@ -223,92 +239,97 @@ def main() -> None:
         # =========================================================================
         #               Linear Optimizer Baseline Alignment pre SVD
         # =========================================================================
-        # Get the optimizer
-        opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
-                                      output_dim=datamodule.output_size,
-                                      channel_matrix=ch_matrix,
-                                      snr=snr_0,
-                                      typology="pre")
+        if args.pre and awareness != "unaware":
+            print("Baseline Pre")
+            
+            # Get the optimizer
+            opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
+                                          output_dim=datamodule.output_size,
+                                          channel_matrix=ch_matrix,
+                                          snr=snr_0,
+                                          typology="pre")
 
-        # Fit the linear optimizer
-        opt.fit(input=datamodule.train_data.z,
-                output=datamodule.train_data.z_decoder)
+            # Fit the linear optimizer
+            opt.fit(input=datamodule.train_data.z,
+                    output=datamodule.train_data.z_decoder)
 
-        # Set the channel matrix and the snr
-        opt.channel_matrix = channel_matrix
-        opt.snr = snr
+            # Set the channel matrix and the snr
+            opt.channel_matrix = channel_matrix
+            opt.snr = snr
 
-        # Get the z_psi_hat
-        z_psi_hat = opt.transform(datamodule.test_data.z)
+            # Get the z_psi_hat
+            z_psi_hat = opt.transform(datamodule.test_data.z)
 
-        # Get the predictions using as input the z_psi_hat
-        dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
-        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+            # Get the predictions using as input the z_psi_hat
+            dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+            clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
 
-        results.vstack(pl.DataFrame(
-                       {
-                           'Dataset': dataset,
-                           'Encoder': encoder,
-                           'Decoder': decoder,
-                           'Case': f'Baseline Alignment pre SVD - Channel {awareness.capitalize()}',
-                           'Simbols': datamodule.test_data.input_size,
-                           'Transmitting Antennas': transmitter,
-                           'Receiving Antennas': receiver,
-                           'Awareness': awareness,
-                           'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
-                           'Seed': seed,
-                           'Cost': cost,
-                           'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
-                           'Classifier Loss': clf_metrics['test/loss_epoch'],
-                           'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr
-                       }),
-                       in_place=True)
+            results.vstack(pl.DataFrame(
+                           {
+                               'Dataset': dataset,
+                               'Encoder': encoder,
+                               'Decoder': decoder,
+                               'Case': f'Baseline No Semantic Compression',
+                               'Symbols': datamodule.test_data.output_size // 2,
+                               'Transmitting Antennas': transmitter,
+                               'Receiving Antennas': receiver,
+                               'Awareness': awareness,
+                               'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
+                               'Seed': seed,
+                               'Cost': cost,
+                               'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
+                               'Classifier Loss': clf_metrics['test/loss_epoch'],
+                               'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR': snr
+                           }),
+                           in_place=True)
 
         # =========================================================================
         #               Linear Optimizer Baseline Alignment post SVD
         # =========================================================================
-        # Get the optimizer
-        opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
-                                      output_dim=datamodule.output_size,
-                                      channel_matrix=ch_matrix,
-                                      snr=snr_0,
-                                      typology="post")
+        if args.post and awareness != "unaware":
+            print("Baseline Post")
+            # Get the optimizer
+            opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
+                                          output_dim=datamodule.output_size,
+                                          channel_matrix=ch_matrix,
+                                          snr=snr_0,
+                                          typology="post")
 
-        # Fit the linear optimizer
-        opt.fit(input=datamodule.train_data.z,
-                output=datamodule.train_data.z_decoder)
+            # Fit the linear optimizer
+            opt.fit(input=datamodule.train_data.z,
+                    output=datamodule.train_data.z_decoder)
 
-        # Set the channel matrix and the snr
-        opt.channel_matrix = channel_matrix
-        opt.snr = snr
+            # Set the channel matrix and the snr
+            opt.channel_matrix = channel_matrix
+            opt.snr = snr
 
-        # Get the z_psi_hat
-        z_psi_hat = opt.transform(datamodule.test_data.z)
+            # Get the z_psi_hat
+            z_psi_hat = opt.transform(datamodule.test_data.z)
 
-        # Get the predictions using as input the z_psi_hat
-        dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
-        clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+            # Get the predictions using as input the z_psi_hat
+            dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+            clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
 
-        results.vstack(pl.DataFrame(
-                       {
-                           'Dataset': dataset,
-                           'Encoder': encoder,
-                           'Decoder': decoder,
-                           'Case': f'Baseline Alignment post SVD - Channel {awareness.capitalize()}',
-                           'Simbols': datamodule.test_data.input_size,
-                           'Transmitting Antennas': transmitter,
-                           'Receiving Antennas': receiver,
-                           'Awareness': awareness,
-                           'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
-                           'Seed': seed,
-                           'Cost': cost,
-                           'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
-                           'Classifier Loss': clf_metrics['test/loss_epoch'],
-                           'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr
-                       }),
-                       in_place=True)
+            results.vstack(pl.DataFrame(
+                           {
+                               'Dataset': dataset,
+                               'Encoder': encoder,
+                               'Decoder': decoder,
+                               'Case': f'Baseline No Semantic Compression',
+                               'Symbols': datamodule.test_data.input_size // 2,
+                               'Transmitting Antennas': transmitter,
+                               'Receiving Antennas': receiver,
+                               'Awareness': awareness,
+                               'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
+                               'Seed': seed,
+                               'Cost': cost,
+                               'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
+                               'Classifier Loss': clf_metrics['test/loss_epoch'],
+                               'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR': snr
+                           }),
+                           in_place=True)
 
         results.write_parquet(f'{args.name}.parquet')
         
