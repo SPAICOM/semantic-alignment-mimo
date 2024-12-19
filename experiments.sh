@@ -126,42 +126,36 @@ python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patc
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 --snr 20.0 --seed 200
 
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr 0.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr 10.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 27 --snr 30.0
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr 0.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr 10.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 42 --snr 30.0
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr 0.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr 10.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 100 --snr 30.0
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr 0.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr 10.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 123 --snr 30.0
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr 0.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr 10.0
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 144 --snr 30.0
 
-python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 200 --snr " -30.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 200 --snr " -20.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 200 --snr " -10.0"
 python scripts/train_semantic_autoencoder.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 8 --receiver 8 -e 50 -l 0 --cost 1 --seed 200 --snr 0.0
