@@ -528,8 +528,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         if self.hparams["snr"]:
-            # w = torch.view_as_complex(torch.stack((torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape), torch.normal(mean=0, std=self.hparams['c_sigma'], size=z.real.shape)), dim=-1)).to(self.device)
-            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z)
+            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach()).detach()
             w = awgn(sigma=sigma, size=z.real.shape).to(self.device)
             z = z + w.detach()
             
