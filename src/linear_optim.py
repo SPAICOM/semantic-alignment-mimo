@@ -151,13 +151,10 @@ class LinearOptimizerBaseline():
             # Performing the precoding packets
             packets = self.__packets_precoding(input)
 
-            # Transmit the packets
-            packets = [self.channel_matrix @ p for p in packets]
-
-            # Add the white gaussian noise
+            # Transmit the packets and add the white gaussian noise
             if self.snr:
                 # Get the sigma
-                packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
@@ -575,7 +572,7 @@ class LinearOptimizerSAE():
 
             # Add the additive white gaussian noise
             if self.snr:
-                sigma = sigma_given_snr(snr=self.snr, signal=z)
+                sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
                 w = awgn(sigma=sigma, size=z.shape)
                 z += w
                 
