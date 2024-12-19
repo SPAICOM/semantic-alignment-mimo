@@ -417,8 +417,6 @@ class SemanticAutoEncoder(pl.LightningModule):
             The number of hidden layers.
         channel_matrix : torch.Tensor
             A complex matrix simulating a communication channel.
-        sigma : float
-            The sigma square for the white noise. Default 0.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware. Default 20.
         cost: float
@@ -441,7 +439,6 @@ class SemanticAutoEncoder(pl.LightningModule):
                  dec_hidden_dim: int,
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
-                 # sigma: float = 0,
                  snr: float = 20.,
                  cost: float = None,
                  mu: float = 1,
@@ -456,9 +453,6 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Example input
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
-        
-        # Get the modified sigma for the CN
-        # self.hparams['c_sigma'] = sigma / math.sqrt(2)
         
         # Halve the input and output dimension
         input_dim = (input_dim + 1) // 2

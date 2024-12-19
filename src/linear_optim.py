@@ -155,6 +155,8 @@ class LinearOptimizerBaseline():
             if self.snr:
                 # Get the sigma
                 packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+            else:
+                packets = [self.channel_matrix @ p for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
