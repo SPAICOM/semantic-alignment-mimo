@@ -10,6 +10,7 @@ sys.path.append(str(Path(sys.path[0]).parent))
 
 import torch
 import wandb
+from functools import partial
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
@@ -18,17 +19,25 @@ from src.models import SemanticAutoEncoder
 from src.utils import complex_gaussian_matrix, complex_tensor
 from src.datamodules import DataModule    
 
-def compute_amount(epoch) -> float:
-    # the sum of all returned values need to be smaller than 1
-    if epoch == 10:
-        return 0.5
+def compute_amount(epoch: int,
+                   n: int,
+                   p: float = 0.1) -> float:
+    """The function to handle the amount of weights to prune.
 
-    elif epoch == 50:
-        return 0.25
+    Args:
+        epoch : int
+            The current epoch.
+        n : int
+            The total expected epochs.
+        p : float
+            The percentage of weights to prune.
 
-    elif 75 < epoch < 99:
-        return 0.01
-
+    Returns:
+        float
+            The final percentage of weights to prune.
+    """
+    return p ** (epoch/n)
+    
 
 def main() -> None:
     """The main script loop.
@@ -186,18 +195,22 @@ def main() -> None:
                         max_trials=8),
     ]
 
+    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}'
+    
     # Add pruninig to the callbacks if prune is True
     if args.prune:
         callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
-                                      amount=compute_amount,
+                                      amount=partial(compute_amount, n=args.epochs),
                                       make_pruning_permanent=True,
                                       use_lottery_ticket_hypothesis=True,
                                       resample_parameters=True,
                                       use_global_unstructured=True))
+        
+        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_pruned'
     
     # W&B login and Logger intialization
     wandb.login()
-    wandb_logger = WandbLogger(project=f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}',
+    wandb_logger = WandbLogger(project=project,
                                name=f"seed_{args.seed}",
                                id=f"seed_{args.seed}",
                                log_model='all')
