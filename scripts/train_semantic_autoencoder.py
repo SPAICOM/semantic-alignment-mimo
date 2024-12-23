@@ -85,7 +85,7 @@ def main() -> None:
                         action=argparse.BooleanOptionalAction)
 
     parser.add_argument('--prune',
-                        help="The aweraness of the model. Default False.",
+                        help="If to prune or not the model. Default False.",
                         default=False,
                         type=bool,
                         action=argparse.BooleanOptionalAction)
