@@ -92,7 +92,7 @@ def main() -> None:
     
     # "Accuracy Vs Antennas" 
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Semantic Compression Factor %', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=10, palette=palette).set(xlim=(ticks[0], ticks[-1]), xticks=ticks, ylim=(0, 1))
+                        x='Semantic Compression Factor %', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=10, palette=palette).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1)) 
     plt.ylabel("Accuracy")
     plt.legend(loc=(0.25, 0.25))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
