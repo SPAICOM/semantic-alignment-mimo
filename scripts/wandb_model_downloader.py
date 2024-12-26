@@ -79,7 +79,6 @@ def main() -> None:
 
     seeds = [27, 42, 100, 123, 144, 200]
     antennas = [1, 2, 4, 6, 8, 10, 12, 14, 16] 
-    antennas = [8]#, 10, 12, 14, 16] 
     snr = [-20.0, -10.0, 10.0, 30.0]
     costs = [1]
     
@@ -93,23 +92,23 @@ def main() -> None:
 
                 find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_{ant}_{ant}/snr_20.0/', str(seed))
 
-            # for seed in seeds:
-            #     if args.pruned:
-            #         run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}_pruned/model-seed_{seed}:best', type='model').download()
-            #     else:
-            #         run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}/model-seed_{seed}:best', type='model').download()
+            for seed in seeds:
+                if args.pruned:
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}_pruned/model-seed_{seed}:best', type='model').download()
+                else:
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}/model-seed_{seed}:best', type='model').download()
 
-            #     find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/snr_20.0/', str(seed))
+                find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/snr_20.0/', str(seed))
 
-    # for s in tqdm(snr):
-    #     for cost in costs:
-    #         for seed in seeds:
-    #             if args.pruned:
-    #                 run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_8_8_aware_{s}_{cost}_pruned/model-seed_{seed}:best', type='model').download()
-    #             else:
-    #                 run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_8_8_aware_{s}_{cost}/model-seed_{seed}:best', type='model').download()
+    for s in tqdm(snr):
+        for cost in costs:
+            for seed in seeds:
+                if args.pruned:
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_8_8_aware_{s}_{cost}_pruned/model-seed_{seed}:best', type='model').download()
+                else:
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_8_8_aware_{s}_{cost}/model-seed_{seed}:best', type='model').download()
             
-    #             find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_8_8/snr_{s}/', str(seed))
+                find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_8_8/snr_{s}/', str(seed))
             
     wandb.finish()
     
