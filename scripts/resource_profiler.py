@@ -6,9 +6,12 @@ sys.path.append(str(Path(sys.path[0]).parent))
 
 import torch
 import polars as pl
+import seaborn as sns
 from math import ceil, floor
+import matplotlib.pyplot as plt
 # from calflops import calculate_flops
 # from torch.profiler import profile, record_function, ProfilerActivity
+
 from src.models import SemanticAutoEncoder
 
 
@@ -16,7 +19,21 @@ def linear_flops(transmitter: int,
                  receiver: int,
                  input_dim: int = 192,
                  output_dim: int = 384) -> int:
-    """
+    """Calculare the flops required for the linear case.
+
+    Args:
+        transmitter : int
+            The number of antennas in the transmitter.
+        receiver : int
+            The number of antennas in the receiver.
+        input_dim : int
+            The input dimension. Default 192.
+        output_dim : int
+            The output dimension. Default 384.
+
+    Returns:
+        int:
+            The total number of flops required.
     """
     encoder = transmitter * (8*input_dim - 2)
     decoder = output_dim * (8*receiver-2)
@@ -25,6 +42,7 @@ def linear_flops(transmitter: int,
     print("Flops semantic decoder: ", decoder)
     return encoder + decoder
 
+
 def neural_flops(transmitter: int,
                  receiver: int,
                  input_dim: int = 192,
@@ -32,7 +50,27 @@ def neural_flops(transmitter: int,
                  enc_hidden: int = 192,
                  dec_hidden: int = 384,
                  hidden_size: int = 0) -> int:
-    """
+    """Calculare the flops required for the neural case.
+
+    Args:
+        transmitter : int
+            The number of antennas in the transmitter.
+        receiver : int
+            The number of antennas in the receiver.
+        input_dim : int
+            The input dimension. Default 192.
+        output_dim : int
+            The output dimension. Default 384.
+        enc_hidden : int
+            The hidden dimension of the encoder. Default 192.
+        dec_hidden : int
+            The hidden dimension of the decoder. Default 384.
+        hidden_size : int
+            How many hidden layers for both encoder and decoder. Default 0.
+
+    Returns:
+        int:
+            The total number of flops required.
     """
     cgelu = 100
     
@@ -61,7 +99,29 @@ def neural_sparse_flops(transmitter: int,
                         enc_hidden: int = 192,
                         dec_hidden: int = 384,
                         hidden_size: int = 0) -> int:
-    """
+    """Calculare the flops required for the neural sparse case.
+
+    Args:
+        transmitter : int
+            The number of antennas in the transmitter.
+        receiver : int
+            The number of antennas in the receiver.
+        sparsity : float
+            The sparsity level.
+        input_dim : int
+            The input dimension. Default 192.
+        output_dim : int
+            The output dimension. Default 384.
+        enc_hidden : int
+            The hidden dimension of the encoder. Default 192.
+        dec_hidden : int
+            The hidden dimension of the decoder. Default 384.
+        hidden_size : int
+            How many hidden layers for both encoder and decoder. Default 0.
+
+    Returns:
+        int:
+            The total number of flops required.
     """
     density = 1-sparsity
     
@@ -84,7 +144,16 @@ def neural_sparse_flops(transmitter: int,
     return encoder + decoder
 
 
-def count_nonzero_weights(model) -> tuple[int, int]:
+def count_nonzero_weights(model: torch.nn.Module) -> tuple[int, int]:
+    """Calculates the amount of nonzero weights in a pytorch model.
+
+    Args:
+        model : torch.nn.Module
+            The neural pytorch model.
+    Returns:
+        nonzero, total : tuple[int, int]
+            The non zero amount of weights and their total number.
+    """
     nonzero = 0
     total = 0
     for name, param in model.named_parameters():
@@ -95,14 +164,14 @@ def count_nonzero_weights(model) -> tuple[int, int]:
 
 
 def main() -> None:
-    """
+    """The main loop.
     """
     CURRENT: Path = Path('.')
     MODELS: Path = CURRENT / 'models'
+    IMG_PATH: Path = CURRENT / 'img'
 
     device = 'cuda'
-    checkpoints = "autoencoders_sparse"
-    target = "abs"
+    checkpoints = "autoencoders_pruned"
     input_dim: int = 192
     output_dim: int = 384
     
@@ -112,31 +181,32 @@ def main() -> None:
                                ('Decoder', pl.String),
                                ('Transmitting Antennas', pl.Int64),
                                ('Receiving Antennas', pl.Int64),
-                               ('Awareness', pl.String),
-                               ('Sigma', pl.Float64),
+                               ('SNR', pl.Float64),
                                ('Seed', pl.Int64),
                                ('SAE', pl.Int64),
                                ('SAE Sparse', pl.Int64),
                                ('Linear', pl.Int64),
                                ('Sparsity', pl.Float64),
-                               ('SAE FLOPs', pl.Int64),
-                               ('SAE Sparse FLOPs', pl.Int64),
-                               ('Linear FLOPs', pl.Int64),
+                               ('Neural Semantic Precoding/Decoding', pl.Int64),
+                               ('Neural Semantic Sparse Precoding/Decoding', pl.Int64),
+                               ('Linear Semantic Precoding/Decoding', pl.Int64),
                            ])
     
-    for ckpt_path in (MODELS / f'{checkpoints}/{target}').rglob('*.ckpt'):
+    for ckpt_path in (MODELS / f'{checkpoints}/').rglob('*.ckpt'):
         print()
         print()
-        print('#'*100)
-        print(ckpt_path)
         # Getting the settings
-        _, _, _, dataset, encoder, decoder, case, awareness, antennas, sigma, seed = str(ckpt_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, awareness, antennas, snr, seed = str(ckpt_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
-        case = case.split('_')[-1]
-        sigma = float(sigma.split('_')[-1])
+        snr = float(snr.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])
 
-    
+        if awareness != "aware":
+            continue
+        
+        print('#'*100)
+        print(ckpt_path)
+
         model = SemanticAutoEncoder.load_from_checkpoint(ckpt_path).to(device)
 
         input = model.example_input_array.to(device)
@@ -145,10 +215,6 @@ def main() -> None:
 
         sparsity = 1 - nonzero/tot
 
-        print(nonzero, tot, sparsity)
-    
-        print(neural_sparse_flops(transmitter, receiver, 0.9, input_dim, output_dim))
-        
         results.vstack(pl.DataFrame(
                        {
                            'Dataset': dataset,
@@ -156,16 +222,15 @@ def main() -> None:
                            'Decoder': decoder,
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
-                           'Awareness': awareness,
-                           'Sigma': sigma,
+                           'SNR': snr,
                            'Seed': seed,
                            'SAE': tot,
                            'SAE Sparse': nonzero,
                            'Linear': transmitter*input_dim + output_dim*receiver,
                            'Sparsity': sparsity,
-                           'SAE FLOPs':  neural_flops(transmitter, receiver, input_dim, output_dim),
-                           'SAE Sparse FLOPs': neural_sparse_flops(transmitter, receiver, sparsity, input_dim, output_dim),
-                           'Linear FLOPs': linear_flops(transmitter, receiver, input_dim, output_dim),
+                           'Neural Semantic Precoding/Decoding':  neural_flops(transmitter, receiver, input_dim, output_dim),
+                           'Neural Semantic Sparse Precoding/Decoding': neural_sparse_flops(transmitter, receiver, sparsity, input_dim, output_dim),
+                           'Linear Semantic Precoding/Decoding': linear_flops(transmitter, receiver, input_dim, output_dim),
                        }),
                        in_place=True)
 
@@ -195,6 +260,45 @@ def main() -> None:
     
         results.write_parquet(f'flops.parquet')
     print(results)
+
+    filter = (pl.col("Awareness")=="aware")&(pl.col("SNR")==20)
+
+    results = (
+        results
+        .unpivot(on=["Neural Semantic Precoding/Decoding", "Linear Semantic Precoding/Decoding", "Neural Semantic Sparse Precoding/Decoding"], index=["Transmitting Antennas", "Seed"], variable_name="Case", value_name="FLOPs")
+        .join(
+              pl.read_parquet("final_results.parquet")
+              .vstack(
+                      pl.read_parquet("final_results_pruned.parquet")
+                      .with_columns(pl.when(pl.col("Case")=="Neural Semantic Precoding/Decoding")
+                                    .then(pl.lit("Neural Semantic Sparse Precoding/Decoding"))
+                                    .otherwise(pl.col("Case"))
+                                    .alias("Case")
+                                )
+              )
+              .filter(filter)
+              .select(["Accuracy", "Transmitting Antennas", "Case", "Seed"]),
+              on=["Transmitting Antennas", "Case", "Seed"],
+              how="left")
+        .with_columns(
+                      ((pl.col("Transmitting Antennas")/input_dim)*100).round(2).alias("Semantic Compression Factor %")
+                  )
+        .sort(by="FLOPs", descending=False)
+    )
+    
+    print(results)
+
+    plot = sns.barplot(results.to_pandas(),
+                       x="Semantic Compression Factor %", y="FLOPs", hue="Case").set(yscale='log')
+
+    plt.savefig(str(IMG_PATH / 'flops.pdf'), format='pdf')
+    plt.show()
+    
+    plot = sns.lineplot(results.filter(pl.col("Seed")==200).to_pandas(),
+                        x="FLOPs", y="Accuracy", hue="Case").set(xscale='log')
+
+    plt.savefig(str(IMG_PATH / 'accuracy_vs_complexity.pdf'), format='pdf')
+    plt.show()
     
     return None
 
