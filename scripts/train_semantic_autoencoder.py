@@ -10,7 +10,6 @@ sys.path.append(str(Path(sys.path[0]).parent))
 
 import torch
 import wandb
-from functools import partial
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
@@ -19,25 +18,6 @@ from src.models import SemanticAutoEncoder
 from src.utils import complex_gaussian_matrix, complex_tensor
 from src.datamodules import DataModule    
 
-def compute_amount(epoch: int,
-                   n: int,
-                   p: float = 0.1) -> float:
-    """The function to handle the amount of weights to prune.
-
-    Args:
-        epoch : int
-            The current epoch.
-        n : int
-            The total expected epochs.
-        p : float
-            The percentage of weights to prune.
-
-    Returns:
-        float
-            The final percentage of weights to prune.
-    """
-    return p ** (epoch/n)
-    
 
 def main() -> None:
     """The main script loop.
@@ -200,7 +180,7 @@ def main() -> None:
     # Add pruninig to the callbacks if prune is True
     if args.prune:
         callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
-                                      amount=partial(compute_amount, n=args.epochs),
+                                      amount=1 - (1 - 0.999)**(1/args.epochs),
                                       make_pruning_permanent=True,
                                       use_lottery_ticket_hypothesis=True,
                                       resample_parameters=True,
