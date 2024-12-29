@@ -74,7 +74,7 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
-    filter = (pl.col('SNR')==20)
+    filter = (pl.col('SNR')==20)&(pl.col("Sparsity")==0.0)
         
     palette =  sns.color_palette()[:2] + ["#8C8C8C"] + sns.color_palette()[2:4]
     
@@ -101,17 +101,43 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
-    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col("Awareness")=="aware")&(pl.col('SNR')!=0)
+    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col("Awareness")=="aware")&(pl.col('SNR')!=0)&(pl.col("Sparsity")==0.0)
     snr_df = df.filter(filter)
 
     palette =  sns.color_palette()[:2] + ["#8C8C8C"]
         
     plot = sns.lineplot(snr_df.to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=10, palette=palette).set(xlim=(-20, 30), ylim=(0, 1), xlabel="Signal to Noise Ratio (dB)")
+                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=10, palette=palette).set(xlim=(-20, 30), ylim=(0, 1))
     plt.xlabel("Signal to Noise Ratio (dB)")
     plt.ylabel("Accuracy")
     plt.legend()
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
+    plt.show()
+    
+    # ====================================================================================================================
+    #                                        Accuracy Vs Sparsity
+    # ====================================================================================================================
+    filter = (
+        (pl.col('Transmitting Antennas')==6) &
+        (pl.col('Receiving Antennas')==6) &
+        (pl.col("Awareness")=="aware") &
+        (pl.col('SNR')==20) &
+        (~pl.col("Case").str.contains("Baseline"))
+    )
+    
+    sparsity_df = df.filter(filter).group_by(["Case", "Ideal Sparsity"]).agg(pl.col("FLOPs").mean(), pl.col("Accuracy").mean())
+
+    print(sparsity_df.select(["Case", "Ideal Sparsity", "FLOPs"]) )
+    print(df.filter(filter).select(["Sparsity", "Ideal Sparsity", "FLOPs"]) )
+
+    palette =  sns.color_palette()[:2]
+        
+    plot = sns.lineplot(sparsity_df.to_pandas(), 
+                        x='FLOPs', y='Accuracy', hue='Case', style="Case",  markers=True, markersize=10, palette=palette).set(ylim=(0, 1))#, xscale="log")
+    plt.xlabel("FLOPs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.savefig(str(IMG_PATH / 'accuracy_vs_sparsity.pdf'), format='pdf')
     plt.show()
     
     return None
