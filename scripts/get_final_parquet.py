@@ -17,6 +17,8 @@ from src.linear_optim import LinearOptimizerSAE, LinearOptimizerBaseline
 from src.utils import complex_gaussian_matrix, complex_tensor, sigma_given_snr
 from src.models import Classifier, SemanticAutoEncoder
 from src.datamodules import DataModule, DataModuleClassifier
+from src.resource_profiler import count_nonzero_weights, neural_sparse_flops, linear_flops
+
 
 def main() -> None:
     """The main loop. 
@@ -77,13 +79,16 @@ def main() -> None:
                                    ('Transmitting Antennas', pl.Int64),
                                    ('Receiving Antennas', pl.Int64),
                                    ('Awareness', pl.String),
+                                   ('Sparsity', pl.Float64),
+                                   ('Ideal Sparsity', pl.Float64),
                                    ('Sigma', pl.Float64),
                                    ('Seed', pl.Int64),
                                    ('Cost', pl.Int64),
                                    ('Alignment Loss', pl.Float64),
                                    ('Classifier Loss', pl.Float64),
                                    ('Accuracy', pl.Float64),
-                                   ('SNR', pl.Float64)
+                                   ('SNR', pl.Float64),
+                                   ('FLOPs', pl.Int64)
                                ])
     # ==============================================================================
     #                      Get results for the SAE absolute
@@ -94,12 +99,13 @@ def main() -> None:
         print('#'*150)
         print(autoencoder_path)
         # Getting the settings
-        _, _, dataset, encoder, decoder, awareness, antennas, snr, seed = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, awareness, antennas, snr, ideal_sparsity, seed = str(autoencoder_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         snr = float(snr.split('_')[-1])
+        ideal_sparsity = float(ideal_sparsity.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])
 
-        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)).is_empty():
+        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)&(pl.col("Ideal Sparsity")==ideal_sparsity)).is_empty():
             continue
         
         # Setting the seed
@@ -138,9 +144,16 @@ def main() -> None:
         # =========================================================================
         model = SemanticAutoEncoder.load_from_checkpoint(autoencoder_path)
         model.eval()
+        
+        # Get the real sparsity
+        nonzero, tot = count_nonzero_weights(model)
+        sparsity = 1 - nonzero/tot
 
         cost = model.hparams['cost']
         case = 'Neural Semantic Precoding/Decoding'
+
+        input_dim = model.hparams['input_dim'] // 2
+        output_dim = model.hparams['output_dim'] // 2
 
         if awareness == 'unaware':
             model.hparams['channel_matrix'] = channel_matrix
@@ -166,13 +179,16 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
+                           'Sparsity': sparsity,
+                           'Ideal Sparsity': ideal_sparsity,
                            'Sigma': sigma_given_snr(snr, model.get_precodings(datamodule.test_data.z).H),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr
+                           'SNR': snr,
+                           'FLOPs': neural_sparse_flops(transmitter, receiver, sparsity, input_dim, output_dim)
                        }),
                        in_place=True)
 
@@ -225,13 +241,16 @@ def main() -> None:
                            'Transmitting Antennas': transmitter,
                            'Receiving Antennas': receiver,
                            'Awareness': awareness,
+                           'Sparsity': 0.0,
+                           'Ideal Sparsity': 0.0,
                            'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                            'Seed': seed,
                            'Cost': cost,
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
-                           'SNR': snr
+                           'SNR': snr,
+                           'FLOPs': linear_flops(transmitter, receiver, input_dim, output_dim)
                        }),
                        in_place=True)
 
@@ -274,13 +293,16 @@ def main() -> None:
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
                                'Awareness': awareness,
+                               'Sparsity': 0.0,
+                               'Ideal Sparsity': 0.0,
                                'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                                'Seed': seed,
                                'Cost': cost,
                                'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                                'Classifier Loss': clf_metrics['test/loss_epoch'],
                                'Accuracy': clf_metrics['test/acc_epoch'],
-                               'SNR': snr
+                               'SNR': snr,
+                               'FLOPs': None
                            }),
                            in_place=True)
 
@@ -321,13 +343,16 @@ def main() -> None:
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
                                'Awareness': awareness,
+                               'Sparsity': 0.0,
+                               'Ideal Sparsity': 0.0,
                                'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                                'Seed': seed,
                                'Cost': cost,
                                'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                                'Classifier Loss': clf_metrics['test/loss_epoch'],
                                'Accuracy': clf_metrics['test/acc_epoch'],
-                               'SNR': snr
+                               'SNR': snr,
+                               'FLOPs': None
                            }),
                            in_place=True)
 
