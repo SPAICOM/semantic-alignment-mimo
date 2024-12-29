@@ -1,16 +1,10 @@
 """
 """
-import sys
-from pathlib import Path
-sys.path.append(str(Path(sys.path[0]).parent))
-
 import torch
 import polars as pl
 import seaborn as sns
 from math import ceil, floor
 import matplotlib.pyplot as plt
-# from calflops import calculate_flops
-# from torch.profiler import profile, record_function, ProfilerActivity
 
 from src.models import SemanticAutoEncoder
 
