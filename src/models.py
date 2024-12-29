@@ -421,6 +421,8 @@ class SemanticAutoEncoder(pl.LightningModule):
             The snr in dB of the communication channel. Set to None if unaware. Default 20.
         cost: float
             The cost for the constrainde version. Default None.
+        lmb: float
+            The lambda regularizer coefficient to impose sparsity. Default 0.
         mu: float
             The mu parameter for the constrained regularization. Default 1.
         lr : float
@@ -441,6 +443,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  channel_matrix: torch.Tensor,
                  snr: float = 20.,
                  cost: float = None,
+                 lmb: float = 0,
                  mu: float = 1,
                  lr: float = 1e-3):
         super().__init__()
@@ -450,6 +453,8 @@ class SemanticAutoEncoder(pl.LightningModule):
 
         assert input_dim % 2 == 0, "The input dimension must be even."
         assert output_dim % 2 == 0, "The output dimension must be even."
+        assert self.hparams["lmb"] >= 0, "The lambda parameter must be greater or equal to 0."
+        assert self.hparams["mu"] >= 0, "The mu parameter must be greater or equal to 0."
         
         # Example input
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
@@ -562,21 +567,35 @@ class SemanticAutoEncoder(pl.LightningModule):
                 The output of the MLP and the loss.
         """
         y_hat = self(x)
+
+        # Compute the L1 Regularization
+        l1_loss = 0
+        for param in self.parameters():
+            l1_loss += torch.sum(torch.abs(param))
+
+        regularizer = self.hparams["lmb"] * l1_loss
         
         loss = nn.functional.mse_loss(y_hat, y)
 
+        # Log the losses
+        self.log("l1_loss", l1_loss, on_step=True, on_epoch=True)
+        self.log("regularizer", regularizer, on_step=True, on_epoch=True)
+        self.log("primal_loss", loss, on_step=True, on_epoch=True)
+
         if self.hparams["cost"]:
             dual_loss = ((torch.norm(self.latent, p="fro", dim=-1) - self.hparams["cost"])**2).mean()
-            regularizer = self.hparams['mu'] * dual_loss            
+            cost_term = self.hparams['mu'] * dual_loss            
             
             # Log the losses and trace
-            self.log("primal_loss", loss, on_step=True, on_epoch=True)
             self.log("dual_loss", dual_loss, on_step=True, on_epoch=True)
-            self.log("regularizer_term", regularizer, on_step=True, on_epoch=True)
+            self.log("cost_term", cost_term, on_step=True, on_epoch=True)
             self.log("trace", (torch.norm(self.latent, p="fro", dim=-1)**2).mean(), on_step=True, on_epoch=True)
 
-            # Get Total Loss
-            loss += regularizer
+            # Add the dual loss
+            loss += cost_term
+
+        # Get the Total Loss
+        loss += regularizer
             
         return y_hat, loss
 

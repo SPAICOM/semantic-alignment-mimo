@@ -65,10 +65,14 @@ def main() -> None:
                         action=argparse.BooleanOptionalAction)
 
     parser.add_argument('--prune',
-                        help="If to prune or not the model. Default False.",
-                        default=False,
-                        type=bool,
-                        action=argparse.BooleanOptionalAction)
+                        help="If to prune or not the model, the level of sparsity. Default None.",
+                        default=None,
+                        type=float)
+
+    parser.add_argument('--lmb',
+                        help="Regularization Coefficient to impose sparsity. Default 0.0.",
+                        default=0.0,
+                        type=float)
 
     parser.add_argument('--snr',
                         help="The snr of the communication channel in dB. Set to None if unaware. Default None.",
@@ -159,6 +163,7 @@ def main() -> None:
                                 hidden_size=args.layers,
                                 channel_matrix=channel_matrix,
                                 mu=args.mu,
+                                lmb=args.lmb,
                                 snr=snr,
                                 cost=args.cost,
                                 lr=args.lr)
@@ -167,7 +172,6 @@ def main() -> None:
     callbacks = [
         LearningRateMonitor(logging_interval='step',
                             log_momentum=True),
-        EarlyStopping(monitor='valid/loss_epoch', patience=10),
         ModelCheckpoint(monitor='valid/loss_epoch',
                         save_top_k=1,
                         mode='min'),
@@ -175,18 +179,22 @@ def main() -> None:
                         max_trials=8),
     ]
 
-    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}'
-    
+    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}'
+        
     # Add pruninig to the callbacks if prune is True
-    if args.prune:
+    if args.prune and args.lmb == 0:
         callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
-                                      amount=1 - (1 - 0.999)**(1/args.epochs),
+                                      amount=1 - (1 - args.prune)**(1/args.epochs),
                                       make_pruning_permanent=True,
                                       use_lottery_ticket_hypothesis=True,
                                       resample_parameters=True,
                                       use_global_unstructured=True))
         
-        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_pruned'
+        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'
+    elif not args.prune and args.lmb == 0:
+        callbacks.append(EarlyStopping(monitor='valid/loss_epoch', patience=10))
+    elif args.prune and args.lmb != 0:
+        raise Exception("You cannot apply both hard thresholding and l1 regularization.")
     
     # W&B login and Logger intialization
     wandb.login()
