@@ -188,7 +188,7 @@ def main() -> None:
                                       amount=1 - (1 - args.prune)**(1/args.epochs),
                                       make_pruning_permanent=True,
                                       use_lottery_ticket_hypothesis=True,
-                                      resample_parameters=True,
+                                      resample_parameters=False,
                                       use_global_unstructured=True))
         
         project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'

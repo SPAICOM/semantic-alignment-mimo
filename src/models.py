@@ -475,13 +475,14 @@ class SemanticAutoEncoder(pl.LightningModule):
 
         self.type(torch.complex64)
         
-        for name, param in self.named_parameters():
-            if param.requires_grad:  # Check only weights
-                with torch.no_grad():
-                    # Freezing mask
-                    layer_freeze_mask = torch.ones_like(param)
-                    freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
-                    self.register_buffer(freeze_mask_name, layer_freeze_mask)
+        if self.hparams["lmb"] != 0:
+            for name, param in self.named_parameters():
+                if param.requires_grad:  # Check only weights
+                    with torch.no_grad():
+                        # Freezing mask
+                        layer_freeze_mask = torch.ones_like(param)
+                        freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
+                        self.register_buffer(freeze_mask_name, layer_freeze_mask)
 
 
     def get_precodings(self,
@@ -576,18 +577,9 @@ class SemanticAutoEncoder(pl.LightningModule):
         """
         y_hat = self(x)
 
-        # Compute the L1 Regularization
-        # l1_loss = 0
-        # for param in self.parameters():
-        #     l1_loss += torch.sum(torch.abs(param))
-
-        # regularizer = self.hparams["lmb"] * l1_loss
-        
         loss = nn.functional.mse_loss(y_hat, y)
 
         # Log the losses
-        # self.log("l1_loss", l1_loss, on_step=True, on_epoch=True)
-        # self.log("regularizer", regularizer, on_step=True, on_epoch=True)
         self.log("primal_loss", loss, on_step=True, on_epoch=True)
 
         if self.hparams["cost"]:
@@ -602,9 +594,6 @@ class SemanticAutoEncoder(pl.LightningModule):
             # Add the dual loss
             loss += cost_term
 
-        # Get the Total Loss
-        # loss += regularizer
-            
         return y_hat, loss
 
 
