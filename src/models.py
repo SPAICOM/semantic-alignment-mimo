@@ -474,6 +474,14 @@ class SemanticAutoEncoder(pl.LightningModule):
                                            self.hparams["hidden_size"])
 
         self.type(torch.complex64)
+        
+        for name, param in self.named_parameters():
+            if param.requires_grad:  # Check only weights
+                with torch.no_grad():
+                    # Freezing mask
+                    layer_freeze_mask = torch.ones_like(param)
+                    freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
+                    self.register_buffer(freeze_mask_name, layer_freeze_mask)
 
 
     def get_precodings(self,
@@ -569,17 +577,17 @@ class SemanticAutoEncoder(pl.LightningModule):
         y_hat = self(x)
 
         # Compute the L1 Regularization
-        l1_loss = 0
-        for param in self.parameters():
-            l1_loss += torch.sum(torch.abs(param))
+        # l1_loss = 0
+        # for param in self.parameters():
+        #     l1_loss += torch.sum(torch.abs(param))
 
-        regularizer = self.hparams["lmb"] * l1_loss
+        # regularizer = self.hparams["lmb"] * l1_loss
         
         loss = nn.functional.mse_loss(y_hat, y)
 
         # Log the losses
-        self.log("l1_loss", l1_loss, on_step=True, on_epoch=True)
-        self.log("regularizer", regularizer, on_step=True, on_epoch=True)
+        # self.log("l1_loss", l1_loss, on_step=True, on_epoch=True)
+        # self.log("regularizer", regularizer, on_step=True, on_epoch=True)
         self.log("primal_loss", loss, on_step=True, on_epoch=True)
 
         if self.hparams["cost"]:
@@ -595,9 +603,78 @@ class SemanticAutoEncoder(pl.LightningModule):
             loss += cost_term
 
         # Get the Total Loss
-        loss += regularizer
+        # loss += regularizer
             
         return y_hat, loss
+
+
+    def on_train_epoch_end(self) -> None:
+        """Function called to apply proximal gradient descent regularization.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        if self.hparams['lmb'] != 0:
+            threshold = self.hparams['lr'] * self.hparams['lmb']
+
+            for name, param in self.named_parameters():
+                if param.requires_grad and "weight" in name:  # Check only weights
+                    with torch.no_grad():
+                        # Create mask for weights
+                        mask = torch.abs(param) <= threshold
+                        param[mask] = 0.0
+
+                        # Freezing mask
+                        freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
+                        layer_freeze_mask = torch.ones_like(param)
+                        layer_freeze_mask[~mask] = 0.0
+                        layer_freeze_mask *= getattr(self, freeze_mask_name)
+                        setattr(self, freeze_mask_name, layer_freeze_mask)
+                        
+                        # Find and prune corresponding bias explicitly
+                        bias_name = name.replace("weight", "bias")
+                        for b_name, b_param in self.named_parameters():
+                            if b_name == bias_name and b_param.requires_grad:
+                                # Compute row-wise AND for the mask
+                                row_mask = mask.all(dim=1)  # Assuming 'mask' is 2D
+
+                                # Apply the row mask to the bias
+                                b_param[row_mask] = 0.0
+
+                                # Freezing mask
+                                freeze_mask_name = b_name.replace('.', '__') + "_freeze_mask"
+                                layer_freeze_mask = torch.ones_like(b_param)
+                                layer_freeze_mask[~row_mask] = 0.0
+                                layer_freeze_mask *= getattr(self, freeze_mask_name)
+                                setattr(self, freeze_mask_name, layer_freeze_mask)
+
+        return None
+
+
+    def on_before_backward(self,
+                           loss: torch.Tensor):
+        """Apply the gradient freeze mask before the backward pass.
+
+        Args:
+            loss : torch.Tensor
+                The model loss.
+
+        Returns:
+            None
+        """
+        for name, param in self.named_parameters():
+            # Check if freeze mask exists for the current parameter
+            freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
+            if hasattr(self, freeze_mask_name):
+                freeze_mask = getattr(self, freeze_mask_name)
+                # Apply the freeze mask to the gradients
+                if param.grad is not None:
+                    param.grad *= freeze_mask
+
+        return None
 
 
     def _shared_eval(self,

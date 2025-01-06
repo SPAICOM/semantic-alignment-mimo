@@ -177,6 +177,7 @@ def main() -> None:
                         mode='min'),
         BatchSizeFinder(mode='binsearch',
                         max_trials=8),
+        EarlyStopping(monitor='valid/loss_epoch', patience=10)
     ]
 
     project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}'
@@ -191,8 +192,6 @@ def main() -> None:
                                       use_global_unstructured=True))
         
         project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'
-    elif not args.prune and args.lmb == 0:
-        callbacks.append(EarlyStopping(monitor='valid/loss_epoch', patience=10))
     elif args.prune and args.lmb != 0:
         raise Exception("You cannot apply both hard thresholding and l1 regularization.")
     
