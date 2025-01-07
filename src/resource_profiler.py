@@ -68,17 +68,15 @@ def neural_flops(transmitter: int,
     """
     cgelu = 100
     
-    input_layer = enc_hidden * (8 * input_dim)
-    act = cgelu * input_dim
+    input_layer = enc_hidden * (8 * input_dim) + cgelu * enc_hidden
     hidden_layers = (enc_hidden * (8 * enc_hidden)  + cgelu * enc_hidden) * hidden_size
     output_layer = transmitter * (8 * enc_hidden)
-    encoder = floor(input_layer + act + hidden_layers + output_layer)
+    encoder = floor(input_layer + hidden_layers + output_layer)
 
-    input_layer = dec_hidden * (8 * receiver)
-    act = cgelu * receiver
+    input_layer = dec_hidden * (8 * receiver) + cgelu * dec_hidden
     hidden_layers = (dec_hidden * (8 * dec_hidden)  + cgelu * dec_hidden) * hidden_size
     output_layer = output_dim * (8 * dec_hidden)
-    decoder = ceil(input_layer + act + hidden_layers + output_layer)
+    decoder = ceil(input_layer + hidden_layers + output_layer)
 
     print("Flops semantic encoder: ", encoder)
     print("Flops semantic decoder: ", decoder)
@@ -121,17 +119,15 @@ def neural_sparse_flops(transmitter: int,
     
     cgelu = 100
     
-    input_layer = enc_hidden * (8 * input_dim * density)
-    act = cgelu * input_dim
+    input_layer = enc_hidden * (8 * input_dim * density) + cgelu * enc_hidden
     hidden_layers = (enc_hidden * (8 * enc_hidden * density)  + cgelu * enc_hidden) * hidden_size
     output_layer = transmitter * (8 * enc_hidden * density)
-    encoder = floor(input_layer + act + hidden_layers + output_layer)
+    encoder = floor(input_layer + hidden_layers + output_layer)
 
-    input_layer = dec_hidden * (8 * receiver * density)
-    act = cgelu * receiver
+    input_layer = dec_hidden * (8 * receiver * density) + cgelu * dec_hidden
     hidden_layers = (dec_hidden * (8 * dec_hidden * density)  + cgelu * dec_hidden) * hidden_size
     output_layer = output_dim * (8 * dec_hidden * density)
-    decoder = ceil(input_layer + act + hidden_layers + output_layer)
+    decoder = ceil(input_layer + hidden_layers + output_layer)
 
     print("Flops semantic encoder: ", encoder)
     print("Flops semantic decoder: ", decoder)
