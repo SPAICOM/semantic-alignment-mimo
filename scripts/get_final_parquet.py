@@ -81,6 +81,7 @@ def main() -> None:
                                    ('Awareness', pl.String),
                                    ('Sparsity', pl.Float64),
                                    ('Ideal Sparsity', pl.Float64),
+                                   ('Lambda', pl.Float64),
                                    ('Sigma', pl.Float64),
                                    ('Seed', pl.Int64),
                                    ('Cost', pl.Int64),
@@ -99,13 +100,23 @@ def main() -> None:
         print('#'*150)
         print(autoencoder_path)
         # Getting the settings
-        _, _, dataset, encoder, decoder, awareness, antennas, snr, ideal_sparsity, seed = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, awareness, antennas, snr, sparsity_level, seed = str(autoencoder_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         snr = float(snr.split('_')[-1])
-        ideal_sparsity = float(ideal_sparsity.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])
+        sparsity_type = sparsity_level.split('_')[0]
+        
+        if sparsity_type == "pruned":
+            ideal_sparsity = float(sparsity_level.split('_')[-1])
+            print(ideal_sparsity)
+            lmb = 0.0
+        elif sparsity_type == "lmb":
+            ideal_sparsity = 0.0
+            lmb = float(sparsity_level.split('_')[-1])
+        else:
+            raise Exception("Type of sparsity unrecognised")
 
-        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)&(pl.col("Ideal Sparsity")==ideal_sparsity)).is_empty():
+        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)&(pl.col("Lambda")==lmb)&(pl.col("Ideal Sparsity")==ideal_sparsity)).is_empty():
             continue
         
         # Setting the seed
@@ -181,6 +192,7 @@ def main() -> None:
                            'Awareness': awareness,
                            'Sparsity': sparsity,
                            'Ideal Sparsity': ideal_sparsity,
+                           'Lambda': lmb,
                            'Sigma': sigma_given_snr(snr, model.get_precodings(datamodule.test_data.z).H),
                            'Seed': seed,
                            'Cost': cost,
@@ -243,6 +255,7 @@ def main() -> None:
                            'Awareness': awareness,
                            'Sparsity': 0.0,
                            'Ideal Sparsity': 0.0,
+                           'Lambda': 0.0,
                            'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                            'Seed': seed,
                            'Cost': cost,
@@ -295,6 +308,7 @@ def main() -> None:
                                'Awareness': awareness,
                                'Sparsity': 0.0,
                                'Ideal Sparsity': 0.0,
+                               'Lambda': 0.0,
                                'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                                'Seed': seed,
                                'Cost': cost,
@@ -345,6 +359,7 @@ def main() -> None:
                                'Awareness': awareness,
                                'Sparsity': 0.0,
                                'Ideal Sparsity': 0.0,
+                               'Lambda': 0.0,
                                'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
                                'Seed': seed,
                                'Cost': cost,
