@@ -619,8 +619,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                         # Freezing mask
                         freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
                         layer_freeze_mask = torch.ones_like(param)
-                        layer_freeze_mask[~mask] = 0.0
-                        layer_freeze_mask *= getattr(self, freeze_mask_name)
+                        layer_freeze_mask[mask] = 0.0
                         setattr(self, freeze_mask_name, layer_freeze_mask)
                         
                         # Find and prune corresponding bias explicitly
@@ -636,21 +635,17 @@ class SemanticAutoEncoder(pl.LightningModule):
                                 # Freezing mask
                                 freeze_mask_name = b_name.replace('.', '__') + "_freeze_mask"
                                 layer_freeze_mask = torch.ones_like(b_param)
-                                layer_freeze_mask[~row_mask] = 0.0
-                                layer_freeze_mask *= getattr(self, freeze_mask_name)
+                                layer_freeze_mask[row_mask] = 0.0
                                 setattr(self, freeze_mask_name, layer_freeze_mask)
 
         return None
 
 
-    def on_before_backward(self,
-                           loss: torch.Tensor):
-        """Apply the gradient freeze mask before the backward pass.
+    def on_after_backward(self):
+        """Apply the gradient freeze mask after the backward pass.
 
         Args:
-            loss : torch.Tensor
-                The model loss.
-
+            None
         Returns:
             None
         """
