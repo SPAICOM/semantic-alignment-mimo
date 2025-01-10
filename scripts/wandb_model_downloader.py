@@ -78,10 +78,10 @@ def main() -> None:
     run = wandb.init()
 
     seeds = [27, 42, 100, 123, 144, 200]
-    antennas = [1, 2, 4, 6, 8, 10, 12, 14, 16] 
+    antennas = [1, 2, 4, 6, 8, 10, 12, 14, 16, 24, 48, 96, 192] 
     snr = [-20.0, -10.0, 10.0, 30.0]
     sparsities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, 0.999]
-    lmbs = [1e1, 2e1, 3e1, 4e1, 5e1, 6e1, 7e1, 8e1, 9e1, 1e2]
+    lmbs = [1e1, 2e1, 3e1, 4e1, 5e1, 6e1, 7e1, 8e1, 9e1]
     costs = [1]
     
     if args.pruned:
@@ -99,15 +99,21 @@ def main() -> None:
                     run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_6_6_aware_20.0_{cost}_{lmb}/model-seed_{seed}:best', type='model').download()
                     find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_6_6/snr_20.0/lmb_{lmb}/', str(seed))
                     
+        for cost in costs:
+            for lmb in lmbs:
+                for seed in seeds:
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_10_10_aware_20.0_{cost}_{lmb}/model-seed_{seed}:best', type='model').download()
+                    find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_10_10/snr_20.0/lmb_{lmb}/', str(seed))
+                    
         # Not sparse solutions
         for ant in tqdm(antennas):
             for cost in costs:
                 for seed in seeds:
-                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_aware_20.0_{cost}/model-seed_{seed}:best', type='model').download()
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_aware_20.0_{cost}_0.0/model-seed_{seed}:best', type='model').download()
                     find_and_rename_ckpt_files('artifacts', f'aware-{cost}/antennas_{ant}_{ant}/snr_20.0/lmb_0.0/', str(seed))
 
                 for seed in seeds:
-                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}/model-seed_{seed}:best', type='model').download()
+                    run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_None_{cost}_0.0/model-seed_{seed}:best', type='model').download()
                     find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/snr_20.0/lmb_0.0/', str(seed))
 
         for s in tqdm(snr):
