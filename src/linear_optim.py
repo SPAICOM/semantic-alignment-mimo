@@ -28,6 +28,8 @@ class LinearOptimizerBaseline():
             The channel matrix H in torch.Tensor format.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware.
+        k_p : int
+            Number of packets to consider, if None then all. Default None.
         typology : str
             The typology of baseline, possible values 'pre' or 'post'. Default 'pre'.
     """
@@ -36,7 +38,8 @@ class LinearOptimizerBaseline():
                  output_dim: int,
                  channel_matrix: torch.Tensor,
                  snr: float,
-                 typology: str = "pre"):
+                 k_p: int = None,
+                 typology: str = "post"):
         
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
@@ -44,6 +47,7 @@ class LinearOptimizerBaseline():
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
         self.snr = snr
+        self.k_p = k_p
         self.typology = typology
 
         # Check value of typology
@@ -166,6 +170,16 @@ class LinearOptimizerBaseline():
 
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T
+            
+            if not self.k_p:
+                self.k_p = len(packets)
+
+            # Create a mask to handle how many packets to consider
+            mask = torch.zeros_like(output)
+            mask[:self.k_p*packets[0].shape[0], :] = 1
+        
+            # Mask the output
+            output *= mask
 
         return output.T
         
@@ -659,6 +673,7 @@ def main() -> None:
     # Variables definition
     cost: int = 1
     snr: float = 20
+    k_p: int = 1
     iterations: int = 10
     input_dim: int = 20
     output_dim: int = 40
@@ -673,7 +688,8 @@ def main() -> None:
     baseline = LinearOptimizerBaseline(input_dim=input_dim,
                                        output_dim=output_dim,
                                        channel_matrix=channel_matrix,
-                                       snr=snr)
+                                       snr=snr,
+                                       k_p=k_p)
     baseline.fit(input, output)
     baseline.transform(input)
     print(baseline.eval(input, output))

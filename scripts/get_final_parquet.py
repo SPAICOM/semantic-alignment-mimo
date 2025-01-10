@@ -271,6 +271,7 @@ def main() -> None:
         # =========================================================================
         #               Linear Optimizer Baseline Alignment pre SVD
         # =========================================================================
+        k_p = 1
         if args.pre and awareness != "unaware":
             print("Baseline Pre")
             
@@ -279,6 +280,7 @@ def main() -> None:
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
+                                          k_p=k_p,
                                           typology="pre")
 
             # Fit the linear optimizer
@@ -330,6 +332,7 @@ def main() -> None:
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
+                                          k_p=k_p,
                                           typology="post")
 
             # Fit the linear optimizer
