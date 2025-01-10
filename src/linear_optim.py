@@ -91,7 +91,7 @@ class LinearOptimizerBaseline():
         """
         d = input.shape[0]
 
-        assert d > self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
+        assert d >= self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
 
         # Get the number of packets required for the transmission and the relative needed padding
         n_packets: int = math.ceil( d / self.antennas_transmitter)
