@@ -502,7 +502,7 @@ class SemanticAutoEncoder(pl.LightningModule):
             x = nn.functional.normalize(x, p=2, dim=-1)
 
             # Complex Compression
-            x = complex_compressed_tensor(x)
+            x = complex_compressed_tensor(x, device=self.device)
 
             # Precode the signal
             z = self.semantic_encoder(x)
@@ -525,7 +525,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         x = x.real
         x = nn.functional.normalize(x, p=2, dim=-1)
 
-        x = complex_compressed_tensor(x)
+        x = complex_compressed_tensor(x, device=self.device)
         z = self.semantic_encoder(x)
         
         # Save the latent
@@ -537,11 +537,11 @@ class SemanticAutoEncoder(pl.LightningModule):
         # Add white noise
         if self.hparams["snr"]:
             sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
-            w = awgn(sigma=sigma, size=z.real.shape).to(self.device)
+            w = awgn(sigma=sigma, size=z.real.shape, device=self.device)
             z = z + w.detach()
             
         # Decoding in reception
-        return decompress_complex_tensor(self.semantic_decoder(z))[:, :self.hparams['output_dim']]
+        return decompress_complex_tensor(self.semantic_decoder(z), device=self.device)[:, :self.hparams['output_dim']]
 
 
     def configure_optimizers(self) -> dict[str, object]:
