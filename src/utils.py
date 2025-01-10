@@ -14,13 +14,16 @@ import math
 #
 # ================================================================
 
-def complex_compressed_tensor(x: torch.Tensor) -> torch.Tensor:
+def complex_compressed_tensor(x: torch.Tensor,
+                              device: str = "cpu") -> torch.Tensor:
     """The function compress the feature dimension of the tensor by converting
     half as real part and the other half as imaginary part.
 
     Args:
         x : torch.Tensor
             The input tensor to compress.
+        device : str
+            The device of the tensor. Default cpu.
 
     Returns:
         torch.Tensor
@@ -38,15 +41,18 @@ def complex_compressed_tensor(x: torch.Tensor) -> torch.Tensor:
     # Combine real and imaginary parts into a complex tensor
     x = torch.stack((real_part, imaginary_part), dim=-1)
 
-    return torch.view_as_complex(x)
+    return torch.view_as_complex(x).to(device)
 
 
-def decompress_complex_tensor(x: torch.Tensor) -> torch.Tensor:
+def decompress_complex_tensor(x: torch.Tensor,
+                              device: str = "cpu") -> torch.Tensor:
     """The function decompress the complex compressed tensor in the original real domain.
 
     Args:
         x : torch.Tensor
             The input compressed tensor.
+        device : str
+            The device of the tensor. Default cpu.
 
     Returns:
         torch.Tensor
@@ -59,15 +65,18 @@ def decompress_complex_tensor(x: torch.Tensor) -> torch.Tensor:
     # Concatenate the real and imaginary parts along the feature dimension
     x = torch.cat((real_part, imaginary_part), dim=1)
 
-    return x
+    return x.to(device)
 
 
-def complex_tensor(x: torch.Tensor) -> torch.Tensor:
+def complex_tensor(x: torch.Tensor,
+                   device: str = "cpu") -> torch.Tensor:
     """Get the complex form of a tensor.
 
     Args:
         x : torch.Tensor
             The original tensor.
+        device : str
+            The device of the tensor. Default cpu.
 
     Returns:
         torch.Tensor
@@ -75,7 +84,7 @@ def complex_tensor(x: torch.Tensor) -> torch.Tensor:
     """
     device = x.device
     x = torch.stack((x, torch.zeros(x.shape).to(device)), dim=-1)
-    return torch.view_as_complex(x)
+    return torch.view_as_complex(x).to(device)
 
 
 def complex_gaussian_matrix(mean: float,
@@ -106,7 +115,8 @@ def complex_gaussian_matrix(mean: float,
 
 
 def awgn(sigma: float,
-         size: torch.Size) -> torch.Tensor:
+         size: torch.Size,
+         device: str = "cpu") -> torch.Tensor:
     """A function that returns a noise vector sampled by a complex gaussian of a specified sigma.
 
     Args:
@@ -114,6 +124,8 @@ def awgn(sigma: float,
             The sigma (std) of a REAL awgn.
         size : torch.Size
             The size of the noise vector.
+        device : str
+            The device of the tensor. Default cpu.
 
     Returns:
         torch.Tensor
@@ -126,7 +138,7 @@ def awgn(sigma: float,
     r = torch.normal(mean=0, std=sigma, size=size)
     i = torch.normal(mean=0, std=sigma, size=size)
     
-    return torch.view_as_complex(torch.stack((r, i), dim=-1))
+    return torch.view_as_complex(torch.stack((r, i), dim=-1)).to(device)
 
 
 def snr(signal: torch.Tensor,
@@ -168,7 +180,8 @@ def sigma_given_snr(snr: float,
 
 
 def prewhiten(x_train: torch.Tensor,
-              x_test: torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+              x_test: torch.Tensor = None,
+              device: str = "cpu") -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Prewhiten the training and test data using only training data statistics.
     
     Args:
@@ -176,6 +189,8 @@ def prewhiten(x_train: torch.Tensor,
             The training torch.Tensor matrix.
         x_test : torch.Tensor
             The testing torch.Tensor matrix. Default None.
+        device : str
+            The device of the tensor. Default cpu.
             
     Returns:
         z_train : torch.Tensor
@@ -200,9 +215,9 @@ def prewhiten(x_train: torch.Tensor,
     if x_test is not None:
         z_test = x_test - mean  # Center the test set
         z_test = torch.linalg.solve(L, x_test)  # Prewhitened training set
-        return z_train, L, mean, z_test
+        return z_train.to(device), L.to(device), mean.to(device), z_test.to(device)
     
-    return z_train, L, mean
+    return z_train.to(device), L.to(device), mean.to(device)
 
 # ================================================================
 #

@@ -7,6 +7,7 @@ import numpy as np
 from torch import nn
 from pathlib import Path
 from tqdm.auto import tqdm
+from scipy.linalg import solve_sylvester
     
 from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
 # from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
@@ -371,16 +372,19 @@ class LinearOptimizerSAE():
                  channel_matrix: torch.Tensor,
                  snr: float,
                  cost: float = 1.0,
-                 rho: float = 1e2):
+                 rho: float = 1e2,
+                 device: str = "cpu"):
 
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.channel_matrix = channel_matrix
-        self.snr = snr
-        self.cost = cost
-        self.rho = rho
+        self.input_dim: int = input_dim
+        self.output_dim: int = output_dim
+        self.channel_matrix: torch.Tensor = channel_matrix.to(device)
+        self.snr: float = snr
+        self.cost: float = cost
+        self.rho: float = rho
+        self.device: str = device
+        self.dtype = channel_matrix.dtype
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
 
         # Variables
@@ -388,8 +392,8 @@ class LinearOptimizerSAE():
         self.G = None
 
         # ADMM variables
-        self.Z = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) // 2)
-        self.U = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) // 2)
+        self.Z = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) // 2).to(self.device)
+        self.U = torch.zeros(self.antennas_transmitter, (self.input_dim + 1) // 2).to(self.device)
 
         return None
     
@@ -419,7 +423,7 @@ class LinearOptimizerSAE():
         if self.snr:
             sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
         
-        self.G = output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)))
+        self.G = (output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)).to(self.device))).to(self.device)
         return None
     
 
@@ -444,15 +448,17 @@ class LinearOptimizerSAE():
         rho = self.rho * n
         O = self.G @ self.channel_matrix
         A = O.H @ O
-        Bh = (input @ input.H).H
-        C = rho * (self.Z - self.U) + O.H @ output @ input.H
+        B = rho * torch.linalg.inv(input @ input.H)
+        # Bh = (input @ input.H).H
+        C = (rho * (self.Z - self.U) + O.H @ output @ input.H) @ (B/rho)
 
-        kron = torch.kron(Bh.contiguous(), A.contiguous()) 
-        n, m = kron.shape
+        # kron = torch.kron(Bh.contiguous(), A.contiguous()) 
+        # n, m = kron.shape
         
-        vec_F = torch.linalg.inv(kron + rho * torch.eye(n, m)) @ C.T.reshape(-1)
-        self.F = vec_F.reshape(self.F.T.shape).T
+        # vec_F = torch.linalg.inv(kron + rho * torch.eye(n, m)) @ C.T.reshape(-1)
+        # self.F = vec_F.reshape(self.F.T.shape).T
     
+        self.F = torch.tensor(solve_sylvester(A.cpu().numpy(), B.cpu().numpy(), C.cpu().numpy()), device=self.device, dtype=self.dtype)
         return None
 
 
@@ -509,12 +515,9 @@ class LinearOptimizerSAE():
             (losses, traces) : tuple[list[float], list[float]]
                 The losses and the traces during training.
         """
-        input.to('cpu')
-        output.to('cpu')
-        
         with torch.no_grad():
             # Inizialize the F matrix at random
-            self.F = torch.view_as_complex(torch.stack((torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2), torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2)), dim=-1))
+            self.F = torch.view_as_complex(torch.stack((torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2), torch.randn(self.antennas_transmitter, (self.input_dim + 1) // 2)), dim=-1)).to(self.device)
 
             # Save the decompressed version
             old_input = input
@@ -525,11 +528,11 @@ class LinearOptimizerSAE():
             output = output.T
 
             # Complex compression
-            input = complex_compressed_tensor(input.T).H
-            output = complex_compressed_tensor(output.T).H
+            input = complex_compressed_tensor(input.T, device=self.device).H
+            output = complex_compressed_tensor(output.T, device=self.device).H
 
             # Perform the prewhitening step
-            input, self.L_input, self.mean_input = prewhiten(input)
+            input, self.L_input, self.mean_input = prewhiten(input, device=self.device)
             
             loss = np.inf
             losses = []
@@ -571,14 +574,12 @@ class LinearOptimizerSAE():
             output : torch.Tensor
                 The transformed version of the input.
         """
-        input.to('cpu')
-
         with torch.no_grad():
             # Transpose
             input = input.T
 
             # Complex Compress the input
-            input = complex_compressed_tensor(input.T).H
+            input = complex_compressed_tensor(input.T, device=self.device).H
             
             # Perform the prewhitening step
             input = torch.linalg.solve(self.L_input, input - self.mean_input)
@@ -589,7 +590,7 @@ class LinearOptimizerSAE():
             # Add the additive white gaussian noise
             if self.snr:
                 sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
-                w = awgn(sigma=sigma, size=z.shape)
+                w = awgn(sigma=sigma, size=z.shape, device=self.device)
                 z += w
                 
             output = self.G @ z
@@ -615,9 +616,6 @@ class LinearOptimizerSAE():
             float
                 The mse loss.
         """
-        input.to('cpu')
-        output.to('cpu')
-
         # Check if self.F and self.G are fitted
         assert (self.F is not None)&(self.G is not None), "You have to fit the solver first by calling the '.fit()' method."
         
@@ -638,14 +636,12 @@ class LinearOptimizerSAE():
             precoded : torch.Tensor
                 The precoded version of the passed input tensor.
         """
-        input.to('cpu')
-
         with torch.no_grad():
             # Transpose
             input = input.T
 
             # Complex Compress the input
-            input = complex_compressed_tensor(input.T).H
+            input = complex_compressed_tensor(input.T, device=self.device).H
             
             # Perform the prewhitening step
             input = torch.linalg.solve(self.L_input, input - self.mean_input)
@@ -703,7 +699,8 @@ def main() -> None:
                                     output_dim=output_dim,
                                     channel_matrix=channel_matrix,
                                     snr=snr,
-                                    cost=cost)
+                                    cost=cost,
+                                    device="cuda")
     linear_sae.fit(input, output, iterations)
     linear_sae.transform(input)
     print(linear_sae.eval(input, output))
