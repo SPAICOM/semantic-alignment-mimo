@@ -171,9 +171,6 @@ class LinearOptimizerBaseline():
             else:
                 raise Exception("The passed strategy is not supported.")
         
-            # Mask the output
-            input *= mask
-            
             # Complex Compress the input
             input = complex_compressed_tensor(input.T).H
         
@@ -199,6 +196,9 @@ class LinearOptimizerBaseline():
             # Decompress the transmitted signal
             output = decompress_complex_tensor(output.H).T            
 
+            # Mask the output
+            output *= mask
+            
         return output.T
         
 
