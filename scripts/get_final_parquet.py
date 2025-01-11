@@ -273,15 +273,15 @@ def main() -> None:
         # =========================================================================
         k_p = 1
         if args.pre and awareness != "unaware":
-            print("Baseline Pre")
-            
+            print("Baseline Pre First")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
                                           k_p=k_p,
-                                          typology="pre")
+                                          typology="pre",
+                                          strategy="first")
 
             # Fit the linear optimizer
             opt.fit(input=datamodule.train_data.z,
@@ -303,8 +303,57 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline No Semantic Compression',
-                               'Symbols': datamodule.test_data.output_size // 2,
+                               'Case': f'Baseline First',
+                               'Symbols': k_p*transmitter,
+                               'Transmitting Antennas': transmitter,
+                               'Receiving Antennas': receiver,
+                               'Awareness': awareness,
+                               'Sparsity': 0.0,
+                               'Ideal Sparsity': 0.0,
+                               'Lambda': 0.0,
+                               'Sigma': sigma_given_snr(snr, opt.get_precodings(datamodule.test_data.z)),
+                               'Seed': seed,
+                               'Cost': cost,
+                               'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
+                               'Classifier Loss': clf_metrics['test/loss_epoch'],
+                               'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR': snr,
+                               'FLOPs': None
+                           }),
+                           in_place=True)
+
+            print("Baseline Pre Largest")
+            # Get the optimizer
+            opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
+                                          output_dim=datamodule.output_size,
+                                          channel_matrix=ch_matrix,
+                                          snr=snr_0,
+                                          k_p=k_p,
+                                          typology="pre",
+                                          strategy="abs")
+
+            # Fit the linear optimizer
+            opt.fit(input=datamodule.train_data.z,
+                    output=datamodule.train_data.z_decoder)
+
+            # Set the channel matrix and the snr
+            opt.channel_matrix = channel_matrix
+            opt.snr = snr
+
+            # Get the z_psi_hat
+            z_psi_hat = opt.transform(datamodule.test_data.z)
+
+            # Get the predictions using as input the z_psi_hat
+            dataloader = DataLoader(TensorDataset(z_psi_hat, datamodule.test_data.labels), batch_size=batch_size)
+            clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+            results.vstack(pl.DataFrame(
+                           {
+                               'Dataset': dataset,
+                               'Encoder': encoder,
+                               'Decoder': decoder,
+                               'Case': f'Baseline Largest',
+                               'Symbols': k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
                                'Awareness': awareness,
