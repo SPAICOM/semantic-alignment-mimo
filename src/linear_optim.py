@@ -64,6 +64,10 @@ class LinearOptimizerBaseline():
 
         # Instantiate the alignment matrix A
         self.A = None 
+        
+        # Define self.k_p if it set to None
+        if not self.k_p:
+            self.k_p = math.ceil( input.shape[0] / self.antennas_transmitter)
 
         # Perform the SVD of the channel matrix, save the U, S and Vt.
         U, S, Vt = torch.linalg.svd(self.channel_matrix)
@@ -73,14 +77,82 @@ class LinearOptimizerBaseline():
         B = U @ S
 
         # Define the decoder and precoder
-        self.F = Vt.H
+        self.F = Vt.H / torch.linalg.norm(Vt.H)
         if self.snr:
-            self.G = B.H @ torch.linalg.inv(B@B.H + (1/self.snr) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1)))
+            self.G = ( B.H @ torch.linalg.inv(B@B.H + (1/self.snr) * torch.view_as_complex(torch.stack((torch.eye(B.shape[0]), torch.eye(B.shape[0])), dim=-1))) ) * torch.linalg.norm(Vt.H)
         else:
-            self.G = torch.linalg.inv(S) @ U.H
+            self.G = ( torch.linalg.inv(S) @ U.H ) * torch.linalg.norm(Vt.H)
 
         return None
+    
 
+    def __compression(self,
+                      input: torch.Tensor) -> torch.Tensor:
+        """Compress the input.
+
+        Args:
+            input : torch.Tensor
+                The input as real d x n.
+
+        Return:
+            input : torch.Tensor
+                The compressed input as complex k_p * N_t x n.
+        """
+        # Get the number of features of the input
+        self.size, n = input.shape
+
+        # Features to transmit
+        self.sent_features = 2 * self.k_p * self.antennas_transmitter 
+        
+        if self.strategy == "first":
+            input = input[:self.sent_features, :]
+
+        elif self.strategy == "abs":
+            # Get the indexes based on the selected strategy
+            _, self.indexes = torch.topk(input.abs(), self.sent_features, dim=0)
+
+            # Retrieve the values based on the indexes
+            input = input[self.indexes, torch.arange(n)]
+
+        else:
+            raise Exception("The passed strategy is not supported.")
+
+        # Complex Compression
+        input = complex_compressed_tensor(input.T).H
+
+        return input
+
+
+    def __decompression(self,
+                        received: torch.Tensor) -> torch.Tensor:
+        """Decompression of the received message.
+
+        Args:
+            received : torch.Tensor
+                The received message
+
+        Return:
+            output : torch.Tensor
+                The output.
+        """
+        _, n = received.shape
+        
+        # Decompress the transmitted signal
+        received = decompress_complex_tensor(received.H).T
+
+        output = torch.zeros(self.size, n)         
+        
+        if self.strategy == "first":
+            output[:self.sent_features, :] = received
+
+        elif self.strategy == "abs":
+            output[self.indexes, torch.arange(n)] = received
+            
+        else:
+            raise Exception("The passed strategy is not supported.")
+        
+        return output   
+    
 
     def __packets_precoding(self,
                             input: torch.Tensor) -> list[torch.Tensor]:
@@ -94,19 +166,14 @@ class LinearOptimizerBaseline():
             list[torch.Tensor]
                 The list of precoded packets, each of them of dimension self.antennas_transmitter.
         """
-        d = input.shape[0]
-
-        assert d >= self.antennas_transmitter, "The self.output dimension must be greater than the number of transmitting antennas"
-
-        # Get the number of packets required for the transmission and the relative needed padding
-        n_packets: int = math.ceil( d / self.antennas_transmitter)
-        padding_size: int = n_packets * self.antennas_transmitter - d
-
-        # Add padding rows wise (i.e. to the features)
-        padded_input = torch.nn.functional.pad(input, (0, 0, 0, padding_size))
+        # Compress the input
+        input = self.__compression(input)        
+        
+        # Perform the prewhitening step
+        input = torch.linalg.solve(self.L, input - self.mean)
         
         # Create the packets of size self.antennas_transmitter
-        packets = torch.split(padded_input, self.antennas_transmitter, dim=0)
+        packets = torch.split(input, self.antennas_transmitter, dim=0)
         
         # Return the precoded packets
         return [self.F @ p for p in packets]
@@ -122,19 +189,19 @@ class LinearOptimizerBaseline():
 
         Returns
             received : torch.Tensor
-                The output seen as a single torch.Tensor of dimension self.antennas_receiver x num. of observation.
+                The output seen as a single torch.Tensor of dimension self.output_dim x num. of observation.
         """
         # Decode the packets
         packets = [self.G @ p for p in packets]
 
-        # Combined packets
-        match self.typology:
-            case "pre":
-                received = torch.cat(packets, dim=0)[:self.output_dim//2,:]
-            case "post":
-                received = torch.cat(packets, dim=0)[:self.input_dim//2,:]
-            case _:
-                raise Exception(f"The passed typology {self.typology} is not supported.")
+        # Concat the packets
+        received = torch.cat(packets, dim=0)
+
+        # Remove whitening
+        received = self.L @ received + self.mean
+        
+        # Decompress the transmitted signal
+        received = self.__decompression(received)
 
         return received
 
@@ -152,52 +219,19 @@ class LinearOptimizerBaseline():
                 The output transmitted.
         """
         with torch.no_grad():
-            if not self.k_p:
-                self.k_p = math.ceil( input.shape[0] / self.antennas_transmitter)
-
-            # Create a mask to handle how many packets to consider
-            mask = torch.zeros_like(input)
-            if self.strategy == "first":
-                mask[:self.k_p*self.antennas_transmitter, :] = 1
-                
-            elif self.strategy == "abs":
-                # Process each column independently
-                for i in range(input.shape[1]):
-                    # Get the row and its sorted indices by absolute value
-                    sorted_indices = (-input[:, i].abs()).argsort()
-
-                    # Set the mask for the top k_p indices
-                    mask[sorted_indices[:(self.k_p*self.antennas_transmitter)//2], i] = 1
-            else:
-                raise Exception("The passed strategy is not supported.")
-        
-            # Complex Compress the input
-            input = complex_compressed_tensor(input.T).H
-        
-            # Perform the prewhitening step
-            input = torch.linalg.solve(self.L, input - self.mean)
-        
             # Performing the precoding packets
             packets = self.__packets_precoding(input)
 
-            # Transmit the packets and add the white gaussian noise
+            # Transmit the packets
+            packets = [self.channel_matrix @ p for p in packets]
+
+            # Add the AWGN if needed
             if self.snr:
                 # Get the sigma
-                packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
-            else:
-                packets = [self.channel_matrix @ p for p in packets]
+                packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
-            
-            # Remove whitening
-            output = self.L @ output + self.mean
-
-            # Decompress the transmitted signal
-            output = decompress_complex_tensor(output.H).T            
-
-            # Mask the output
-            output *= mask
             
         return output.T
         
@@ -221,29 +255,26 @@ class LinearOptimizerBaseline():
         output.to('cpu')
 
         with torch.no_grad():
+            # Alignment of the input to the output
+            self.A = torch.linalg.lstsq(input, output).solution.T
+                    
             match self.typology:
                 case "pre":
-                    # Alignment of the input to the output
-                    self.A = torch.linalg.lstsq(input, output).solution.T
-
                     # Align the input
                     input = self.A @ input.T
             
-                    # Complex Compress the input
-                    input = complex_compressed_tensor(input.T).H
+                    # Compress the input
+                    input = self.__compression(input)
 
                     # Learn L and the mean
                     _, self.L, self.mean = prewhiten(input)
                 
                 case "post":
+                    # Compress the input
+                    input = self.__compression(input)
+
                     # Learn L and the mean
-                    _, self.L, self.mean = prewhiten(complex_compressed_tensor(input).H)
-
-                    # Transmit the input
-                    transmitted = self.__transmit_message(input.T)
-
-                    # Alignment of the input to the output
-                    self.A = torch.linalg.lstsq(transmitted, output).solution.T
+                    _, self.L, self.mean = prewhiten(input)
 
                 case _:
                     raise Exception(f"The passed typology {self.typology} is not supported.")
@@ -308,6 +339,7 @@ class LinearOptimizerBaseline():
         preds = self.transform(input)
         
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
+    
 
     def get_precodings(self,
                        input: torch.Tensor) -> torch.Tensor:
@@ -438,7 +470,8 @@ class LinearOptimizerSAE():
         # Get sigma
         sigma = 0
         if self.snr:
-            sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
+            # sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
+            sigma = sigma_given_snr(self.snr, A) / math.sqrt(2)
         
         self.G = (output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)).to(self.device))).to(self.device)
         return None
@@ -703,7 +736,7 @@ def main() -> None:
                                        channel_matrix=channel_matrix,
                                        snr=snr,
                                        k_p=k_p,
-                                       strategy="abs")
+                                       strategy="first")
     baseline.fit(input, output)
     baseline.transform(input)
     print(baseline.eval(input, output))
