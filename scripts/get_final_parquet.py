@@ -272,8 +272,8 @@ def main() -> None:
         #               Linear Optimizer Baseline Alignment pre SVD
         # =========================================================================
         k_p = 1
-        if args.pre and awareness != "unaware":
-            print("Baseline Pre First")
+        if args.post and awareness != "unaware":
+            print("Baseline Post First")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
@@ -322,7 +322,7 @@ def main() -> None:
                            }),
                            in_place=True)
 
-            print("Baseline Pre Largest")
+            print("Baseline Post Largest")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
@@ -374,8 +374,8 @@ def main() -> None:
         # =========================================================================
         #               Linear Optimizer Baseline Alignment post SVD
         # =========================================================================
-        if args.post and awareness != "unaware":
-            print("Baseline Post")
+        if args.pre and awareness != "unaware":
+            print("Baseline Pre")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
