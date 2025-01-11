@@ -536,7 +536,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         if self.hparams["snr"]:
-            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
+            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z.detach())
             w = awgn(sigma=sigma, size=z.real.shape, device=self.device)
             z = z + w.detach()
             
