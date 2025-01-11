@@ -33,6 +33,8 @@ class LinearOptimizerBaseline():
             Number of packets to consider, if None then all. Default None.
         typology : str
             The typology of baseline, possible values 'pre' or 'post'. Default 'pre'.
+        strategy : str
+            The strategy to adopt in sending the features, possible values 'first' or 'abs'. Default 'first'.
     """
     def __init__(self,
                  input_dim: int,
@@ -40,7 +42,8 @@ class LinearOptimizerBaseline():
                  channel_matrix: torch.Tensor,
                  snr: float,
                  k_p: int = None,
-                 typology: str = "post"):
+                 typology: str = "post",
+                 strategy: str = "first"):
         
         assert len(channel_matrix.shape) == 2, "The matrix must be 2 dimesional."
         
@@ -50,9 +53,11 @@ class LinearOptimizerBaseline():
         self.snr = snr
         self.k_p = k_p
         self.typology = typology
-
+        self.strategy = strategy
+        
         # Check value of typology
         assert self.typology in ["pre", "post"], f"The passed typology {self.typology} is not supported."        
+        assert self.strategy in ["first", "abs"], f"The passed strategy {self.strategy} is not supported."        
 
         # Get the receiver and transmitter antennas
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
@@ -147,6 +152,28 @@ class LinearOptimizerBaseline():
                 The output transmitted.
         """
         with torch.no_grad():
+            if not self.k_p:
+                self.k_p = math.ceil( input.shape[0] / self.antennas_transmitter)
+
+            # Create a mask to handle how many packets to consider
+            mask = torch.zeros_like(input)
+            if self.strategy == "first":
+                mask[:self.k_p*self.antennas_transmitter, :] = 1
+                
+            elif self.strategy == "abs":
+                # Process each column independently
+                for i in range(input.shape[1]):
+                    # Get the row and its sorted indices by absolute value
+                    sorted_indices = (-input[:, i].abs()).argsort()
+
+                    # Set the mask for the top k_p indices
+                    mask[sorted_indices[:self.k_p*self.antennas_transmitter], i] = 1
+            else:
+                raise Exception("The passed strategy is not supported.")
+        
+            # Mask the output
+            input *= mask
+            
             # Complex Compress the input
             input = complex_compressed_tensor(input.T).H
         
@@ -170,17 +197,7 @@ class LinearOptimizerBaseline():
             output = self.L @ output + self.mean
 
             # Decompress the transmitted signal
-            output = decompress_complex_tensor(output.H).T
-            
-            if not self.k_p:
-                self.k_p = len(packets)
-
-            # Create a mask to handle how many packets to consider
-            mask = torch.zeros_like(output)
-            mask[:self.k_p*packets[0].shape[0], :] = 1
-        
-            # Mask the output
-            output *= mask
+            output = decompress_complex_tensor(output.H).T            
 
         return output.T
         
@@ -677,15 +694,16 @@ def main() -> None:
     antennas_receiver: int = 4
     channel_matrix: torch.Tensor = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
     
-    input = torch.randn(1000, input_dim)
-    output = torch.randn(1000, output_dim)
+    input = torch.randn(100, input_dim)
+    output = torch.randn(100, output_dim)
     
     print("Test for Linear Optimizer Baseline...", end='\t')
     baseline = LinearOptimizerBaseline(input_dim=input_dim,
                                        output_dim=output_dim,
                                        channel_matrix=channel_matrix,
                                        snr=snr,
-                                       k_p=k_p)
+                                       k_p=k_p,
+                                       strategy="abs")
     baseline.fit(input, output)
     baseline.transform(input)
     print(baseline.eval(input, output))
@@ -700,7 +718,7 @@ def main() -> None:
                                     channel_matrix=channel_matrix,
                                     snr=snr,
                                     cost=cost,
-                                    device="cuda")
+                                    device="cpu")
     linear_sae.fit(input, output, iterations)
     linear_sae.transform(input)
     print(linear_sae.eval(input, output))
