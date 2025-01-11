@@ -167,7 +167,7 @@ class LinearOptimizerBaseline():
                     sorted_indices = (-input[:, i].abs()).argsort()
 
                     # Set the mask for the top k_p indices
-                    mask[sorted_indices[:self.k_p*self.antennas_transmitter], i] = 1
+                    mask[sorted_indices[:(self.k_p*self.antennas_transmitter)//2], i] = 1
             else:
                 raise Exception("The passed strategy is not supported.")
         
