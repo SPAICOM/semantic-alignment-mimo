@@ -340,49 +340,8 @@ class LinearOptimizerBaseline():
         
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
     
-
-    def get_precodings(self,
-                       input: torch.Tensor) -> torch.Tensor:
-        """The function returns the precodings of a passed input tensor.
-
-        Args:
-            input : torch.Tensor
-                The input tensor
-
-        Returns:
-            precoded : torch.Tensor
-                The precoded version of the passed input tensor.
-        """
-        input.to('cpu')
-
-        # Transpose
-        input = input.T
-
-        match self.typology:
-            case "pre":
-                # Align the input
-                input = self.A @ input
-                
-                # Complex compression
-                input = complex_compressed_tensor(input.T).H
-                
-                # Perform the prewhitening step
-                precoded = torch.linalg.solve(self.L, input - self.mean)
-
-            case "post":
-                # Complex compression
-                input = complex_compressed_tensor(input.T).H
-                
-                # Perform the prewhitening step
-                precoded = torch.linalg.solve(self.L, input - self.mean)
-                
-            case _:
-                raise Exception(f"Unrecognised case of self.typology parameter, set to '{self.typology}'.")
-
-        return precoded.T
-
-
     
+
 class LinearOptimizerSAE():
     """The linear optimizer for the Semantic Auto Encoder.
     
@@ -673,34 +632,6 @@ class LinearOptimizerSAE():
         preds = self.transform(input)
 
         return torch.nn.functional.mse_loss(preds, output, reduction='mean').item()
-
-
-    def get_precodings(self,
-                       input: torch.Tensor) -> torch.Tensor:
-        """The function returns the precodings of a passed input tensor.
-
-        Args:
-            input : torch.Tensor
-                The input tensor
-
-        Returns:
-            precoded : torch.Tensor
-                The precoded version of the passed input tensor.
-        """
-        with torch.no_grad():
-            # Transpose
-            input = input.T
-
-            # Complex Compress the input
-            input = complex_compressed_tensor(input.T, device=self.device).H
-            
-            # Perform the prewhitening step
-            input = torch.linalg.solve(self.L_input, input - self.mean_input)
-
-            # Transmit the input through the channel H
-            precoded = self.F @ input
-
-        return precoded
 
 
 # ============================================================
