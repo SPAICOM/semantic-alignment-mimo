@@ -639,7 +639,8 @@ class LinearOptimizerSAE():
 
             # Add the additive white gaussian noise
             if self.snr:
-                sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
+                # sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
+                sigma = sigma_given_snr(snr=self.snr, signal= z)
                 w = awgn(sigma=sigma, size=z.shape, device=self.device)
                 z += w
                 
@@ -721,8 +722,8 @@ def main() -> None:
     snr: float = 20
     k_p: int = 1
     iterations: int = 10
-    input_dim: int = 20
-    output_dim: int = 40
+    input_dim: int = 384
+    output_dim: int = 768
     antennas_transmitter: int = 4
     antennas_receiver: int = 4
     channel_matrix: torch.Tensor = complex_gaussian_matrix(mean=0, std=1, size=(antennas_receiver, antennas_transmitter))
