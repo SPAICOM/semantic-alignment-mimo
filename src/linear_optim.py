@@ -29,6 +29,8 @@ class LinearOptimizerBaseline():
             The channel matrix H in torch.Tensor format.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware.
+        snr_type : str
+            The typology of snr, possible values 'transmitted' or 'received'. Default 'transmitted'.
         k_p : int
             Number of packets to consider, if None then all. Default None.
         typology : str
@@ -41,6 +43,7 @@ class LinearOptimizerBaseline():
                  output_dim: int,
                  channel_matrix: torch.Tensor,
                  snr: float,
+                 snr_type: str = "transmitted",
                  k_p: int = None,
                  typology: str = "post",
                  strategy: str = "first"):
@@ -51,11 +54,13 @@ class LinearOptimizerBaseline():
         self.output_dim = output_dim
         self.channel_matrix = channel_matrix
         self.snr = snr
+        self.snr_type = snr_type
         self.k_p = k_p
         self.typology = typology
         self.strategy = strategy
         
-        # Check value of typology
+        # Check values
+        assert self.snr_type in ["transmitted", "received"], f"The passed snr typology {self.snr_type} is not supported."        
         assert self.typology in ["pre", "post"], f"The passed typology {self.typology} is not supported."        
         assert self.strategy in ["first", "abs"], f"The passed strategy {self.strategy} is not supported."        
 
@@ -222,13 +227,22 @@ class LinearOptimizerBaseline():
             # Performing the precoding packets
             packets = self.__packets_precoding(input)
 
-            # Transmit the packets
-            packets = [self.channel_matrix @ p for p in packets]
 
-            # Add the AWGN if needed
+            # Transmit and add the AWGN if needed
             if self.snr:
                 # Get the sigma
-                packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                if self.snr_type == "received":
+                    # Transmit the packets
+                    packets = [self.channel_matrix @ p for p in packets]
+                    packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                elif self.snr_type == "transmitted":
+                    # Transmit the packets
+                    packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                else:
+                    raise Exception("Wrong snr typology passed.")
+            else:
+                # Transmit the packets
+                packets = [self.channel_matrix @ p for p in packets]
 
             # Decode the packets
             output = self.__packets_decoding(packets)
@@ -354,6 +368,8 @@ class LinearOptimizerSAE():
             The Complex Gaussian Matrix simulating the communication channel.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware.
+        snr_type : str
+            The typology of snr, possible values 'transmitted' or 'received'. Default 'transmitted'.
         cost : float
             The transmition cost. Default 1.0.
         rho : int
@@ -379,6 +395,7 @@ class LinearOptimizerSAE():
                  output_dim: int,
                  channel_matrix: torch.Tensor,
                  snr: float,
+                 snr_type: str = "transmitted",
                  cost: float = 1.0,
                  rho: float = 1e2,
                  device: str = "cpu"):
@@ -389,11 +406,15 @@ class LinearOptimizerSAE():
         self.output_dim: int = output_dim
         self.channel_matrix: torch.Tensor = channel_matrix.to(device)
         self.snr: float = snr
+        self.snr_type: str = snr_type
         self.cost: float = cost
         self.rho: float = rho
         self.device: str = device
         self.dtype = channel_matrix.dtype
         self.antennas_receiver, self.antennas_transmitter = self.channel_matrix.shape
+        
+        # Check values
+        assert self.snr_type in ["transmitted", "received"], f"The passed snr typology {self.snr_type} is not supported."        
 
         # Variables
         self.F = None
@@ -429,8 +450,12 @@ class LinearOptimizerSAE():
         # Get sigma
         sigma = 0
         if self.snr:
-            # sigma = sigma_given_snr(self.snr, self.F @ input) / math.sqrt(2)
-            sigma = sigma_given_snr(self.snr, A) / math.sqrt(2)
+            if self.snr_type == "transmitted":
+                sigma = sigma_given_snr(self.snr, self.F @ input)
+            elif self.snr_type == "received":
+                sigma = sigma_given_snr(self.snr, A)
+            else:
+                raise Exception("Wrong snr typology passed.")
         
         self.G = (output @ A.H @ torch.linalg.inv(A @ A.H + n * sigma * torch.view_as_complex(torch.stack((torch.eye(A.shape[0]), torch.eye(A.shape[0])), dim=-1)).to(self.device))).to(self.device)
         return None
@@ -458,15 +483,8 @@ class LinearOptimizerSAE():
         O = self.G @ self.channel_matrix
         A = O.H @ O
         B = rho * torch.linalg.inv(input @ input.H)
-        # Bh = (input @ input.H).H
         C = (rho * (self.Z - self.U) + O.H @ output @ input.H) @ (B/rho)
 
-        # kron = torch.kron(Bh.contiguous(), A.contiguous()) 
-        # n, m = kron.shape
-        
-        # vec_F = torch.linalg.inv(kron + rho * torch.eye(n, m)) @ C.T.reshape(-1)
-        # self.F = vec_F.reshape(self.F.T.shape).T
-    
         self.F = torch.tensor(solve_sylvester(A.cpu().numpy(), B.cpu().numpy(), C.cpu().numpy()), device=self.device, dtype=self.dtype)
         return None
 
@@ -598,8 +616,13 @@ class LinearOptimizerSAE():
 
             # Add the additive white gaussian noise
             if self.snr:
-                # sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
-                sigma = sigma_given_snr(snr=self.snr, signal= z)
+                if self.snr_type == "transmitted":
+                    sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
+                elif self.snr_type == "received":
+                    sigma = sigma_given_snr(snr=self.snr, signal= z)
+                else:
+                    raise Exception("Wrong snr typology passed.")
+                
                 w = awgn(sigma=sigma, size=z.shape, device=self.device)
                 z += w
                 
@@ -651,6 +674,7 @@ def main() -> None:
     # Variables definition
     cost: int = 1
     snr: float = 20
+    snr_type: str = "received"
     k_p: int = 1
     iterations: int = 10
     input_dim: int = 384
@@ -667,6 +691,7 @@ def main() -> None:
                                        output_dim=output_dim,
                                        channel_matrix=channel_matrix,
                                        snr=snr,
+                                       snr_type=snr_type,
                                        k_p=k_p,
                                        strategy="first")
     baseline.fit(input, output)
@@ -682,6 +707,7 @@ def main() -> None:
                                     output_dim=output_dim,
                                     channel_matrix=channel_matrix,
                                     snr=snr,
+                                    snr_type=snr_type,
                                     cost=cost,
                                     device="cpu")
     linear_sae.fit(input, output, iterations)

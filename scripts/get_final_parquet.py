@@ -87,6 +87,7 @@ def main() -> None:
                                    ('Alignment Loss', pl.Float64),
                                    ('Classifier Loss', pl.Float64),
                                    ('Accuracy', pl.Float64),
+                                   ('SNR Type', pl.String),
                                    ('SNR', pl.Float64),
                                    ('FLOPs', pl.Int64)
                                ])
@@ -99,7 +100,7 @@ def main() -> None:
         print('#'*150)
         print(autoencoder_path)
         # Getting the settings
-        _, _, dataset, encoder, decoder, awareness, antennas, snr, sparsity_level, seed = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, snr_type, awareness, antennas, snr, sparsity_level, seed = str(autoencoder_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         snr = float(snr.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])
@@ -196,6 +197,7 @@ def main() -> None:
                            'Alignment Loss': alignment_metrics['test/loss_epoch'],
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
+                           'SNR Type': snr_type,
                            'SNR': snr,
                            'FLOPs': neural_sparse_flops(transmitter, receiver, sparsity, input_dim, output_dim)
                        }),
@@ -222,6 +224,7 @@ def main() -> None:
                                  output_dim=datamodule.output_size,
                                  channel_matrix=ch_matrix,
                                  snr=snr_0,
+                                 snr_type=snr_type,
                                  cost=cost)
 
         # Fit the linear optimizer
@@ -258,6 +261,7 @@ def main() -> None:
                            'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                            'Classifier Loss': clf_metrics['test/loss_epoch'],
                            'Accuracy': clf_metrics['test/acc_epoch'],
+                           'SNR Type': snr_type,
                            'SNR': snr,
                            'FLOPs': linear_flops(transmitter, receiver, input_dim, output_dim)
                        }),
@@ -265,7 +269,7 @@ def main() -> None:
 
         
         # =========================================================================
-        #               Linear Optimizer Baseline Alignment pre SVD
+        #               Linear Optimizer Baseline Alignment post SVD
         # =========================================================================
         k_p = 1
         if args.post and awareness != "unaware":
@@ -275,8 +279,9 @@ def main() -> None:
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
+                                          snr_type=snr_type,
                                           k_p=k_p,
-                                          typology="pre",
+                                          typology="post",
                                           strategy="first")
 
             # Fit the linear optimizer
@@ -312,6 +317,7 @@ def main() -> None:
                                'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                                'Classifier Loss': clf_metrics['test/loss_epoch'],
                                'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR Type': snr_type,
                                'SNR': snr,
                                'FLOPs': None
                            }),
@@ -323,8 +329,9 @@ def main() -> None:
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
+                                          snr_type=snr_type,
                                           k_p=k_p,
-                                          typology="pre",
+                                          typology="post",
                                           strategy="abs")
 
             # Fit the linear optimizer
@@ -360,13 +367,14 @@ def main() -> None:
                                'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                                'Classifier Loss': clf_metrics['test/loss_epoch'],
                                'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR Type': snr_type,
                                'SNR': snr,
                                'FLOPs': None
                            }),
                            in_place=True)
 
         # =========================================================================
-        #               Linear Optimizer Baseline Alignment post SVD
+        #               Linear Optimizer Baseline Alignment pre SVD
         # =========================================================================
         if args.pre and awareness != "unaware":
             print("Baseline Pre")
@@ -375,8 +383,9 @@ def main() -> None:
                                           output_dim=datamodule.output_size,
                                           channel_matrix=ch_matrix,
                                           snr=snr_0,
+                                          snr_type=snr_type,
                                           k_p=k_p,
-                                          typology="post")
+                                          typology="pre")
 
             # Fit the linear optimizer
             opt.fit(input=datamodule.train_data.z,
@@ -411,6 +420,7 @@ def main() -> None:
                                'Alignment Loss': opt.eval(datamodule.test_data.z, datamodule.test_data.z_decoder),
                                'Classifier Loss': clf_metrics['test/loss_epoch'],
                                'Accuracy': clf_metrics['test/acc_epoch'],
+                               'SNR Type': snr_type,
                                'SNR': snr,
                                'FLOPs': None
                            }),
