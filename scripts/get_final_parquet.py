@@ -108,7 +108,6 @@ def main() -> None:
         
         if sparsity_type == "pruned":
             ideal_sparsity = float(sparsity_level.split('_')[-1])
-            print(ideal_sparsity)
             lmb = 0.0
         elif sparsity_type == "lmb":
             ideal_sparsity = 0.0
