@@ -484,31 +484,6 @@ class SemanticAutoEncoder(pl.LightningModule):
                         freeze_mask_name = name.replace('.', '__') + "_freeze_mask"
                         self.register_buffer(freeze_mask_name, layer_freeze_mask)
 
-
-    def get_precodings(self,
-                       x: torch.Tensor) -> torch.Tensor:
-        """Get the semantic precodings of the passed tensor x:
-
-        Args:
-            x : torch.Tensor
-                The input tensor x.
-
-        Returns:
-            z : torch.Tensor
-                The precodings of the input tensor x.
-        """
-        with torch.no_grad():
-            x = x.real
-            x = nn.functional.normalize(x, p=2, dim=-1)
-
-            # Complex Compression
-            x = complex_compressed_tensor(x, device=self.device)
-
-            # Precode the signal
-            z = self.semantic_encoder(x)
-        
-        return z
-    
         
     def forward(self,
                 x: torch.Tensor) -> torch.Tensor:
