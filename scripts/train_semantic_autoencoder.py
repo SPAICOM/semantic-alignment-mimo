@@ -79,6 +79,13 @@ def main() -> None:
                         default=None,
                         type=float)
 
+    parser.add_argument('-t',
+                        '--snr_type',
+                        help="The snr type. Default 'transmitted'.",
+                        default='transmitted',
+                        type=str,
+                        choices=['transmitted', 'received'])
+
     parser.add_argument('--encneurons',
                         help="The encoder hidden layer dimension.",
                         default=192,
@@ -165,6 +172,7 @@ def main() -> None:
                                 mu=args.mu,
                                 lmb=args.lmb,
                                 snr=snr,
+                                snr_type=args.snr_type,
                                 cost=args.cost,
                                 lr=args.lr)
 
@@ -180,7 +188,7 @@ def main() -> None:
         EarlyStopping(monitor='valid/loss_epoch', patience=10)
     ]
 
-    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}'
+    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{args.snr_type}_{snr}_{args.cost}_{args.lmb}'
         
     # Add pruninig to the callbacks if prune is True
     if args.prune and args.lmb == 0:
@@ -191,7 +199,7 @@ def main() -> None:
                                       resample_parameters=False,
                                       use_global_unstructured=True))
         
-        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'
+        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{args.snr_type}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'
     elif args.prune and args.lmb != 0:
         raise Exception("You cannot apply both hard thresholding and l1 regularization.")
     

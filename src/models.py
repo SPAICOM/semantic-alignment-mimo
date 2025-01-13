@@ -419,6 +419,8 @@ class SemanticAutoEncoder(pl.LightningModule):
             A complex matrix simulating a communication channel.
         snr : float
             The snr in dB of the communication channel. Set to None if unaware. Default 20.
+        snr_type : str
+            The typology of snr, possible values 'transmitted' or 'received'. Default 'transmitted'.
         cost: float
             The cost for the constrainde version. Default None.
         lmb: float
@@ -442,6 +444,7 @@ class SemanticAutoEncoder(pl.LightningModule):
                  hidden_size: int,
                  channel_matrix: torch.Tensor,
                  snr: float = 20.,
+                 snr_type: str = "transmitted",
                  cost: float = None,
                  lmb: float = 0,
                  mu: float = 1,
@@ -455,6 +458,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         assert output_dim % 2 == 0, "The output dimension must be even."
         assert self.hparams["lmb"] >= 0, "The lambda parameter must be greater or equal to 0."
         assert self.hparams["mu"] >= 0, "The mu parameter must be greater or equal to 0."
+        assert snr_type in ["transmitted", "received"], "The 'snr_type' must be 'received' or 'transmitted'."
         
         # Example input
         self.example_input_array = torch.randn(1, self.hparams["input_dim"])
@@ -511,7 +515,13 @@ class SemanticAutoEncoder(pl.LightningModule):
         
         # Add white noise
         if self.hparams["snr"]:
-            sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z.detach())
+            if self.hparams["snr_type"] == "transmitted":
+                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
+            elif self.hparams["snr_type"] == "received":
+                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z.detach())
+            else:
+                raise Exception("Invalid 'snr_type'.")
+            
             w = awgn(sigma=sigma, size=z.real.shape, device=self.device)
             z = z + w.detach()
             
