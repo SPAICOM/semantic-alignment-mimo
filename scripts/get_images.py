@@ -30,7 +30,14 @@ def main() -> None:
                         '--file',
                         help="The parquet file with the results.",
                         type=str,
-                        default="final_results.parquet")
+                        default="results.parquet")
+
+    parser.add_argument('-t',
+                        '--type',
+                        help="The snr type.",
+                        type=str,
+                        choices=["transmitted", "received"],
+                        default="transmitted")
 
     args = parser.parse_args()
 
@@ -50,94 +57,126 @@ def main() -> None:
     dashes = df.select(["Case", "dashes"]).unique(subset=["Case"]).to_dict(as_series= False)
     dashes = dict(zip(dashes["Case"], dashes["dashes"]))
 
-    # Get the baseline value
-    baseline = df.filter(
-                    (pl.col("Case").str.contains("Baseline")) &
-                    (pl.col("Awareness")=="aware") &
-                    (pl.col("SNR")==20)
-                )["Accuracy"].mean()
-            
     # Set the font to Times-Roman (or Times New Roman)
     plt.rcParams['font.family'] = 'serif'
     plt.rcParams['font.serif'] = ['Times New Roman', 'Times']
 
     plt.rcParams.update({
-                        'font.size': 12,  # General font size
-                        'axes.titlesize': 14,  # Title font size
-                        'axes.labelsize': 14,  # X and Y label size
-                        'xtick.labelsize': 12,  # X-tick label size
-                        'ytick.labelsize': 12,  # Y-tick label size
-                        'legend.fontsize': 10,  # Legend font size
-                        'legend.title_fontsize': 12  # Legend title font size
+                        'font.size': 22,  # General font size
+                        'axes.titlesize': 24,  # Title font size
+                        'axes.labelsize': 24,  # X and Y label size
+                        'xtick.labelsize': 22,  # X-tick label size
+                        'ytick.labelsize': 22,  # Y-tick label size
+                        'legend.fontsize': 20,  # Legend font size
+                        'legend.title_fontsize': 22,  # Legend title font size
+                        'text.usetex': True
                         })
+    markersize = 18
+    linewidth = 3
     
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
-    filter = (pl.col('SNR')==20)&(pl.col("Sparsity")==0.0)
+    filter = (pl.col('SNR')==20)&(pl.col("Ideal Sparsity")==0)&(pl.col("Lambda")==0.0)&(pl.col("SNR Type")==args.type)
         
-    palette =  sns.color_palette()[:2] + ["#8C8C8C"] + sns.color_palette()[2:4]
+    # palette =  sns.color_palette()[:2] + ["#8C8C8C"] + sns.color_palette()[2:4]
     
-    latent_dim = df.filter(pl.col("Case").str.contains("Baseline"))["Symbols"].unique().item()
+    latent_dim = df.filter(pl.col("Case").str.contains("Baseline"))["Symbols"].max()
 
     df_plot = df.filter(filter).with_columns(
-                pl.when(pl.col("Case").str.contains("Baseline"))
-                .then(baseline)
-                .otherwise(pl.col("Accuracy"))
-                .alias("Accuracy"),
                 ((pl.col("Transmitting Antennas")/latent_dim)*100).alias("Semantic Compression Factor %")
             )
     
     ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Semantic Compression Factor %'].unique().round(2)
     
     # "Accuracy Vs Antennas" 
+    plt.figure(figsize=(12, 8))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Semantic Compression Factor %', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=10, palette=palette).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1)) 
+                        x='Semantic Compression Factor %', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1))#.set(xlim=(1, 12), ylim=(0, 1))# 
     plt.ylabel("Accuracy")
-    plt.legend(loc=(0.25, 0.25))
-    plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf')
+    plt.legend(loc=(0.18, 0.2))
+    plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     # ====================================================================================================================
     #                                        Accuracy Vs Signal to Noise Ratio
     # ====================================================================================================================
-    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col("Awareness")=="aware")&(pl.col('SNR')!=0)&(pl.col("Sparsity")==0.0)
+    filter = (pl.col('Transmitting Antennas')==8)&(pl.col('Receiving Antennas')==8)&(pl.col("Awareness")=="aware")&(pl.col('SNR')!=0)&(pl.col("Sparsity")==0.0)&(pl.col("SNR Type")==args.type)
     snr_df = df.filter(filter)
 
-    palette =  sns.color_palette()[:2] + ["#8C8C8C"]
+    # palette =  sns.color_palette()[:2] + ["#8C8C8C"]
         
+    plt.figure(figsize=(12, 8))
     plot = sns.lineplot(snr_df.to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=10, palette=palette).set(xlim=(-20, 30), ylim=(0, 1))
+                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=markersize, linewidth=linewidth).set(xlim=(-20, 30), ylim=(0, 1))
     plt.xlabel("Signal to Noise Ratio (dB)")
     plt.ylabel("Accuracy")
     plt.legend()
-    plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf')
+    plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     # ====================================================================================================================
     #                                        Accuracy Vs Sparsity
     # ====================================================================================================================
     filter = (
-        (pl.col('Transmitting Antennas')==6) &
-        (pl.col('Receiving Antennas')==6) &
         (pl.col("Awareness")=="aware") &
         (pl.col('SNR')==20) &
-        (~pl.col("Case").str.contains("Baseline"))
+        (~pl.col("Case").str.contains("Baseline")) &
+        (pl.col("Ideal Sparsity")==0) &
+        (pl.col("SNR Type")==args.type)
     )
     
-    sparsity_df = df.filter(filter).group_by(["Case", "Ideal Sparsity"]).agg(pl.col("FLOPs").mean(), pl.col("Accuracy").mean())
+    tmp_df = (
+        df
+        .filter(filter &  (pl.col('Transmitting Antennas')==6) & (pl.col('Receiving Antennas')==6))
+        .group_by(["Case", "Lambda"])
+        .agg(pl.col("FLOPs").mean(), pl.col("Accuracy").mean())
+        .select(["Case", "FLOPs", "Accuracy"])
+        .with_columns(
+                      pl.when(pl.col("Case")=="Neural Semantic Precoding/Decoding")
+                      .then(pl.lit(r"Neural Semantic PDG with Hard Thresholding $\zeta=3\%$"))
+                      .otherwise(pl.col("Case"))
+                      .alias("Case"))
+        .with_columns(
+                      pl.when(pl.col("Case")=="Linear Semantic Precoding/Decoding")
+                      .then(pl.lit(r"Linear Semantic $\zeta=3\%$"))
+                      .otherwise(pl.col("Case"))
+                      .alias("Case")
+                  )
+    )
+    sparsity_df = (
+        df
+        .filter(filter &  (pl.col('Transmitting Antennas')==10) & (pl.col('Receiving Antennas')==10))
+        .group_by(["Case", "Lambda"])
+        .agg(pl.col("FLOPs").mean(), pl.col("Accuracy").mean())
+        .select(["Case", "FLOPs", "Accuracy"])
+        .with_columns(
+                      pl.when(pl.col("Case")=="Neural Semantic Precoding/Decoding")
+                      .then(pl.lit(r"Neural Semantic PDG with Hard Thresholding $\zeta=5\%$"))
+                      .otherwise(pl.col("Case"))
+                      .alias("Case"))
+        .with_columns(
+                      pl.when(pl.col("Case")=="Linear Semantic Precoding/Decoding")
+                      .then(pl.lit(r"Linear Semantic $\zeta=5\%$"))
+                      .otherwise(pl.col("Case"))
+                      .alias("Case")
+                  )
+    )
 
-    print(sparsity_df.select(["Case", "Ideal Sparsity", "FLOPs"]) )
-    print(df.filter(filter).select(["Sparsity", "Ideal Sparsity", "FLOPs"]) )
-
-    palette =  sns.color_palette()[:2]
-        
+    sparsity_df = (
+        tmp_df
+        .vstack(sparsity_df)
+        # .with_columns(pl.col("FLOPs")/pl.col("FLOPs").max())
+        # .with_columns(pl.col("FLOPs")*100)
+    )
+    
+    plt.figure(figsize=(12, 8))
     plot = sns.lineplot(sparsity_df.to_pandas(), 
-                        x='FLOPs', y='Accuracy', hue='Case', style="Case",  markers=True, markersize=10, palette=palette).set(ylim=(0, 1))#, xscale="log")
-    plt.xlabel("FLOPs")
+                        x='FLOPs', y='Accuracy', hue='Case', style="Case",  markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1))
+    plt.xlabel("FLOPS")
     plt.ylabel("Accuracy")
     plt.legend()
-    plt.savefig(str(IMG_PATH / 'accuracy_vs_sparsity.pdf'), format='pdf')
+    plt.savefig(str(IMG_PATH / 'accuracy_vs_flops.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     return None
