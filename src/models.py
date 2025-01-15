@@ -506,9 +506,12 @@ class SemanticAutoEncoder(pl.LightningModule):
 
         x = complex_compressed_tensor(x, device=self.device)
         z = self.semantic_encoder(x)
+
+        if self.hparams["cost"]:
+            z = nn.functional.normalize(z, p=2, dim=-1)
         
         # Save the latent
-        self.latent = z
+        # self.latent = z
         
         # Make the signal pass through the channel
         z = torch.einsum('ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device))
@@ -516,7 +519,8 @@ class SemanticAutoEncoder(pl.LightningModule):
         # Add white noise
         if self.hparams["snr"]:
             if self.hparams["snr_type"] == "transmitted":
-                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
+                # sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
+                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=torch.ones(1).detach())
             elif self.hparams["snr_type"] == "received":
                 sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z.detach())
             else:
@@ -567,17 +571,17 @@ class SemanticAutoEncoder(pl.LightningModule):
         # Log the losses
         self.log("primal_loss", loss, on_step=True, on_epoch=True)
 
-        if self.hparams["cost"]:
-            dual_loss = ((torch.norm(self.latent, p="fro", dim=-1) - self.hparams["cost"])**2).mean()
-            cost_term = self.hparams['mu'] * dual_loss            
+        # if self.hparams["cost"]:
+        #     dual_loss = ((torch.norm(self.latent, p="fro", dim=-1) - self.hparams["cost"])**2).mean()
+        #     cost_term = self.hparams['mu'] * dual_loss            
             
-            # Log the losses and trace
-            self.log("dual_loss", dual_loss, on_step=True, on_epoch=True)
-            self.log("cost_term", cost_term, on_step=True, on_epoch=True)
-            self.log("trace", (torch.norm(self.latent, p="fro", dim=-1)**2).mean(), on_step=True, on_epoch=True)
+        #     # Log the losses and trace
+        #     self.log("dual_loss", dual_loss, on_step=True, on_epoch=True)
+        #     self.log("cost_term", cost_term, on_step=True, on_epoch=True)
+        #     self.log("trace", (torch.norm(self.latent, p="fro", dim=-1)**2).mean(), on_step=True, on_epoch=True)
 
-            # Add the dual loss
-            loss += cost_term
+        #     # Add the dual loss
+        #     loss += cost_term
 
         return y_hat, loss
 

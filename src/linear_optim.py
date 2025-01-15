@@ -237,7 +237,9 @@ class LinearOptimizerBaseline():
                     packets = [p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
                 elif self.snr_type == "transmitted":
                     # Transmit the packets
-                    packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                    # packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
+                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1))
+                    packets = [self.channel_matrix @ p + awgn(sigma=sigma, size=p.shape) for p in packets]
                 else:
                     raise Exception("Wrong snr typology passed.")
             else:
@@ -451,7 +453,8 @@ class LinearOptimizerSAE():
         sigma = 0
         if self.snr:
             if self.snr_type == "transmitted":
-                sigma = sigma_given_snr(self.snr, self.F @ input)
+                # sigma = sigma_given_snr(self.snr, self.F @ input)
+                sigma = sigma_given_snr(self.snr, torch.ones(1))
             elif self.snr_type == "received":
                 sigma = sigma_given_snr(self.snr, A)
             else:
@@ -617,7 +620,8 @@ class LinearOptimizerSAE():
             # Add the additive white gaussian noise
             if self.snr:
                 if self.snr_type == "transmitted":
-                    sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
+                    # sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
+                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1))
                 elif self.snr_type == "received":
                     sigma = sigma_given_snr(snr=self.snr, signal= z)
                 else:

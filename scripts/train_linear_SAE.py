@@ -53,6 +53,13 @@ def main():
                         type=float,
                         default=None)
     
+    parser.add_argument('-t',
+                        '--snr_type',
+                        help="The typology of the snr. Default 'transmitted'.",
+                        type=str,
+                        default="transmitted",
+                        choices=["transmitted", "received"])
+    
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
                         type=int,
@@ -114,6 +121,7 @@ def main():
                              output_dim=datamodule.output_size,
                              channel_matrix=channel_matrix,
                              snr=args.snr,
+                             snr_type=args.snr_type,
                              cost=args.cost,
                              rho=args.rho)
 
