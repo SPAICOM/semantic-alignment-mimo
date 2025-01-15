@@ -100,7 +100,7 @@ def main() -> None:
         print('#'*150)
         print(autoencoder_path)
         # Getting the settings
-        _, _, dataset, encoder, decoder, snr_type, awareness, antennas, snr, sparsity_level, seed = str(autoencoder_path.as_posix()).split('/')
+        _, _, dataset, encoder, decoder, awareness, antennas, snr_type, snr, sparsity_level, seed = str(autoencoder_path.as_posix()).split('/')
         transmitter, receiver = list(map(int, antennas.split('_')[-2:]))
         snr = float(snr.split('_')[-1])
         seed = int(seed.split('.')[0].split('_')[-1])

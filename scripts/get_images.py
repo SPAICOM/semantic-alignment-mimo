@@ -84,16 +84,17 @@ def main() -> None:
     latent_dim = df.filter(pl.col("Case").str.contains("Baseline"))["Symbols"].max()
 
     df_plot = df.filter(filter).with_columns(
-                ((pl.col("Transmitting Antennas")/latent_dim)*100).alias("Semantic Compression Factor %")
+                ((pl.col("Transmitting Antennas")/latent_dim)*100).alias("Compression Factor")
             )
     
-    ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Semantic Compression Factor %'].unique().round(2)
+    ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Compression Factor'].unique().round(2)
     
     # "Accuracy Vs Antennas" 
     plt.figure(figsize=(12, 8))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Semantic Compression Factor %', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1))#.set(xlim=(1, 12), ylim=(0, 1))# 
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1))
     plt.ylabel("Accuracy")
+    plt.xlabel(r'Compression Factor $\zeta$ (\%)')
     plt.legend(loc=(0.18, 0.2))
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
