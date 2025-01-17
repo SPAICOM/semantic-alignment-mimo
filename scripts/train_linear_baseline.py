@@ -50,6 +50,12 @@ def main():
                         type=float,
                         default=None)
     
+    parser.add_argument('--snr_type',
+                        help="The snr type of the communication channel. Default 'transmitted'.",
+                        choices=["transmitted", "received"],
+                        type=str,
+                        default="transmitted")
+    
     parser.add_argument('--transmitter',
                         help="The number of antennas for the transmitter.",
                         type=int,
@@ -58,7 +64,14 @@ def main():
     parser.add_argument('--typology',
                         help="The typology of baseline, possible vales 'pre' or 'post'. Default 'pre'.",
                         type=str,
+                        choices=["pre", "post"],
                         default="pre")
+    
+    parser.add_argument('--strategy',
+                        help="The strategy to apply in sending packets. Default 'first'.",
+                        type=str,
+                        choices=["first", "abs"],
+                        default="first")
     
     parser.add_argument('--receiver',
                         help="The number of antennas for the receiver.",
@@ -99,7 +112,10 @@ def main():
                                   output_dim=datamodule.output_size,
                                   channel_matrix=channel_matrix,
                                   snr=args.snr,
-                                  typology=args.typology)
+                                  snr_type=args.snr_type,
+                                  k_p=1,
+                                  typology=args.typology,
+                                  strategy=args.strategy)
 
     # Fit the linear optimizer
     opt.fit(input=datamodule.train_data.z,

@@ -72,7 +72,7 @@ class LinearOptimizerBaseline():
         
         # Define self.k_p if it set to None
         if not self.k_p:
-            self.k_p = math.ceil( input.shape[0] / self.antennas_transmitter)
+            self.k_p = math.ceil( (self.input_dim // 2) / self.antennas_transmitter)
 
         # Perform the SVD of the channel matrix, save the U, S and Vt.
         U, S, Vt = torch.linalg.svd(self.channel_matrix)
@@ -238,7 +238,7 @@ class LinearOptimizerBaseline():
                 elif self.snr_type == "transmitted":
                     # Transmit the packets
                     # packets = [self.channel_matrix @ p + awgn(sigma=sigma_given_snr(snr=self.snr, signal=p), size=p.shape) for p in packets]
-                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1))
+                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1))/self.antennas_transmitter 
                     packets = [self.channel_matrix @ p + awgn(sigma=sigma, size=p.shape) for p in packets]
                 else:
                     raise Exception("Wrong snr typology passed.")
