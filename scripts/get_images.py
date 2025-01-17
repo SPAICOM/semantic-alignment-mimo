@@ -127,7 +127,7 @@ def main() -> None:
         (pl.col("SNR Type")==args.type)
     )
     
-    tmp_df = (
+    df_6x6 = (
         df
         .filter(filter &  (pl.col('Transmitting Antennas')==6) & (pl.col('Receiving Antennas')==6))
         .group_by(["Case", "Lambda"])
@@ -145,7 +145,7 @@ def main() -> None:
                       .alias("Case")
                   )
     )
-    sparsity_df = (
+    df_10x10 = (
         df
         .filter(filter &  (pl.col('Transmitting Antennas')==10) & (pl.col('Receiving Antennas')==10))
         .group_by(["Case", "Lambda"])
@@ -164,16 +164,16 @@ def main() -> None:
                   )
     )
 
-    sparsity_df = (
-        tmp_df
-        .vstack(sparsity_df)
+    plot_df = (
+        df_6x6
+        .vstack(df_10x10)
         # .with_columns(pl.col("FLOPs")/pl.col("FLOPs").max())
         # .with_columns(pl.col("FLOPs")*100)
     )
     
     plt.figure(figsize=(12, 8))
-    plot = sns.lineplot(sparsity_df.to_pandas(), 
-                        x='FLOPs', y='Accuracy', hue='Case', style="Case",  markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1))
+    plot = sns.lineplot(plot_df.to_pandas(), 
+                        x='FLOPs', y='Accuracy', hue='Case', style="Case", dashes=False, markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1)) 
     plt.xlabel("FLOPS")
     plt.ylabel("Accuracy")
     plt.legend()
