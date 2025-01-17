@@ -520,7 +520,7 @@ class SemanticAutoEncoder(pl.LightningModule):
         if self.hparams["snr"]:
             if self.hparams["snr_type"] == "transmitted":
                 # sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
-                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=(torch.ones(1)/torch.sqrt(self.hparams["antennas_transmitter"])).detach())
+                sigma = sigma_given_snr(snr=self.hparams["snr"], signal=(torch.ones(1)/math.sqrt(self.hparams["antennas_transmitter"])).detach())
             elif self.hparams["snr_type"] == "received":
                 sigma = sigma_given_snr(snr=self.hparams["snr"], signal=z.detach())
             else:
