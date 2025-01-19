@@ -92,11 +92,21 @@ def main() -> None:
     # "Accuracy Vs Antennas" 
     plt.figure(figsize=(12, 8))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], ticks[-1]), ylim=(0, 1))
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(ticks[0], ticks[-1]), ylim=(0, 1), xscale="log")
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
-    plt.legend(loc=(0.18, 0.2))
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf', bbox_inches='tight')
+    plt.show()
+    
+    # "Zoom on Accuracy Vs Antennas"
+    plt.figure(figsize=(12, 8))
+    plot = sns.lineplot(df_plot.to_pandas(), 
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], 8), ylim=(0, 1))
+    plt.ylabel("Accuracy")
+    plt.xlabel(r'Compression Factor $\zeta$ (\%)')
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
+    plt.savefig(str(IMG_PATH / 'accuracy_absolute_zoom.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     # ====================================================================================================================
@@ -112,12 +122,12 @@ def main() -> None:
                         x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=markersize, linewidth=linewidth).set(xlim=(-20, 30), ylim=(0, 1))
     plt.xlabel("Signal to Noise Ratio (dB)")
     plt.ylabel("Accuracy")
-    plt.legend()
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.savefig(str(IMG_PATH / 'snr_zoom_absolute.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     # ====================================================================================================================
-    #                                        Accuracy Vs Sparsity
+    #                                        Accuracy Vs FLOPS
     # ====================================================================================================================
     filter = (
         (pl.col("Awareness")=="aware") &
@@ -144,7 +154,7 @@ def main() -> None:
                       .otherwise(pl.col("Case"))
                       .alias("Case")
                   )
-    )
+    ).sort(["Case"], descending=True)
     df_10x10 = (
         df
         .filter(filter &  (pl.col('Transmitting Antennas')==10) & (pl.col('Receiving Antennas')==10))
@@ -162,7 +172,7 @@ def main() -> None:
                       .otherwise(pl.col("Case"))
                       .alias("Case")
                   )
-    )
+    ).sort(["Case"], descending=True)
 
     plot_df = (
         df_6x6
@@ -176,6 +186,7 @@ def main() -> None:
                         x='FLOPs', y='Accuracy', hue='Case', style="Case", dashes=False, markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1)) 
     plt.xlabel("FLOPS")
     plt.ylabel("Accuracy")
+    # plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.legend()
     plt.savefig(str(IMG_PATH / 'accuracy_vs_flops.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
