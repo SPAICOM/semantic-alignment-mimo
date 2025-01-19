@@ -454,7 +454,7 @@ class LinearOptimizerSAE():
         if self.snr:
             if self.snr_type == "transmitted":
                 # sigma = sigma_given_snr(self.snr, self.F @ input)
-                sigma = sigma_given_snr(self.snr, torch.ones(1)/torch.sqrt(self.antennas_transmitter))
+                sigma = sigma_given_snr(self.snr, torch.ones(1)/math.sqrt(self.antennas_transmitter))
             elif self.snr_type == "received":
                 sigma = sigma_given_snr(self.snr, A)
             else:
@@ -621,7 +621,7 @@ class LinearOptimizerSAE():
             if self.snr:
                 if self.snr_type == "transmitted":
                     # sigma = sigma_given_snr(snr=self.snr, signal= self.F @ input)
-                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1)/torch.sqrt(self.antennas_transmitter))
+                    sigma = sigma_given_snr(snr=self.snr, signal=torch.ones(1)/math.sqrt(self.antennas_transmitter))
                 elif self.snr_type == "received":
                     sigma = sigma_given_snr(snr=self.snr, signal= z)
                 else:
