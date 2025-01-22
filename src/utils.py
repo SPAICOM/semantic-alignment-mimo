@@ -179,6 +179,34 @@ def sigma_given_snr(snr: float,
     return math.sqrt(signal_power/snr_no_db)
 
 
+def a_inv_times_b(a: torch.Tensor,
+                  b: torch.Tensor) -> torch.Tensor:
+    """Perform in an efficient way the A^{-1}B.
+
+    Args:
+        a : torch.Tensor
+            The original tensor to invert.
+        b : torch.Tensor
+            The original tensor to multiply.
+
+    Returns:
+        c : torch.Tensor
+            The result of the multiplication.
+    """
+    try:
+        c = torch.linalg.solve(a, b)
+    except RuntimeError as e:
+        if "The input tensor A must have at least 2 dimensions" in str(e):
+            if len(a.shape) == 2 and a.shape[0] == 1 and a.shape[-1]:
+                c = (1/a)@b
+            else:
+                raise e
+        else:
+            raise e
+    
+    return c
+
+
 def prewhiten(x_train: torch.Tensor,
               x_test: torch.Tensor = None,
               device: str = "cpu") -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -207,14 +235,20 @@ def prewhiten(x_train: torch.Tensor,
     """
     # --- Prewhiten the training set ---
     C = torch.cov(x_train)  # Training set covariance
-    L, _ = torch.linalg.cholesky_ex(C)  # Cholesky decomposition C = LL^H
+    try:
+        L, _ = torch.linalg.cholesky_ex(C)  # Cholesky decomposition C = LL^H
+    except RuntimeError as e:
+        if "The input tensor A must have at least 2 dimensions" in str(e):
+            L = torch.sqrt(C).unsqueeze(0).unsqueeze(1) # As a 1x1 tensor
+        else:
+            raise e
     mean = x_train.mean(axis=1)[:, None]
     z_train = x_train - mean # Center the training set
-    z_train = torch.linalg.solve(L, z_train)  # Prewhitened training set
+    z_train = a_inv_times_b(L, z_train)  # Prewhitened training set
 
     if x_test is not None:
         z_test = x_test - mean  # Center the test set
-        z_test = torch.linalg.solve(L, x_test)  # Prewhitened training set
+        z_test = a_inv_times_b(L, x_test)  # Prewhitened training set
         return z_train.to(device), L.to(device), mean.to(device), z_test.to(device)
     
     return z_train.to(device), L.to(device), mean.to(device)

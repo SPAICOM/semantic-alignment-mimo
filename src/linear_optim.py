@@ -9,8 +9,8 @@ from pathlib import Path
 from tqdm.auto import tqdm
 from scipy.linalg import solve_sylvester
     
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
-# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn
+from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
+# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
 
 # ============================================================
 #
@@ -175,7 +175,7 @@ class LinearOptimizerBaseline():
         input = self.__compression(input)        
         
         # Perform the prewhitening step
-        input = torch.linalg.solve(self.L, input - self.mean)
+        input = a_inv_times_b(self.L, input - self.mean)
         
         # Create the packets of size self.antennas_transmitter
         packets = torch.split(input, self.antennas_transmitter, dim=0)
@@ -612,7 +612,7 @@ class LinearOptimizerSAE():
             input = complex_compressed_tensor(input.T, device=self.device).H
             
             # Perform the prewhitening step
-            input = torch.linalg.solve(self.L_input, input - self.mean_input)
+            input = a_inv_times_b(self.L_input, input - self.mean_input)
 
             # Transmit the input through the channel H
             z = self.channel_matrix @ self.F @ input
