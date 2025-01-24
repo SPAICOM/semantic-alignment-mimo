@@ -53,7 +53,29 @@ def main() -> None:
     sns.set_style('whitegrid')
     
     # Read the parquet
-    df = pl.read_parquet(PARQUET_PATH).sort(by=["Awareness", "Case"], descending=[False, True]).with_columns(pl.when(pl.col("Case").str.contains("Baseline")).then((5, 5)).otherwise(()).alias("dashes"))
+    df = (
+        pl.read_parquet(PARQUET_PATH).sort(by=["Awareness", "Case"], descending=[False, True])
+        .with_columns(
+                      pl.when(pl.col("Case").str.contains("Baseline"))
+                      .then((5, 5))
+                      .otherwise(())
+                      .alias("dashes")
+        )
+        .filter(pl.col("Symbols")<=pl.col("Transmitting Antennas").max())
+    )
+
+    # df = (
+    #     df
+    #     .with_columns(
+    #                   pl.when(pl.col("Case")=="Baseline Largest")
+    #                   .then(pl.col("Transmitting Antennas")*2)
+    #                   .otherwise(pl.col("Transmitting Antennas"))
+    #                   .alias("Transmitting Antennas")
+    #               )
+    #     .filter(pl.col("Transmitting Antennas")<=pl.col("Receiving Antennas").max())
+    # )
+    # print(df.filter(pl.col("Case")=="Baseline Largest")["Transmitting Antennas"])
+    
     dashes = df.select(["Case", "dashes"]).unique(subset=["Case"]).to_dict(as_series= False)
     dashes = dict(zip(dashes["Case"], dashes["dashes"]))
 
@@ -77,35 +99,37 @@ def main() -> None:
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
-    filter = (pl.col('SNR')==20)&(pl.col("Ideal Sparsity")==0)&(pl.col("Lambda")==0.0)&(pl.col("SNR Type")==args.type)
+    filter = (pl.col('SNR')==20)&(pl.col("Ideal Sparsity")==0)&(pl.col("Lambda")==0.0)&(pl.col("SNR Type")==args.type)&(pl.col("Symbols")!=0)
         
     # palette =  sns.color_palette()[:2] + ["#8C8C8C"] + sns.color_palette()[2:4]
     
-    latent_dim = df.filter(pl.col("Case").str.contains("Baseline"))["Symbols"].max()
+    latent_dim = df["Symbols"].max()
 
     df_plot = df.filter(filter).with_columns(
-                ((pl.col("Transmitting Antennas")/latent_dim)*100).alias("Compression Factor")
+                ((pl.col("Symbols")/latent_dim)*100).alias("Compression Factor")
             )
     
     ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Compression Factor'].unique().round(2)
+    fake_ticks = [1, 2, 4, 6, 8, 10, 20, 40, 60, 80, 100]
     
     # "Accuracy Vs Antennas" 
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(16, 10))
     plot = sns.lineplot(df_plot.to_pandas(), 
                         x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(ticks[0], ticks[-1]), ylim=(0, 1), xscale="log")
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
-    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
+    plt.xticks(fake_ticks, labels=fake_ticks)
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.savefig(str(IMG_PATH / 'accuracy_absolute.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     # "Zoom on Accuracy Vs Antennas"
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(16, 10))
     plot = sns.lineplot(df_plot.to_pandas(), 
                         x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], 8), ylim=(0, 1))
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
-    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.savefig(str(IMG_PATH / 'accuracy_absolute_zoom.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
@@ -184,7 +208,7 @@ def main() -> None:
     plt.figure(figsize=(12, 8))
     plot = sns.lineplot(plot_df.to_pandas(), 
                         x='FLOPs', y='Accuracy', hue='Case', style="Case", dashes=False, markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1)) 
-    plt.xlabel("FLOPS")
+    plt.xlabel("FLOPs")
     plt.ylabel("Accuracy")
     # plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.legend()

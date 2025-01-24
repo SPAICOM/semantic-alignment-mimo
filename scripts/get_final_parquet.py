@@ -355,7 +355,7 @@ def main() -> None:
                                'Encoder': encoder,
                                'Decoder': decoder,
                                'Case': f'Baseline Largest',
-                               'Symbols': k_p*transmitter,
+                               'Symbols': 2*k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
                                'Awareness': awareness,
