@@ -115,9 +115,6 @@ def main() -> None:
         else:
             raise Exception("Type of sparsity unrecognised")
 
-        if not results.filter((pl.col('Transmitting Antennas')==transmitter)&(pl.col('Receiving Antennas')==receiver)&(pl.col('Seed')==seed)&(pl.col('SNR')==snr)&(pl.col('Awareness')==awareness)&(pl.col("Lambda")==lmb)&(pl.col("Ideal Sparsity")==ideal_sparsity)).is_empty():
-            continue
-        
         # Setting the seed
         seed_everything(seed, workers=True)
 
@@ -273,7 +270,7 @@ def main() -> None:
         # =========================================================================
         k_p = 1
         if args.post and awareness != "unaware":
-            print("Baseline Post First")
+            print("Baseline Post F2K")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
@@ -304,7 +301,7 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline First',
+                               'Case': f'Baseline FK',
                                'Symbols': k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
@@ -323,7 +320,7 @@ def main() -> None:
                            }),
                            in_place=True)
 
-            print("Baseline Post Largest")
+            print("Baseline Post Top-K")
             # Get the optimizer
             opt = LinearOptimizerBaseline(input_dim=datamodule.input_size,
                                           output_dim=datamodule.output_size,
@@ -354,7 +351,7 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline Largest',
+                               'Case': f'Baseline Top-K',
                                'Symbols': 2*k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,

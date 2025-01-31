@@ -64,18 +64,6 @@ def main() -> None:
         .filter(pl.col("Symbols")<=pl.col("Transmitting Antennas").max())
     )
 
-    # df = (
-    #     df
-    #     .with_columns(
-    #                   pl.when(pl.col("Case")=="Baseline Largest")
-    #                   .then(pl.col("Transmitting Antennas")*2)
-    #                   .otherwise(pl.col("Transmitting Antennas"))
-    #                   .alias("Transmitting Antennas")
-    #               )
-    #     .filter(pl.col("Transmitting Antennas")<=pl.col("Receiving Antennas").max())
-    # )
-    # print(df.filter(pl.col("Case")=="Baseline Largest")["Transmitting Antennas"])
-    
     dashes = df.select(["Case", "dashes"]).unique(subset=["Case"]).to_dict(as_series= False)
     dashes = dict(zip(dashes["Case"], dashes["dashes"]))
 
