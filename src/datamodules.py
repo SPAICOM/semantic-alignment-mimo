@@ -7,7 +7,7 @@
 
 import torch
 from pathlib import Path
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
 
 

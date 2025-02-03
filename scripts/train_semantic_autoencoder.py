@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
 
 from src.models import SemanticAutoEncoder
-from src.utils import complex_gaussian_matrix, complex_tensor
+from src.utils import complex_gaussian_matrix
 from src.datamodules import DataModule    
 
 

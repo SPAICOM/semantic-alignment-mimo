@@ -5,13 +5,12 @@ To check available parameters run 'python /path/to/train_linear_baseline.py --he
 """
 # Add root to the path
 import sys
-import torch
 from pathlib import Path
 sys.path.append(str(Path(sys.path[0]).parent))
 
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything
 
-from src.utils import complex_gaussian_matrix, complex_tensor
+from src.utils import complex_gaussian_matrix
 from src.linear_optim import  LinearOptimizerBaseline
 from src.datamodules import DataModule
 

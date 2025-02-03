@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(sys.path[0]).parent))
 
-import math
 import torch
 import polars as pl
 from tqdm.auto import tqdm
@@ -14,7 +13,7 @@ from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.linear_optim import LinearOptimizerSAE, LinearOptimizerBaseline
-from src.utils import complex_gaussian_matrix, complex_tensor, sigma_given_snr
+from src.utils import complex_gaussian_matrix
 from src.models import Classifier, SemanticAutoEncoder
 from src.datamodules import DataModule, DataModuleClassifier
 from src.resource_profiler import count_nonzero_weights, neural_sparse_flops, linear_flops
@@ -301,7 +300,7 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline FK',
+                               'Case': 'Baseline FK',
                                'Symbols': k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
@@ -351,7 +350,7 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline Top-K',
+                               'Case': 'Baseline Top-K',
                                'Symbols': 2*k_p*transmitter,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,
@@ -404,7 +403,7 @@ def main() -> None:
                                'Dataset': dataset,
                                'Encoder': encoder,
                                'Decoder': decoder,
-                               'Case': f'Baseline No Semantic Compression',
+                               'Case': 'Baseline No Semantic Compression',
                                'Symbols': datamodule.test_data.input_size // 2,
                                'Transmitting Antennas': transmitter,
                                'Receiving Antennas': receiver,

@@ -7,8 +7,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics.classification import MulticlassAccuracy
 
-from src.utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
-# from utils import complex_tensor, complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
+from src.utils import complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
+# from utils import complex_compressed_tensor, decompress_complex_tensor, sigma_given_snr, awgn
 
 
 # ==================================================================

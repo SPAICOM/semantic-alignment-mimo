@@ -12,9 +12,9 @@ sys.path.append(str(Path(sys.path[0]).parent))
 import polars as pl
 import seaborn as sns
 import matplotlib.pyplot as plt
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything
 
-from src.utils import complex_gaussian_matrix, complex_tensor
+from src.utils import complex_gaussian_matrix
 from src.linear_optim import  LinearOptimizerSAE
 from src.datamodules import DataModule
 

@@ -248,7 +248,7 @@ def main() -> None:
         # prof.export_chrome_trace("trace.json")
 
     
-        results.write_parquet(f'flops.parquet')
+        results.write_parquet('flops.parquet')
     print(results)
 
     filter = (pl.col("Awareness")=="aware")&(pl.col("SNR")==20)
