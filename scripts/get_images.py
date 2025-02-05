@@ -97,13 +97,13 @@ def main() -> None:
                 ((pl.col("Symbols")/latent_dim)*100).alias("Compression Factor")
             )
     
-    ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Compression Factor'].unique().round(2)
-    fake_ticks = [1, 2, 4, 6, 8, 10, 20, 40, 60, 80, 100]
+    ticks = df_plot.filter((~pl.col("Case").str.contains("Baseline", literal=True)))['Compression Factor'].unique().sort(descending=False).round(2)
+    fake_ticks = [5e-1, 1, 2, 4, 6, 8, 10, 20, 40, 60, 80, 100]
     
     # "Accuracy Vs Antennas" 
     plt.figure(figsize=(16, 10))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(ticks[0], ticks[-1]), ylim=(0, 1), xscale="log")
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
     plt.xticks(fake_ticks, labels=fake_ticks)
