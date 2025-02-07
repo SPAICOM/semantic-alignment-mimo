@@ -1,7 +1,7 @@
 """
 This python module handles the training of the linear baseline optimizer.
 
-To check available parameters run 'python /path/to/train_linear_baseline.py --help'.
+To check available parameters run 'python /path/to/example_training_baseline.py --help'.
 """
 # Add root to the path
 import sys
@@ -10,9 +10,9 @@ sys.path.append(str(Path(sys.path[0]).parent))
 
 from pytorch_lightning import seed_everything
 
-from src.utils import complex_gaussian_matrix
-from src.linear_optim import  LinearOptimizerBaseline
 from src.datamodules import DataModule
+from src.utils import complex_gaussian_matrix
+from src.linear_models import  LinearOptimizerBaseline
 
 def main():
     """The main loop.
@@ -22,7 +22,7 @@ def main():
     description = """
     This python module handles the training of the linear baseline optimizer.
 
-    To check available parameters run 'python /path/to/train_linear_baseline.py --help'.
+    To check available parameters run 'python /path/to/example_training_baseline.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)

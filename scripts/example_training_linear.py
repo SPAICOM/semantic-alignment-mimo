@@ -1,7 +1,7 @@
 """
 This python module handles the training of the linear optimizer for SAE.
 
-To check available parameters run 'python /path/to/train_linear_SAE.py --help'.
+To check available parameters run 'python /path/to/example_training_linear.py --help'.
 """
 # Add root to the path
 import sys
@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from pytorch_lightning import seed_everything
 
 from src.utils import complex_gaussian_matrix
-from src.linear_optim import  LinearOptimizerSAE
+from src.linear_models import  LinearOptimizerSAE
 from src.datamodules import DataModule
 
 def main():
@@ -26,7 +26,7 @@ def main():
     description = """
     This python module handles the training of the linear optimizer for SAE.
 
-    To check available parameters run 'python /path/to/train_linear_SAE.py --help'.
+    To check available parameters run 'python /path/to/example_training_linear.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)

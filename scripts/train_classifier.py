@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
 
 from src.datamodules import DataModuleClassifier
-from src.models import Classifier
+from src.neural_models import Classifier
 
 def main() -> None:
     """The main script loop.

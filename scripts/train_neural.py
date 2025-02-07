@@ -1,7 +1,7 @@
 """
 This python module handles the training of the Semantic AutoEncoders.
 
-To check available parameters run 'python /path/to/train_semantic_autoencoder.py --help'.
+To check available parameters run 'python /path/to/train_neural.py --help'.
 """
 # Add root to the path
 import sys
@@ -14,9 +14,9 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
 
-from src.models import SemanticAutoEncoder
-from src.utils import complex_gaussian_matrix
 from src.datamodules import DataModule    
+from src.utils import complex_gaussian_matrix
+from src.neural_models import SemanticAutoEncoder
 
 
 def main() -> None:
@@ -27,7 +27,7 @@ def main() -> None:
     description = """
     This python module handles the training of the Semantic AutoEncoder.
 
-    To check available parameters run 'python /path/to/train_semantic_autoencoder.py --help'.
+    To check available parameters run 'python /path/to/train_neural.py --help'.
     """
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.RawTextHelpFormatter)

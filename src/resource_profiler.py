@@ -1,4 +1,4 @@
-"""
+"""Module containg needed methods to compute model complexity.
 """
 import torch
 import polars as pl
@@ -6,8 +6,12 @@ import seaborn as sns
 from math import ceil, floor
 import matplotlib.pyplot as plt
 
-from src.models import SemanticAutoEncoder
 
+# ==================================================================
+#
+#                       FUNCTIONS DEFINITION
+#
+# ==================================================================
 
 def linear_flops(transmitter: int,
                  receiver: int,
@@ -156,6 +160,8 @@ def count_nonzero_weights(model: torch.nn.Module) -> tuple[int, int]:
 def main() -> None:
     """The main loop.
     """
+    from src.neural_models import SemanticAutoEncoder
+    
     CURRENT: Path = Path('.')
     MODELS: Path = CURRENT / 'models'
     IMG_PATH: Path = CURRENT / 'img'

@@ -12,10 +12,10 @@ from tqdm.auto import tqdm
 from pytorch_lightning import Trainer, seed_everything
 from torch.utils.data import TensorDataset, DataLoader
 
-from src.linear_optim import LinearOptimizerSAE, LinearOptimizerBaseline
 from src.utils import complex_gaussian_matrix
-from src.models import Classifier, SemanticAutoEncoder
 from src.datamodules import DataModule, DataModuleClassifier
+from src.neural_models import Classifier, SemanticAutoEncoder
+from src.linear_models import LinearOptimizerSAE, LinearOptimizerBaseline
 from src.resource_profiler import count_nonzero_weights, neural_sparse_flops, linear_flops
 
 
