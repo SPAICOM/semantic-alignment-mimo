@@ -3,6 +3,7 @@
 import torch
 import polars as pl
 import seaborn as sns
+from pathlib import Path
 from math import ceil, floor
 import matplotlib.pyplot as plt
 
@@ -161,6 +162,7 @@ def main() -> None:
     """The main loop.
     """
     from src.neural_models import SemanticAutoEncoder
+    # from neural_models import SemanticAutoEncoder
     
     CURRENT: Path = Path('.')
     MODELS: Path = CURRENT / 'models'

@@ -1,0 +1,18 @@
+[project]
+name = "semantic-alignment-via-nn"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gdown>=5.2.0",
+    "polars>=1.21.0",
+    "pyarrow>=19.0.0",
+    "python-dotenv>=1.0.1",
+    "pytorch-lightning>=2.5.0.post0",
+    "scipy>=1.15.1",
+    "seaborn>=0.13.2",
+    "timm>=1.0.14",
+    "torch>=2.6.0",
+    "wandb>=0.19.6",
+]
