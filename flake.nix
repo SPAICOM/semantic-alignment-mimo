@@ -13,19 +13,17 @@
     devShell.${system} = with pkgs; mkShell {
       buildInputs = [
         (python311.withPackages (ps: with ps; [
-          datasets
           gdown
-          matplotlib
           numpy
           pip
           polars
+          pyarrow
           python-dotenv
           pytorch-lightning
           scipy
           seaborn
           timm
           torch
-          torchvision
           wandb
         ]))
       ];
