@@ -18,7 +18,7 @@ def linear_flops(transmitter: int,
                  receiver: int,
                  input_dim: int = 192,
                  output_dim: int = 384) -> int:
-    """Calculare the flops required for the linear case.
+    """Calculates the flops required for the linear case.
 
     Args:
         transmitter : int
@@ -49,7 +49,7 @@ def neural_flops(transmitter: int,
                  enc_hidden: int = 192,
                  dec_hidden: int = 384,
                  hidden_size: int = 0) -> int:
-    """Calculare the flops required for the neural case.
+    """Calculates the flops required for the neural case.
 
     Args:
         transmitter : int

@@ -7,8 +7,10 @@ import numpy as np
 from tqdm.auto import tqdm
 from scipy.linalg import solve_sylvester
     
-from src.utils import complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
-# from utils import complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
+if __name__ == "__main__":
+    from utils import complex_gaussian_matrix, complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
+else:
+    from src.utils import complex_compressed_tensor, decompress_complex_tensor, prewhiten, sigma_given_snr, awgn, a_inv_times_b
 
 # ============================================================
 #
@@ -667,9 +669,7 @@ class LinearOptimizerSAE():
 
 def main() -> None:
     """Some sanity tests...
-    """
-    from utils import complex_gaussian_matrix
-    
+    """    
     print("Start performing sanity tests...")
     print()
     
