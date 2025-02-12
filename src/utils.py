@@ -1,7 +1,23 @@
 """In this module there are defined usefull methods:
 
+- complex_compressed_tensor:
+    A method used to compress a real tensor. The features are encoded half as real and half as imaginary.
+- decompress_complex_tensor:
+    The function decompress the complex compressed tensor in the original real domain.
+- complex_tensor:
+    Get the complex form of a tensor.
 - complex_gaussian_matrix:
     A method that returns a complex gaussian matrix in the torch.Tensor format.
+- awgn:
+    A function that returns a noise vector sampled by a complex gaussian of a specified sigma.
+- snr:
+    Return the Signal to Noise Ratio.
+- sigma_given_snr:
+    Given a fixed value of SNR and signal, retrieve the correspoding value of sigma.
+- a_inv_times_b:
+    Perform in an efficient way the A^{-1}B.
+- prewhiten:
+    Prewhiten the training and test data using only training data statistics.
 """
 
 import torch
