@@ -157,7 +157,7 @@ def main() -> None:
         .select(["Case", "FLOPs", "Accuracy"])
         .with_columns(
                       pl.when(pl.col("Case")=="Neural Semantic Precoding/Decoding")
-                      .then(pl.lit(r"Neural Semantic PDG with Hard Thresholding $\zeta=3\%$"))
+                      .then(pl.lit(r"Neural Semantic $\zeta=3\%$ PDG with Hard Thresholding"))
                       .otherwise(pl.col("Case"))
                       .alias("Case"))
         .with_columns(
@@ -175,7 +175,7 @@ def main() -> None:
         .select(["Case", "FLOPs", "Accuracy"])
         .with_columns(
                       pl.when(pl.col("Case")=="Neural Semantic Precoding/Decoding")
-                      .then(pl.lit(r"Neural Semantic PDG with Hard Thresholding $\zeta=5\%$"))
+                      .then(pl.lit(r"Neural Semantic $\zeta=5\%$ PDG with Hard Thresholding"))
                       .otherwise(pl.col("Case"))
                       .alias("Case"))
         .with_columns(
@@ -201,6 +201,81 @@ def main() -> None:
     # plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
     plt.legend()
     plt.savefig(str(IMG_PATH / 'accuracy_vs_flops.pdf'), format='pdf', bbox_inches='tight')
+    plt.show()
+
+
+    
+    # ====================================================================================================================
+    #                                  Different channel usage and channel size
+    # ====================================================================================================================
+    filter = (pl.col('SNR')==20)&(pl.col("Ideal Sparsity")==0)&(pl.col("Lambda")==0.0)&(pl.col("SNR Type")==args.type)&(pl.col("Symbols")!=0)&(pl.col("Awareness")=="aware")
+        
+    # palette =  sns.color_palette()[:2] + ["#8C8C8C"] + sns.color_palette()[2:4]
+    
+    latent_dim = df["Symbols"].max()
+
+    df_plot = (
+        df.filter(
+            filter &
+            (pl.col("Case").str.starts_with("Linear "))
+        )
+        .with_columns(
+            ((pl.col("Symbols")/latent_dim)*100).alias("Compression Factor"),
+            pl.lit(r"$N_t = N_r = 1$").alias("Case")
+        )
+        .select(["Accuracy", "Compression Factor", "Case"])
+    )
+    
+    compr_factor = set(df_plot["Compression Factor"].unique().to_list())
+    
+    final_plot = (
+        df_plot.vstack(
+            df_plot
+            .with_columns(
+                pl.col("Compression Factor")/2,
+                pl.lit(r"$N_t = N_r = 2$").alias("Case")
+            )
+            .filter(
+                pl.col("Compression Factor").is_in(compr_factor)
+            )
+        )
+    )
+    final_plot = (
+        final_plot.vstack(
+            df_plot
+            .with_columns(
+                pl.col("Compression Factor")/4,
+                pl.lit(r"$N_t = N_r = 4$").alias("Case")
+            )
+            .filter(
+                pl.col("Compression Factor").is_in(compr_factor)
+            )
+        )
+    )
+    final_plot = (
+        final_plot.vstack(
+            df_plot
+            .with_columns(
+                pl.col("Compression Factor")/8,
+                pl.lit(r"$N_t = N_r = 8$").alias("Case")
+            )
+            .filter(
+                pl.col("Compression Factor").is_in(compr_factor)
+            )
+        )
+    )
+    
+    fake_ticks = [5e-1, 1, 2, 4, 6, 8, 10, 20, 40, 60, 80, 100]
+    
+    # "Accuracy Vs Antennas" 
+    plt.figure(figsize=(16, 10))
+    plot = sns.lineplot(final_plot.to_pandas(), 
+                        x='Compression Factor', y='Accuracy', hue="Case", markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
+    plt.ylabel("Accuracy")
+    plt.xlabel(r'Compression Factor $\zeta$ (\%)')
+    plt.xticks(fake_ticks, labels=fake_ticks)
+    plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
+    plt.savefig(str(IMG_PATH / 'accuracy_K_N.pdf'), format='pdf', bbox_inches='tight')
     plt.show()
     
     return None
