@@ -47,6 +47,13 @@ python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --deco
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 12 --receiver 12 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 144
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 12 --receiver 12 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 200
 
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 27
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 42
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 100
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 163
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 144
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 200
+
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 24 --receiver 24 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 27
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 24 --receiver 24 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 42
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 24 --receiver 24 -e 50 -l 0 --cost 1 -t transmitted --snr 20.0 --seed 100
@@ -123,6 +130,13 @@ python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --deco
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 12 --receiver 12 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 123
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 12 --receiver 12 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 144
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 12 --receiver 12 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 200
+
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 27
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 42
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 100
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 163
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 144
+python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 16 --receiver 16 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 200
 
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 24 --receiver 24 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 27
 python scripts/train_neural.py -d cifar10 --encoder vit_small_patch16_224 --decoder vit_base_patch16_224 --transmitter 24 --receiver 24 -e 50 -l 0 --no-aware --cost 1 -t transmitted --snr 20.0 --seed 42
