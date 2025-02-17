@@ -116,6 +116,7 @@ def main() -> None:
                         run.use_artifact(f'{args.org}/SemanticAutoEncoder_wn_{ant}_{ant}_unaware_{snr_type}_None_{cost}_0.0/model-seed_{seed}:best', type='model').download()
                         find_and_rename_ckpt_files('artifacts', f'unaware-{cost}/antennas_{ant}_{ant}/{snr_type}/snr_20.0/lmb_0.0/', str(seed))
 
+        # Accuracy Vs SNR
         for s in tqdm(snr):
             for snr_type in snr_types:
                 for cost in costs:

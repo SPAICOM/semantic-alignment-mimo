@@ -41,7 +41,7 @@ def main() -> None:
     parser.add_argument('-n',
                         '--name',
                         help="The parquet file name. Default 'final_results'.",
-                        default='final_results',
+                        default='results',
                         type=str)
 
     parser.add_argument('--pre',
