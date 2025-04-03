@@ -51,6 +51,9 @@ def main() -> None:
 
     # Set the plot style in seaborn
     sns.set_style('whitegrid')
+
+    # Set style
+    plt.style.use('.conf/plotting/plt.mplstyle')
     
     # Read the parquet
     df = (
@@ -67,23 +70,6 @@ def main() -> None:
     dashes = df.select(["Case", "dashes"]).unique(subset=["Case"]).to_dict(as_series= False)
     dashes = dict(zip(dashes["Case"], dashes["dashes"]))
 
-    # Set the font to Times-Roman (or Times New Roman)
-    plt.rcParams['font.family'] = 'serif'
-    plt.rcParams['font.serif'] = ['Times New Roman', 'Times']
-
-    plt.rcParams.update({
-                        'font.size': 22,  # General font size
-                        'axes.titlesize': 24,  # Title font size
-                        'axes.labelsize': 24,  # X and Y label size
-                        'xtick.labelsize': 22,  # X-tick label size
-                        'ytick.labelsize': 22,  # Y-tick label size
-                        'legend.fontsize': 20,  # Legend font size
-                        'legend.title_fontsize': 22,  # Legend title font size
-                        'text.usetex': True
-                        })
-    markersize = 18
-    linewidth = 3
-    
     # ====================================================================================================================
     #                                        Antennas Absolute
     # ====================================================================================================================
@@ -103,7 +89,7 @@ def main() -> None:
     # "Accuracy Vs Antennas" 
     plt.figure(figsize=(16, 10))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
     plt.xticks(fake_ticks, labels=fake_ticks)
@@ -114,7 +100,7 @@ def main() -> None:
     # "Zoom on Accuracy Vs Antennas"
     plt.figure(figsize=(16, 10))
     plot = sns.lineplot(df_plot.to_pandas(), 
-                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True, markersize=markersize, linewidth=linewidth).set(xlim=(ticks[0], 8), ylim=(0, 1))
+                        x='Compression Factor', y='Accuracy', hue='Case', style="Case", dashes=dashes, markers=True).set(xlim=(ticks[0], 8), ylim=(0, 1))
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
     plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
@@ -131,7 +117,7 @@ def main() -> None:
         
     plt.figure(figsize=(12, 8))
     plot = sns.lineplot(snr_df.to_pandas(), 
-                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes, markersize=markersize, linewidth=linewidth).set(xlim=(-20, 30), ylim=(0, 1))
+                        x='SNR', y='Accuracy', hue='Case', style="Case",  markers=True, dashes=dashes).set(xlim=(-20, 30), ylim=(0, 1))
     plt.xlabel("Signal to Noise Ratio (dB)")
     plt.ylabel("Accuracy")
     plt.legend(loc="center", bbox_to_anchor=(0.5, 1.1), ncol=2)  # Adjust bbox_to_anchor as needed
@@ -195,7 +181,7 @@ def main() -> None:
     
     plt.figure(figsize=(12, 8))
     plot = sns.lineplot(plot_df.to_pandas(), 
-                        x='FLOPs', y='Accuracy', hue='Case', style="Case", dashes=False, markers=True, markersize=markersize, linewidth=linewidth).set(ylim=(0, 1)) 
+                        x='FLOPs', y='Accuracy', hue='Case', style="Case", dashes=False, markers=True).set(ylim=(0, 1)) 
     plt.xlabel("FLOPs")
     plt.ylabel("Accuracy")
     # plt.legend(loc="center", bbox_to_anchor=(0.5, 1.15), ncol=2)  # Adjust bbox_to_anchor as needed
@@ -270,7 +256,7 @@ def main() -> None:
     # "Accuracy Vs Antennas" 
     plt.figure(figsize=(16, 10))
     plot = sns.lineplot(final_plot.to_pandas(), 
-                        x='Compression Factor', y='Accuracy', hue="Case", markers=True, markersize=markersize, linewidth=linewidth).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
+                        x='Compression Factor', y='Accuracy', hue="Case", markers=True).set(xticks=ticks, xlim=(5e-1, ticks[-1]), ylim=(0, 1), xscale="log")
     plt.ylabel("Accuracy")
     plt.xlabel(r'Compression Factor $\zeta$ (\%)')
     plt.xticks(fake_ticks, labels=fake_ticks)
