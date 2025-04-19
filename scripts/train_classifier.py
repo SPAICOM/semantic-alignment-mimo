@@ -1,116 +1,96 @@
 """
 This python module handles the training of the classifier.
-
-To check available parameters run 'python /path/to/train_classifier.py --help'.
 """
+
 # Add root to the path
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(sys.path[0]).parent))
 
 import wandb
+import hydra
+from omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    ModelCheckpoint,
+    LearningRateMonitor,
+    BatchSizeFinder,
+)
 
 from src.datamodules import DataModuleClassifier
 from src.neural_models import Classifier
 
-def main() -> None:
-    """The main script loop.
-    """
-    import argparse
 
-    description = """
-    This python module handles the training of the classifiers.
+# =============================================================
+#
+#                     THE MAIN LOOP
+#
+# =============================================================
 
-    To check available parameters run 'python /path/to/train_classifier.py --help'.
-    """
-    parser = argparse.ArgumentParser(description=description,
-                                     formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument('-d',
-                        '--dataset',
-                        help="The dataset.",
-                        type=str,
-                        required=True)
+@hydra.main(
+    config_path='../.conf/hydra/classifier',
+    config_name='train_classifier',
+    version_base='1.3',
+)
+def main(cfg) -> None:
+    """The main script loop."""
 
-    parser.add_argument('--decoder',
-                        help="The encoder.",
-                        type=str,
-                        required=True)
+    # Convert DictConfig to a standard dictionary for logging
+    wandb_config = OmegaConf.to_container(
+        cfg, resolve=True, throw_on_missing=True
+    )
 
-    parser.add_argument('-n',
-                        '--neurons',
-                        help="The hidden layer dimension.",
-                        required=True,
-                        type=int)
-
-    parser.add_argument('-w',
-                        '--workers',
-                        help="Number of workers. Default 0.",
-                        default=0,
-                        type=int)
-
-    parser.add_argument('-e',
-                        '--epochs',
-                        help="The maximum number of epochs. Default -1.",
-                        default=-1,
-                        type=int)
-
-    parser.add_argument('--lr',
-                        help="The learning rate. Default 1e-3.",
-                        default=1e-3,
-                        type=float)
-
-    parser.add_argument('--seed',
-                        help="The seed for the analysis. Default 42.",
-                        default=42,
-                        type=int)
-
-    args = parser.parse_args()
+    # Initialize W&B Logger
+    wandb.login()
+    wandb_logger = WandbLogger(
+        project=cfg.wandb.project,
+        name=f'{cfg.datamodule.rx_enc}_{cfg.seed}_{cfg.datamodule.dataset}',
+        id=f'{cfg.datamodule.rx_enc}_{cfg.seed}_{cfg.datamodule.dataset}',
+        log_model='all',
+        config=wandb_config,
+    )
 
     # Setting the seed
-    seed_everything(args.seed, workers=True)
+    seed_everything(cfg.seed, workers=True)
 
     # Initialize the datamodule
-    datamodule = DataModuleClassifier(dataset=args.dataset,
-                                      decoder=args.decoder,
-                                      num_workers=args.workers)
+    datamodule = DataModuleClassifier(
+        dataset=cfg.datamodule.dataset,
+        rx_enc=cfg.datamodule.rx_enc,
+    )
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
 
     # Initialize the model
-    model = Classifier(datamodule.input_size,
-                       datamodule.num_classes,
-                       hidden_dim=args.neurons,
-                       lr=args.lr,
-                       max_lr=0.3)
+    model = Classifier(
+        input_dim=datamodule.input_size,
+        num_classes=datamodule.num_classes,
+        hidden_dim=cfg.classifier.hidden_dim,
+        lr=cfg.classifier.lr,
+    )
 
     # Callbacks definition
     callbacks = [
-        LearningRateMonitor(logging_interval='step',
-                            log_momentum=True),
+        LearningRateMonitor(logging_interval='step', log_momentum=True),
         EarlyStopping(monitor='valid/loss_epoch', patience=20),
-        ModelCheckpoint(monitor='valid/acc_epoch',
-                        mode='max'),
-        BatchSizeFinder(mode='binsearch',
-                        max_trials=8)
+        ModelCheckpoint(monitor='valid/acc_epoch', mode='max'),
+        BatchSizeFinder(mode='binsearch', max_trials=8),
     ]
-    
-    # W&B login and Logger intialization
-    wandb.login()
-    wandb_logger = WandbLogger(project=f'Classifier_{args.decoder}',
-                               log_model='all')
-    
-    trainer = Trainer(num_sanity_val_steps=2,
-                      max_epochs=args.epochs,
-                      logger=wandb_logger,
-                      deterministic=True,
-                      callbacks=callbacks,
-                      log_every_n_steps=10)
+
+    trainer = Trainer(
+        num_sanity_val_steps=cfg.trainer.num_sanity_val_steps,
+        max_epochs=cfg.trainer.max_epochs,
+        logger=wandb_logger,
+        deterministic=cfg.trainer.deterministic,
+        callbacks=callbacks,
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
+    )
 
     # Training
     trainer.fit(model, datamodule=datamodule)
@@ -118,10 +98,9 @@ def main() -> None:
     # Testing
     trainer.test(datamodule=datamodule, ckpt_path='best')
 
-    # Closing W&B
     wandb.finish()
-
     return None
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
