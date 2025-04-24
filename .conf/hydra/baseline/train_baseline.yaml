@@ -20,8 +20,8 @@ communication:
   square: true
   awareness: aware
   channel_usage: 1
-  antennas_receiver: 4
-  antennas_transmitter: 4
+  antennas_receiver: 8
+  antennas_transmitter: 8
   
 transmitter:
   model: vit_small_patch16_224

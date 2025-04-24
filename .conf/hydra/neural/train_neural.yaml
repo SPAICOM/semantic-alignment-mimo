@@ -21,8 +21,8 @@ communication:
   snr: 20.0
   square: true
   awareness: aware
-  antennas_receiver: 4
-  antennas_transmitter: 4
+  antennas_receiver: 8
+  antennas_transmitter: 8
 
 model:
   layers: 0
