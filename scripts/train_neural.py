@@ -1,233 +1,287 @@
 """
-This python module handles the training of the Semantic AutoEncoders.
-
-To check available parameters run 'python /path/to/train_neural.py --help'.
+This python module handles the training of the neural model.
 """
+
 # Add root to the path
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(sys.path[0]).parent))
 
 import torch
 import wandb
-from pytorch_lightning import Trainer, seed_everything
+import hydra
+import polars as pl
+from dotenv import dotenv_values
+from omegaconf import DictConfig, OmegaConf
+
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, LearningRateMonitor, BatchSizeFinder, ModelPruning
+from torch.utils.data import TensorDataset, DataLoader
+from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    ModelCheckpoint,
+    LearningRateMonitor,
+    BatchSizeFinder,
+)
 
-from src.datamodules import DataModule    
-from src.utils import complex_gaussian_matrix
-from src.neural_models import SemanticAutoEncoder
+from src.datamodules import DataModule
+from src.utils import complex_gaussian_matrix, remove_non_empty_dir
+from src.resource_profiler import count_nonzero_weights, neural_sparse_flops
+from src.neural_models import NeuralModel, Classifier
+from src.download_utils import download_zip_from_gdrive
 
 
-def main() -> None:
-    """The main script loop.
+def setup(
+    models_path: Path,
+) -> None:
+    """Setup the repository:
+    - downloading classifiers models.
+
+    Args:
+        models_path : Path
+            The path to the models
     """
-    import argparse
+    print()
+    print('Start setup procedure...')
 
-    description = """
-    This python module handles the training of the Semantic AutoEncoder.
+    print()
+    print('Check for the classifiers model availability...')
+    # Download the classifiers if needed
+    # Get from the .env file the zip file Google Drive ID
+    id = dotenv_values()['CLASSIFIER_ID']
+    download_zip_from_gdrive(id=id, name='classifiers', path=str(models_path))
 
-    To check available parameters run 'python /path/to/train_neural.py --help'.
-    """
-    parser = argparse.ArgumentParser(description=description,
-                                     formatter_class=argparse.RawTextHelpFormatter)
+    print()
+    print('All done.')
+    print()
+    return None
 
-    parser.add_argument('-d',
-                        '--dataset',
-                        help="The dataset.",
-                        type=str,
-                        required=True)
 
-    parser.add_argument('--encoder',
-                        help="The encoder.",
-                        type=str,
-                        required=True)
+# =============================================================
+#
+#                     THE MAIN LOOP
+#
+# =============================================================
 
-    parser.add_argument('--decoder',
-                        help="The encoder.",
-                        type=str,
-                        required=True)
 
-    parser.add_argument('--transmitter',
-                        help="The number of antennas for the transmitter.",
-                        type=int,
-                        required=True)
-    
-    parser.add_argument('--receiver',
-                        help="The number of antennas for the receiver.",
-                        type=int,
-                        required=True)
+@hydra.main(
+    config_path='../.conf/hydra/neural',
+    config_name='train_neural',
+    version_base='1.3',
+)
+def main(cfg: DictConfig) -> None:
+    """The main script loop."""
+    # Only square channel if cfg.communication.square is set to true
+    if cfg.communication.square and (
+        cfg.communication.antennas_receiver
+        != cfg.communication.antennas_transmitter
+    ):
+        return None
 
-    parser.add_argument('--aware',
-                        help="The aweraness of the model. Default True.",
-                        default=True,
-                        type=bool,
-                        action=argparse.BooleanOptionalAction)
+    # Define some usefull paths
+    CURRENT: Path = Path('.')
+    MODEL_PATH: Path = CURRENT / 'models'
+    RESULTS_PATH: Path = CURRENT / 'results/neural'
 
-    parser.add_argument('--prune',
-                        help="If to prune or not the model, the level of sparsity. Default None.",
-                        default=None,
-                        type=float)
+    # Create results directory
+    RESULTS_PATH.mkdir(exist_ok=True, parents=True)
 
-    parser.add_argument('--lmb',
-                        help="Regularization Coefficient to impose sparsity. Default 0.0.",
-                        default=0.0,
-                        type=float)
+    # Setup procedure
+    setup(models_path=MODEL_PATH)
 
-    parser.add_argument('--snr',
-                        help="The snr of the communication channel in dB. Set to None if unaware. Default None.",
-                        default=None,
-                        type=float)
+    # Callbacks definition
+    callbacks = [
+        LearningRateMonitor(logging_interval='step', log_momentum=True),
+        ModelCheckpoint(monitor='valid/loss_epoch', save_top_k=1, mode='min'),
+        BatchSizeFinder(mode='binsearch', max_trials=8),
+        EarlyStopping(monitor='valid/loss_epoch', patience=10),
+    ]
 
-    parser.add_argument('-t',
-                        '--snr_type',
-                        help="The snr type. Default 'transmitted'.",
-                        default='transmitted',
-                        type=str,
-                        choices=['transmitted', 'received'])
+    # Convert DictConfig to a standard dictionary before passing to wandb
+    wandb_config = OmegaConf.to_container(
+        cfg, resolve=True, throw_on_missing=True
+    )
 
-    parser.add_argument('--encneurons',
-                        help="The encoder hidden layer dimension.",
-                        default=192,
-                        type=int)
+    # W&B login and Logger intialization
+    wandb.login()
+    wandb_logger = WandbLogger(
+        project=cfg.wandb.project,
+        name=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
+        id=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
+        config=wandb_config,
+        log_model=cfg.wandb.log_model,
+    )
 
-    parser.add_argument('--decneurons',
-                        help="The dec hidden layer dimensionsion.",
-                        default=384,
-                        type=int)
-
-    parser.add_argument('-l',
-                        '--layers',
-                        help="The number of the hidden layers. Default 10.",
-                        default=10,
-                        type=int)
-
-    parser.add_argument('-w',
-                        '--workers',
-                        help="Number of workers. Default 0.",
-                        default=0,
-                        type=int)
-
-    parser.add_argument('-e',
-                        '--epochs',
-                        help="The maximum number of epochs. Default -1.",
-                        default=-1,
-                        type=int)
-
-    parser.add_argument('-m',
-                        '--mu',
-                        help="The mu coefficient for the regularizer. Default 1.",
-                        default=1.,
-                        type=float)
-
-    parser.add_argument('--cost',
-                        help="Transmission cost. Default None.",
-                        default=None,
-                        type=int)
-
-    parser.add_argument('--lr',
-                        help="The learning rate. Default 1e-3.",
-                        default=1e-3,
-                        type=float)
-
-    parser.add_argument('--seed',
-                        help="The seed for the analysis. Default 42.",
-                        default=42,
-                        type=int)
-
-    args = parser.parse_args()
+    # Trainer Definition
+    trainer = Trainer(
+        max_epochs=cfg.trainer.epochs,
+        num_sanity_val_steps=cfg.trainer.num_sanity_val_steps,
+        logger=wandb_logger,
+        deterministic=cfg.trainer.deterministic,
+        callbacks=callbacks,
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
+    )
 
     # Setting the seed
-    seed_everything(args.seed, workers=True)
+    seed_everything(cfg.seed, workers=True)
+
+    # Channel Initialization
+    channel_matrix: torch.Tensor = complex_gaussian_matrix(
+        0,
+        1,
+        (
+            cfg.communication.antennas_receiver,
+            cfg.communication.antennas_transmitter,
+        ),
+    )
 
     # Get the channel matrix
-    if args.aware:
-        aware = 'aware'
-        channel_matrix = complex_gaussian_matrix(mean=0, std=1, size=(args.receiver, args.transmitter))
-        snr = args.snr
-    else:
-        aware = 'unaware'
-        channel_matrix = torch.eye(args.receiver, args.transmitter, dtype=torch.complex64)
+    if cfg.communication.awareness == 'aware':
+        # Channel Initialization
+        ch_matrix = channel_matrix
+        snr = cfg.communication.snr
+        case = 'Neural Semantic Precoding/Decoding'
+    elif cfg.communication.awareness == 'unaware':
+        ch_matrix = torch.eye(
+            cfg.communication.antennas_receiver,
+            cfg.communication.antennas_transmitter,
+            dtype=torch.complex64,
+        )
         snr = None
+        case = 'Neural Semantic Precoding/Decoding - Channel Unaware'
+    else:
+        raise Exception(
+            f'Wrong awareness passed: {cfg.communication.awareness}'
+        )
 
-    # Initialize the datamodule
-    datamodule = DataModule(dataset=args.dataset,
-                            encoder=args.encoder,
-                            decoder=args.decoder,
-                            num_workers=args.workers)
+    # =============================================================
+    #                 Datamodule Initialization
+    # =============================================================
+    datamodule: DataModule = DataModule(
+        dataset=cfg.datamodule.dataset,
+        tx_enc=cfg.transmitter.model,
+        rx_enc=cfg.receiver.model,
+        train_label_size=cfg.datamodule.train_label_size,
+        method=cfg.datamodule.method,
+        num_workers=cfg.datamodule.workers,
+    )
 
     # Prepare and setup the data
     datamodule.prepare_data()
     datamodule.setup()
-    
-    # Initialize the model
-    model = SemanticAutoEncoder(datamodule.input_size,
-                                datamodule.output_size,
-                                antennas_transmitter=args.transmitter,
-                                antennas_receiver=args.receiver,
-                                enc_hidden_dim=args.encneurons,
-                                dec_hidden_dim=args.decneurons,
-                                hidden_size=args.layers,
-                                channel_matrix=channel_matrix,
-                                mu=args.mu,
-                                lmb=args.lmb,
-                                snr=snr,
-                                snr_type=args.snr_type,
-                                cost=args.cost,
-                                lr=args.lr)
 
-    # Callbacks definition
-    callbacks = [
-        LearningRateMonitor(logging_interval='step',
-                            log_momentum=True),
-        ModelCheckpoint(monitor='valid/loss_epoch',
-                        save_top_k=1,
-                        mode='min'),
-        BatchSizeFinder(mode='binsearch',
-                        max_trials=8),
-        EarlyStopping(monitor='valid/loss_epoch', patience=10)
-    ]
+    # =============================================================
+    #                 Classifier Initialization
+    # =============================================================
+    # Define the path towards the classifier
+    clf_path: Path = (
+        MODEL_PATH
+        / f'classifiers/{cfg.datamodule.dataset}/{cfg.receiver.model}/seed_{cfg.seed}.ckpt'
+    )
 
-    project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{args.snr_type}_{snr}_{args.cost}_{args.lmb}'
-        
-    # Add pruninig to the callbacks if prune is True
-    if args.prune and args.lmb == 0:
-        callbacks.append(ModelPruning(pruning_fn='l1_unstructured',
-                                      amount=1 - (1 - args.prune)**(1/args.epochs),
-                                      make_pruning_permanent=True,
-                                      use_lottery_ticket_hypothesis=True,
-                                      resample_parameters=False,
-                                      use_global_unstructured=True))
-        
-        project = f'SemanticAutoEncoder_wn_{args.transmitter}_{args.receiver}_{aware}_{args.snr_type}_{snr}_{args.cost}_{args.lmb}_pruned_{args.prune}'
-    elif args.prune and args.lmb != 0:
-        raise Exception("You cannot apply both hard thresholding and l1 regularization.")
-    
-    # W&B login and Logger intialization
-    wandb.login()
-    wandb_logger = WandbLogger(project=project,
-                               name=f"seed_{args.seed}",
-                               id=f"seed_{args.seed}",
-                               log_model='all')
-    
-    trainer = Trainer(num_sanity_val_steps=2,
-                      max_epochs=args.epochs,
-                      logger=wandb_logger,
-                      deterministic=True,
-                      callbacks=callbacks,
-                      log_every_n_steps=10)
+    # Load the classifier model
+    clf = Classifier.load_from_checkpoint(clf_path)
+    clf.eval()
+
+    # =============================================================
+    #                 Define the Neural Model
+    # =============================================================
+    model = NeuralModel(
+        datamodule.input_size,
+        datamodule.output_size,
+        antennas_transmitter=cfg.communication.antennas_transmitter,
+        antennas_receiver=cfg.communication.antennas_receiver,
+        enc_hidden_dim=datamodule.input_size,
+        dec_hidden_dim=datamodule.output_size,
+        hidden_size=cfg.model.layers,
+        channel_matrix=ch_matrix,
+        lmb=cfg.model.lmb,
+        snr=snr,
+        lr=cfg.model.lr,
+    )
 
     # Training
     trainer.fit(model, datamodule=datamodule)
 
-    # Testing
-    trainer.test(datamodule=datamodule, ckpt_path='best')
+    model.hparams['channel_matrix'] = channel_matrix
+    model.hparams['snr'] = cfg.communication.snr
+
+    nonzero, tot = count_nonzero_weights(model)
+    sparsity = 1 - nonzero / tot
+
+    # =============================================================
+    #                 Evaluate over the test set
+    # =============================================================
+    # Get the z_psi_hat
+    z_psi_hat = torch.cat(
+        trainer.predict(model=model, datamodule=datamodule, ckpt_path='best')
+    )
+
+    # Alignment loss
+    alignment_metrics = trainer.test(
+        model=model, datamodule=datamodule, ckpt_path='best'
+    )[0]
+
+    # Get the predictions using as input the z_psi_hat
+    dataloader = DataLoader(
+        TensorDataset(z_psi_hat, datamodule.test_data.labels),
+        batch_size=cfg.datamodule.batch_size,
+    )
+    clf_metrics = trainer.test(model=clf, dataloaders=dataloader)[0]
+
+    # =============================================================
+    #                     Save the results
+    # =============================================================
+    pl.DataFrame(
+        {
+            'Dataset': cfg.datamodule.dataset,
+            'Training Label Size': cfg.datamodule.train_label_size,
+            'Seed': cfg.seed,
+            'Antennas Transmitter': cfg.communication.antennas_transmitter,
+            'Antennas Receiver': cfg.communication.antennas_receiver,
+            'Sparsity': sparsity,
+            'Lambda': cfg.model.lmb,
+            'SNR': cfg.communication.snr,
+            'Awareness': cfg.communication.awareness,
+            'Cost': cfg.transmitter.px_cost,
+            'FLOPs': neural_sparse_flops(
+                transmitter=cfg.communication.antennas_transmitter,
+                receiver=cfg.communication.antennas_receiver,
+                sparsity=sparsity,
+                input_dim=datamodule.input_size,
+                output_dim=datamodule.output_size,
+                enc_hidden=datamodule.input_size,
+                dec_hidden=datamodule.output_size,
+                hidden_size=cfg.model.layers,
+            ),
+            'Accuracy': clf_metrics['test/acc_epoch'],
+            'Alignment Loss': alignment_metrics['test/loss_epoch'],
+            'Classifier Loss': clf_metrics['test/loss_epoch'],
+            'Receiver Model': cfg.receiver.model,
+            'Transmitter Model': cfg.transmitter.model,
+            'Case': case,
+            'Latent Real Dim': datamodule.input_size,
+            'Latent Complex Dim': (datamodule.input_size + 1) // 2,
+            'Simulation': cfg.simulation,
+        }
+    ).write_parquet(
+        RESULTS_PATH
+        / f'{cfg.seed}_{cfg.communication.antennas_transmitter}_{cfg.communication.antennas_receiver}_{cfg.communication.snr}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}_{cfg.communication.awareness}_{cfg.simulation}.parquet'
+    )
 
     # Closing W&B
     wandb.finish()
 
+    # Cleaning the working space
+    remove_non_empty_dir('./wandb/')
+    remove_non_empty_dir('./multirun/')
+    remove_non_empty_dir('./outputs/')
+    remove_non_empty_dir('~/.cache/wandb/')
+    remove_non_empty_dir(cfg.wandb.project)
+
     return None
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
