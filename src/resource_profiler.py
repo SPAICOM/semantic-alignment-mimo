@@ -175,8 +175,7 @@ def count_nonzero_weights(model: torch.nn.Module) -> tuple[int, int]:
 
 def main() -> None:
     """The main loop."""
-    from src.neural_models import SemanticAutoEncoder
-    # from neural_models import SemanticAutoEncoder
+    from src.neural_models import NeuralModel
 
     CURRENT: Path = Path('.')
     MODELS: Path = CURRENT / 'models'
@@ -223,9 +222,9 @@ def main() -> None:
         print('#' * 100)
         print(ckpt_path)
 
-        model = SemanticAutoEncoder.load_from_checkpoint(ckpt_path).to(device)
+        model = NeuralModel.load_from_checkpoint(ckpt_path).to(device)
 
-        input = model.example_input_array.to(device)
+        model.example_input_array.to(device)
 
         nonzero, tot = count_nonzero_weights(model)
 
@@ -322,7 +321,7 @@ def main() -> None:
 
     print(results)
 
-    plot = sns.barplot(
+    sns.barplot(
         results.to_pandas(),
         x='Semantic Compression Factor %',
         y='FLOPs',
@@ -332,7 +331,7 @@ def main() -> None:
     plt.savefig(str(IMG_PATH / 'flops.pdf'), format='pdf')
     plt.show()
 
-    plot = sns.lineplot(
+    sns.lineplot(
         results.filter(pl.col('Seed') == 200).to_pandas(),
         x='FLOPs',
         y='Accuracy',
