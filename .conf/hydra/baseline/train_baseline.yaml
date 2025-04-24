@@ -1,0 +1,33 @@
+defaults:
+  - _self_
+
+seed: 42
+device: cpu
+typology: post
+px_cost: 1.0
+strategy: First-K
+simulation: example
+
+datamodule:
+  dataset: cifar10
+  train_label_size: 2100
+  method: centroid
+  workers: 0
+  batch_size: 512
+
+communication:
+  snr: 20.0
+  square: true
+  awareness: aware
+  channel_usage: 1
+  antennas_receiver: 4
+  antennas_transmitter: 4
+  
+transmitter:
+  model: vit_small_patch16_224
+
+receiver:
+  model: vit_base_patch16_224
+
+wandb:
+  project: semantic_alignment_mimo__baseline_model

@@ -1,0 +1,32 @@
+defaults:
+  - _self_
+
+seed: 42
+device: cpu
+iterations: 20
+simulation: example
+
+datamodule:
+  dataset: cifar10
+  train_label_size: 2100
+  method: centroid
+  workers: 0
+  batch_size: 512
+
+communication:
+  snr: 20.0
+  square: true
+  awareness: aware
+  antennas_receiver: 4
+  antennas_transmitter: 4
+
+transmitter:
+  model: vit_small_patch16_224
+  rho: 100
+  px_cost: 1.0
+
+receiver:
+  model: vit_base_patch16_224
+
+wandb:
+  project: semantic_alignment_mimo__linear_model
