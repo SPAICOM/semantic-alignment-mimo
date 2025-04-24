@@ -213,8 +213,10 @@ class DataModule(LightningDataModule):
             The name of the encoder transmitter side.
         rx_enc : str
             The name of the encoder transmitter side.
-        train_subset_ratio : float
-            The ratio of dataset to use for training. Default 1.0.
+        train_label_size : int
+            The size of training dataset to use for each label. Default 4200.
+        method : str
+            The sample selection, either 'random' or 'centroid'. Default 'centroid'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -230,7 +232,8 @@ class DataModule(LightningDataModule):
         dataset: str,
         tx_enc: str,
         rx_enc: str,
-        train_subset_ratio: float = 1.0,
+        train_label_size: int = 4200,
+        method: str = 'centroid',
         batch_size: int = 128,
         num_workers: int = 0,
     ) -> None:
@@ -239,9 +242,14 @@ class DataModule(LightningDataModule):
         self.dataset: str = dataset
         self.tx_enc: str = tx_enc
         self.rx_enc: str = rx_enc
-        self.train_subset_ratio: float = train_subset_ratio
+        self.train_label_size: int = train_label_size
+        self.method: str = method
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
+
+        assert self.method in ['random', 'centroid'], (
+            'The passed method is not supported, chose between "random" or "centroid".'
+        )
 
     def prepare_data(self) -> None:
         """This function prepares the dataset (Download and Unzip).
@@ -283,13 +291,41 @@ class DataModule(LightningDataModule):
             rx_path=GENERAL_PATH / 'train' / f'{self.rx_enc}.pt',
         )
 
-        full_size = len(self.train_data)
-        subset_size = int(full_size * self.train_subset_ratio)
-        indices = torch.randperm(full_size)[:subset_size]
+        idx = torch.tensor([], dtype=torch.long)
+        for label in self.train_data.labels.unique():
+            mask = self.train_data.labels == label
+            selected = self.train_data.z_tx[mask]
 
-        self.train_data.z_tx = self.train_data.z_tx[indices]
-        self.train_data.z_rx = self.train_data.z_rx[indices]
-        self.train_data.labels = self.train_data.labels[indices]
+            match self.method:
+                case 'random':
+                    # Get the total size of the specific label
+                    size = selected.shape[0]
+
+                    # Return a random selection over the samples
+                    indices = torch.randperm(size)[: self.train_label_size]
+                case 'centroid':
+                    # Get the centroid center
+                    mean = selected.mean(dim=0)
+
+                    # Calculate the distance from the centroid
+                    dists = torch.norm(selected - mean, dim=1)
+
+                    # Get the indeces
+                    _, indices = torch.topk(
+                        dists, k=self.train_label_size, largest=False
+                    )
+                case _:
+                    raise Exception('The passed method is not supported.')
+
+            # Save the indeces
+            idx = torch.cat((idx, indices), dim=0)
+
+        # Shuffle the indeces
+        idx = idx[torch.randperm(idx.shape[0])]
+
+        self.train_data.z_tx = self.train_data.z_tx[idx]
+        self.train_data.z_rx = self.train_data.z_rx[idx]
+        self.train_data.labels = self.train_data.labels[idx]
 
         # ================================================================
         #                         Test Data
@@ -526,11 +562,19 @@ def main() -> None:
 
     # Setting inputs
     dataset = 'cifar10'
-    encoder = 'vit_small_patch16_224'
-    decoder = 'vit_base_patch16_224'
+    tx_enc = 'vit_small_patch16_224'
+    rx_enc = 'vit_base_patch16_224'
+    train_label_size = 1000
+    method = 'centroid'
 
     print('Running first test...', end='\t')
-    data = DataModule(dataset=dataset, tx_enc=encoder, rx_enc=decoder)
+    data = DataModule(
+        dataset=dataset,
+        tx_enc=tx_enc,
+        rx_enc=rx_enc,
+        train_label_size=train_label_size,
+        method=method,
+    )
 
     data.prepare_data()
     data.setup()
@@ -541,7 +585,7 @@ def main() -> None:
     print('[Passed]')
 
     print('Running second test...', end='\t')
-    data = DataModuleClassifier(dataset=dataset, rx_enc=decoder)
+    data = DataModuleClassifier(dataset=dataset, rx_enc=rx_enc)
 
     data.prepare_data()
     data.setup()
