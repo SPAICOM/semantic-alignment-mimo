@@ -141,20 +141,21 @@ class Baseline:
         # Features to transmit
         self.sent_features = 2 * self.channel_usage * self.antennas_transmitter
 
-        if self.strategy == 'First-K':
-            input = input[: self.sent_features, :]
+        match self.strategy:
+            case 'First-K':
+                input = input[: self.sent_features, :]
 
-        elif self.strategy == 'Top-K':
-            # Get the indexes based on the selected strategy
-            _, self.indexes = torch.topk(
-                input.abs(), self.sent_features, dim=0
-            )
+            case 'Top-K':
+                # Get the indexes based on the selected strategy
+                _, self.indexes = torch.topk(
+                    input.abs(), self.sent_features, dim=0
+                )
 
-            # Retrieve the values based on the indexes
-            input = input[self.indexes, torch.arange(n)]
+                # Retrieve the values based on the indexes
+                input = input[self.indexes, torch.arange(n)]
 
-        else:
-            raise Exception('The passed strategy is not supported.')
+            case _:
+                raise Exception('The passed strategy is not supported.')
 
         # Complex Compression
         input = complex_compressed_tensor(input)
@@ -179,14 +180,15 @@ class Baseline:
 
         output = torch.zeros(self.size, n)
 
-        if self.strategy == 'First-K':
-            output[: self.sent_features, :] = received
+        match self.strategy:
+            case 'First-K':
+                output[: self.sent_features, :] = received
 
-        elif self.strategy == 'Top-K':
-            output[self.indexes, torch.arange(n)] = received
+            case 'Top-K':
+                output[self.indexes, torch.arange(n)] = received
 
-        else:
-            raise Exception('The passed strategy is not supported.')
+            case _:
+                raise Exception('The passed strategy is not supported.')
 
         return output
 
