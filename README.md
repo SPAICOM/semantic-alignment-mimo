@@ -1,8 +1,65 @@
 # Latent Space Alignment for AI-Native MIMO Semantic Communications
 
-## Abstract
+> [!TIP]
+> Semantic communications focus on prioritizing the understanding of the meaning behind transmitted data and ensuring the successful completion of tasks that motivate the exchange of information. However, when devices rely on different languages, logic, or internal representations, semantic mismatches may occur, potentially hindering mutual understanding. This paper introduces a novel approach to addressing latent space misalignment in semantic communications, exploiting multiple-input multiple-output (MIMO) communications. Specifically, our method learns a MIMO precoder/decoder pair that jointly performs latent space compression and semantic channel equalization, mitigating both semantic mismatches and physical channel impairments. We explore two solutions: (i) a linear model, optimized by solving a biconvex optimization problem via the alternating direction method of multipliers (ADMM); (ii) a neural network-based model, which learns semantic MIMO precoder/decoder under transmission power budget and complexity constraints. Numerical results demonstrate the effectiveness of the proposed approach in a goal-oriented semantic communication scenario, illustrating the main trade-offs between accuracy, communication burden, and complexity of the solutions.
 
-Semantic communications focus on prioritizing the understanding of the meaning behind transmitted data and ensuring the successful completion of tasks that motivate the exchange of information. However, when devices rely on different languages, logic, or internal representations, semantic mismatches may occur, potentially hindering mutual understanding. This paper introduces a novel approach to addressing latent space misalignment in semantic communications, exploiting multiple-input multiple-output (MIMO) communications. Specifically, our method learns a MIMO precoder/decoder pair that jointly performs latent space compression and semantic channel equalization, mitigating both semantic mismatches and physical channel impairments. We explore two solutions: (i) a linear model, optimized by solving a biconvex optimization problem via the alternating direction method of multipliers (ADMM); (ii) a neural network-based model, which learns semantic MIMO precoder/decoder under transmission power budget and complexity constraints. Numerical results demonstrate the effectiveness of the proposed approach in a goal-oriented semantic communication scenario, illustrating the main trade-offs between accuracy, communication burden, and complexity of the solutions.
+## Simulations
+
+This section provides the necessary commands to run the simulations required for the experiments. The commands execute different training scripts with specific configurations. Each simulation subsection contains both the `python` command and `uv` counterpart.
+
+### Accuracy Vs Compression Factor
+
+```bash
+# Neural Semantic Precoding/Decoding
+python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192  communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
+
+# Linear Semantic Precoding/Decoding
+python scripts/train_linear.py simulation=snr communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
+```
+
+```bash
+# Neural Semantic Precoding/Decoding
+uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
+
+# Linear Semantic Precoding/Decoding
+uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
+```
+
+### Accuracy Vs SNR
+
+```bash
+# Neural Semantic Precoding/Decoding
+python scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Linear Semantic Precoding/Decoding
+python scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline First-K
+python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline Top-K
+python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline Eigen-K
+python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+```
+
+```bash
+# Neural Semantic Precoding/Decoding
+uv run scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Linear Semantic Precoding/Decoding
+uv run scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline First-K
+uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline Top-K
+uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 datamodule.train_label_size=2100 simulation=snr -m
+
+# Baseline Eigen-K
+uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+```
 
 ## Dependencies  
 
@@ -56,21 +113,12 @@ This will automatically create a virtual environment (if none exists) and instal
 
 You're ready to go! 🚀  
 
-### Using `nix` with flakes  
+## Authors
 
-If you have [Nix](https://nixos.org) installed and flakes enabled, you can set up the dependencies using the provided `flake.nix` and `flake.lock` files.  
-
-#### Set up the environment  
-
-Simply run the following command in the root folder:  
-
-```bash
-nix develop
-```
-
-This will automatically provide all dependencies specified in the `flake.nix` without needing a virtual environment.  
-
-You're ready to go! 🚀  
+- [Mario Edoardo Pandolfo](https://github.com/JRhin)
+- [Simone Fiorellino](https://scholar.google.com/citations?hl=en&user=nKMc4GQAAAAJ)
+- [Paolo Di Lorenzo](https://scholar.google.com/citations?hl=en&user=VZYvspQAAAAJ)
+- [Emilio Calvanese Strinati](https://scholar.google.com/citations?user=bWndGhQAAAAJ)
 
 ## Used Technologies
 
