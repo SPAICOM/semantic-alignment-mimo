@@ -160,6 +160,7 @@ def main(cfg: DictConfig) -> None:
         snr=cfg.communication.snr,
         channel_usage=cfg.communication.channel_usage,
         typology=cfg.typology,
+        strategy=cfg.strategy,
     )
 
     # Fit the linear optimizer

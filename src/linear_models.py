@@ -49,7 +49,7 @@ class Baseline:
         typology : str
             The typology of baseline, possible values 'pre' or 'post'. Default 'pre'.
         strategy : str
-            The strategy to adopt in sending the features, possible values 'First-K' or 'Top-K'. Default 'First-K'.
+            The strategy to adopt in sending the features, possible values 'First-K', 'Top-K' or 'Eigen-K'. Default 'First-K'.
     """
 
     def __init__(
@@ -78,7 +78,7 @@ class Baseline:
         assert self.typology in ['pre', 'post'], (
             f'The passed typology {self.typology} is not supported.'
         )
-        assert self.strategy in ['First-K', 'Top-K'], (
+        assert self.strategy in ['First-K', 'Top-K', 'Eigen-K'], (
             f'The passed strategy {self.strategy} is not supported.'
         )
 
@@ -154,6 +154,9 @@ class Baseline:
                 # Retrieve the values based on the indexes
                 input = input[self.indexes, torch.arange(n)]
 
+            case 'Eigen-K':
+                input = self.F_tilde @ input
+
             case _:
                 raise Exception('The passed strategy is not supported.')
 
@@ -186,6 +189,9 @@ class Baseline:
 
             case 'Top-K':
                 output[self.indexes, torch.arange(n)] = received
+
+            case 'Eigen-K':
+                output = self.G_tilde @ received
 
             case _:
                 raise Exception('The passed strategy is not supported.')
@@ -299,20 +305,30 @@ class Baseline:
             # Alignment of the input to the output
             self.A = torch.linalg.lstsq(input, output).solution.T
 
+            if self.strategy == 'Eigen-K':
+                sent_size = 2 * self.channel_usage * self.antennas_transmitter
+                U, S, Vt = torch.linalg.svd(self.A, full_matrices=False)
+                S[sent_size:] = 0
+                S = torch.diag(S)
+
+                self.F_tilde = (S @ Vt)[:sent_size, :]
+                self.G_tilde = (U @ S)[:, :sent_size]
+
             match self.typology:
                 case 'pre':
-                    # Align the input
-                    input = self.A @ input.T
+                    if self.strategy != 'Eigen-K':
+                        # Align the input
+                        input = self.A @ input.T
 
                     # Compress the input
-                    input = self.__compression(input)
+                    input = self.__compression(input.T)
 
                     # Learn L and the mean
                     _, self.L, self.mean = prewhiten(input)
 
                 case 'post':
                     # Compress the input
-                    input = self.__compression(input)
+                    input = self.__compression(input.T)
 
                     # Learn L and the mean
                     _, self.L, self.mean = prewhiten(input)
@@ -342,8 +358,9 @@ class Baseline:
 
         match self.typology:
             case 'pre':
-                # Align the input
-                input = self.A @ input
+                if self.strategy != 'Eigen-K':
+                    # Align the input
+                    input = self.A @ input
 
                 # Transmit the input
                 output = self.__transmit_message(input)
@@ -352,8 +369,9 @@ class Baseline:
                 # Transmit the input
                 output = self.__transmit_message(input)
 
-                # Align the output
-                output = (self.A @ output.T).T
+                if self.strategy != 'Eigen-K':
+                    # Align the output
+                    output = (self.A @ output.T).T
 
             case _:
                 raise Exception(
