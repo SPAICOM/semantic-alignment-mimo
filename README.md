@@ -61,6 +61,20 @@ uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 se
 uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
 ```
 
+### Classifiers
+
+The following command will initiate training of the required classifiers for the above simulations. However, this step is not strictly necessary, as the simulation scripts will automatically check for the presence of pretrained classifiers in the `models/classifiers` subfolder. If the classifiers are not found, a pretrained version (used in our paper) will be downloaded from Drive.
+
+```bash
+# Classifiers
+python scripts/train_classifier.py seed=27,42,100,123,144,200 -m
+```
+
+```bash
+# Classifiers
+uv run scripts/train_classifier.py seed=27,42,100,123,144,200 -m
+```
+
 ## Dependencies  
 
 ### Using `pip` package manager  
