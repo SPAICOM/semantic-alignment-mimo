@@ -180,7 +180,7 @@ def main() -> None:
     sns.move_legend(
         ax,
         'upper center',
-        ncol=2,
+        ncol=3,
         frameon=True,
         bbox_to_anchor=(0.5, 1.2),
     )

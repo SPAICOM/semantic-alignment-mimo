@@ -14,7 +14,7 @@ This section provides the necessary commands to run the simulations required for
 python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192  communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
 
 # Linear Semantic Precoding/Decoding
-python scripts/train_linear.py simulation=snr communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
+python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware,unaware datamodule.train_label_size=2100,420,210,42 simulation=compr_fact -m
 ```
 
 ```bash

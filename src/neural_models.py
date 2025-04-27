@@ -270,15 +270,9 @@ class Classifier(pl.LightningModule):
             dict[str, object]
                 The optimizer and scheduler.
         """
-        optimizer = torch.optim.Adam(
-            self.parameters(), lr=self.hparams['lr']
-        )  # , momentum=self.hparams["momentum"], nesterov=self.hparams["nesterov"])
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams['lr'])
         return {
             'optimizer': optimizer,
-            # "lr_scheduler": {
-            #     "scheduler": torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.hparams["lr"], max_lr=self.hparams["max_lr"], step_size_up=20, mode='triangular2'),
-            #     "monitor": "valid/loss_epoch"
-            # }
         }
 
     def loss(
@@ -522,6 +516,9 @@ class NeuralModel(pl.LightningModule):
         x = complex_compressed_tensor(x.H, device=self.device).H
         z = self.semantic_encoder(x)
 
+        # Fix the power to respect transmitting cost 1.0
+        z = nn.functional.normalize(z, p=2, dim=-1)
+
         # Make the signal pass through the channel
         z = torch.einsum(
             'ab, cb -> ac', z, self.hparams['channel_matrix'].to(self.device)
@@ -529,7 +526,6 @@ class NeuralModel(pl.LightningModule):
 
         # Add white noise
         if self.hparams['snr']:
-            # sigma = sigma_given_snr(snr=self.hparams["snr"], signal=self.latent.detach())
             sigma = sigma_given_snr(
                 snr=self.hparams['snr'],
                 signal=(
