@@ -184,6 +184,7 @@ def main() -> None:
         frameon=True,
         bbox_to_anchor=(0.5, 1.2),
     )
+    plt.xlabel('Signal to Noise Ratio (dB)')
     plt.xlim(min(ticks), max(ticks))
     plt.savefig(
         str(IMG_PATH / 'AccuracyVsSNR.pdf'),

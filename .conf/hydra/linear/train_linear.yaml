@@ -10,6 +10,7 @@ datamodule:
   dataset: cifar10
   train_label_size: 2100
   method: centroid
+  grouping: label
   workers: 0
   batch_size: 512
 

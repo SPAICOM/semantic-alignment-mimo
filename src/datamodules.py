@@ -7,6 +7,7 @@
 
 import torch
 from pathlib import Path
+from sklearn.cluster import KMeans
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
 
@@ -217,11 +218,15 @@ class DataModule(LightningDataModule):
             The size of training dataset to use for each label. Default 4200.
         method : str
             The sample selection, either 'random' or 'centroid'. Default 'centroid'.
+        grouping : str
+            The type of grouping method for the observations, either 'label' or 'proto'. Default 'label'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
             The number of workers. Setting it to 0 means that the data will be
             loaded in the main process. Default 0.
+        seed : int
+            The random seed required when method is set to 'clustering'.
 
     Attributes:
         The self.<arg_name> version of the arguments documented above.
@@ -234,8 +239,10 @@ class DataModule(LightningDataModule):
         rx_enc: str,
         train_label_size: int = 4200,
         method: str = 'centroid',
+        grouping: str = 'label',
         batch_size: int = 128,
         num_workers: int = 0,
+        seed: int = 42,
     ) -> None:
         super().__init__()
 
@@ -244,11 +251,16 @@ class DataModule(LightningDataModule):
         self.rx_enc: str = rx_enc
         self.train_label_size: int = train_label_size
         self.method: str = method
+        self.grouping: str = grouping
         self.batch_size: int = batch_size
         self.num_workers: int = num_workers
+        self.seed: int = seed
 
         assert self.method in ['random', 'centroid'], (
             'The passed method is not supported, chose between "random" or "centroid".'
+        )
+        assert self.grouping in ['label', 'proto'], (
+            'The passed grouping method is not supported, chose between "label" or "cluster".'
         )
 
     def prepare_data(self) -> None:
@@ -291,9 +303,28 @@ class DataModule(LightningDataModule):
             rx_path=GENERAL_PATH / 'train' / f'{self.rx_enc}.pt',
         )
 
+        unique_labels = self.train_data.labels.unique()
+
+        match self.grouping:
+            case 'label':
+                # Get the original labels
+                labels = self.train_data.labels
+
+            case 'proto':
+                data = self.train_data.z_tx.detach().cpu().numpy()
+
+                # Perform the clustering of the absolute representations (the latent space)
+                kmeans = KMeans(
+                    n_clusters=len(unique_labels), random_state=self.seed
+                )
+                labels = torch.tensor(kmeans.fit_predict(data))
+
+            case _:
+                raise Exception('The passed grouping method is not supported.')
+
         idx = torch.tensor([], dtype=torch.long)
-        for label in self.train_data.labels.unique():
-            mask = self.train_data.labels == label
+        for label in unique_labels:
+            mask = labels == label
             selected = self.train_data.z_tx[mask]
 
             match self.method:

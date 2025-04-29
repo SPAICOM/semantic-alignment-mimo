@@ -107,8 +107,8 @@ def main(cfg: DictConfig) -> None:
     wandb.login()
     wandb_logger = WandbLogger(
         project=cfg.wandb.project,
-        name=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
-        id=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
+        name=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.grouping}_{cfg.datamodule.method}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
+        id=f'{cfg.seed}_{cfg.communication.awareness}_{cfg.communication.antennas_receiver}_{cfg.communication.antennas_transmitter}_{cfg.communication.snr}_{cfg.simulation}_{cfg.datamodule.dataset}_{cfg.datamodule.grouping}_{cfg.datamodule.method}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}',
         config=wandb_config,
         log_model=cfg.wandb.log_model,
     )
@@ -164,7 +164,9 @@ def main(cfg: DictConfig) -> None:
         rx_enc=cfg.receiver.model,
         train_label_size=cfg.datamodule.train_label_size,
         method=cfg.datamodule.method,
+        grouping=cfg.datamodule.grouping,
         num_workers=cfg.datamodule.workers,
+        seed=cfg.seed,
     )
 
     # Prepare and setup the data
@@ -237,6 +239,8 @@ def main(cfg: DictConfig) -> None:
         {
             'Dataset': cfg.datamodule.dataset,
             'Training Label Size': cfg.datamodule.train_label_size,
+            'Grouping': cfg.datamodule.grouping,
+            'Method': cfg.datamodule.method,
             'Seed': cfg.seed,
             'Antennas Transmitter': cfg.communication.antennas_transmitter,
             'Antennas Receiver': cfg.communication.antennas_receiver,
@@ -267,7 +271,7 @@ def main(cfg: DictConfig) -> None:
         }
     ).write_parquet(
         RESULTS_PATH
-        / f'{cfg.seed}_{cfg.communication.antennas_transmitter}_{cfg.communication.antennas_receiver}_{cfg.communication.snr}_{cfg.datamodule.dataset}_{cfg.datamodule.train_label_size}_{cfg.model.lmb}_{cfg.communication.awareness}_{cfg.simulation}.parquet'
+        / f'{cfg.seed}_{cfg.communication.antennas_transmitter}_{cfg.communication.antennas_receiver}_{cfg.communication.snr}_{cfg.datamodule.dataset}_{cfg.model.lmb}_{cfg.communication.awareness}_{cfg.datamodule.train_label_size}_{cfg.datamodule.grouping}_{cfg.datamodule.method}_{cfg.simulation}.parquet'
     )
 
     # Closing W&B
