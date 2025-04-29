@@ -12,8 +12,8 @@ trainer:
   
 datamodule:
   dataset: cifar10
-  train_label_size: 2100
-  method: centroid
+  train_label_size: 4200
+  method: random
   grouping: label
   batch_size: 512
   workers: 0

@@ -57,7 +57,6 @@ def main() -> None:
                 'Training Label Size': 'Semantic Pilots per Class',
             }
         )
-        .filter(pl.col('Semantic Pilots per Class') < 4200)
     )
 
     df = df.with_columns(
@@ -77,7 +76,7 @@ def main() -> None:
             + 'x'
             + (pl.col('Channel')).cast(pl.String)
         ).alias('Channel'),
-    )
+    ).sort('Awareness')
 
     # ===================================================================================
     #                          Accuracy Vs Compression Factor
@@ -106,6 +105,7 @@ def main() -> None:
     case_labels = [
         'Neural Semantic Precoding/Decoding',
         'Linear Semantic Precoding/Decoding',
+        'Baseline Eigen-K',
         'Neural Semantic Precoding/Decoding - Channel Unaware',
         'Linear Semantic Precoding/Decoding - Channel Unaware',
     ]
@@ -120,14 +120,14 @@ def main() -> None:
     case_handles = [handles[labels.index(cl)] for cl in case_labels]
     style_handles = [handles[labels.index(str(cl))] for cl in style_labels]
 
-    # First legend: Channel
+    # First legend: Style
     legend1 = ax.legend(
         style_handles,
         style_labels,
         title='Semantic Pilots per Class',
         loc='upper right',
-        bbox_to_anchor=(1, 0.6),
-        ncol=2,
+        bbox_to_anchor=(1, 0.7),
+        ncol=3,
         frameon=True,
         framealpha=1,
     )
@@ -138,7 +138,7 @@ def main() -> None:
         case_labels,
         title='Case',
         loc='upper center',
-        bbox_to_anchor=(0.5, 1.2),
+        bbox_to_anchor=(0.5, 1.25),
         ncol=2,
         frameon=True,
     )
@@ -168,6 +168,14 @@ def main() -> None:
 
     ticks = df.filter(filter)['SNR'].unique().to_list()
 
+    hue_order = [
+        'Neural Semantic Precoding/Decoding',
+        'Linear Semantic Precoding/Decoding',
+        'Baseline Eigen-K',
+        'Baseline Top-K',
+        'Baseline First-K',
+    ]
+
     ax = sns.lineplot(
         df.filter(filter),
         x='SNR',
@@ -176,6 +184,7 @@ def main() -> None:
         style='Case',
         markers=True,
         dashes=False,
+        hue_order=hue_order,
     )
     sns.move_legend(
         ax,

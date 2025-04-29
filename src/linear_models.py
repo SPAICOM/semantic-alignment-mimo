@@ -309,7 +309,7 @@ class Baseline:
                 sent_size = 2 * self.channel_usage * self.antennas_transmitter
                 U, S, Vt = torch.linalg.svd(self.A, full_matrices=False)
                 S[sent_size:] = 0
-                S = torch.diag(S)
+                S = torch.sqrt(torch.diag(S))
 
                 self.F_tilde = (S @ Vt)[:sent_size, :]
                 self.G_tilde = (U @ S)[:, :sent_size]
