@@ -16,6 +16,9 @@ python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200
 # Linear Semantic Precoding/Decoding Aware
 python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
+# Baseline Eigen-K
+python scripts/train_baseline.py communication.snr=20.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
+
 # Neural Semantic Precoding/Decoding Unaware
 python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
 
@@ -29,6 +32,9 @@ uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200
 
 # Linear Semantic Precoding/Decoding Aware
 uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
+
+# Baseline Eigen-K
+uv run scripts/train_baseline.py communication.snr=20.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
 # Neural Semantic Precoding/Decoding Unaware
 uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
