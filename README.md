@@ -11,66 +11,60 @@ This section provides the necessary commands to run the simulations required for
 
 ```bash
 # Neural Semantic Precoding/Decoding Aware
-python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,2100,420,210,42,21 simulation=compr_fact -m
+python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
 # Linear Semantic Precoding/Decoding Aware
-python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,2100,420,210,42,21 simulation=compr_fact -m
+python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
 # Neural Semantic Precoding/Decoding Unaware
-python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware datamodule.train_label_size=2100 simulation=compr_fact -m
+python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
 
 # Linear Semantic Precoding/Decoding Unaware
-python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware datamodule.train_label_size=2100 simulation=compr_fact -m
+python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
 ```
 
 ```bash
 # Neural Semantic Precoding/Decoding Aware
-uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,2100,420,210,42,21 simulation=compr_fact -m
+uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
 # Linear Semantic Precoding/Decoding Aware
-uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,2100,420,210,42,21 simulation=compr_fact -m
+uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=aware datamodule.train_label_size=4200,420,42 simulation=compr_fact -m
 
 # Neural Semantic Precoding/Decoding Unaware
-uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware datamodule.train_label_size=2100 simulation=compr_fact -m
+uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
 
 # Linear Semantic Precoding/Decoding Unaware
-uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware datamodule.train_label_size=2100 simulation=compr_fact -m
+uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=1,2,4,8,12,24,48,96,192 communication.antennas_transmitter=1,2,4,8,12,24,48,96,192 communication.awareness=unaware simulation=compr_fact -m
 ```
 
 ### Accuracy Vs SNR
 
 ```bash
 # Neural Semantic Precoding/Decoding
-python scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+python scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
 # Linear Semantic Precoding/Decoding
-python scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+python scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
-# Baseline First-K
-python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+# Baseline First-K and Eigen-K
+python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K,Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
 # Baseline Top-K
-python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 datamodule.train_label_size=2100 simulation=snr -m
-
-# Baseline Eigen-K
-python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+python scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 simulation=snr -m
 ```
 
 ```bash
 # Neural Semantic Precoding/Decoding
-uv run scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+uv run scripts/train_neural.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
 # Linear Semantic Precoding/Decoding
-uv run scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+uv run scripts/train_linear.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
 # Baseline First-K
-uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=First-K,Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 simulation=snr -m
 
 # Baseline Top-K
-uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 datamodule.train_label_size=2100 simulation=snr -m
-
-# Baseline Eigen-K
-uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Eigen-K communication.antennas_receiver=8 communication.antennas_transmitter=8 datamodule.train_label_size=2100 simulation=snr -m
+uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 simulation=snr -m
 ```
 
 ### Classifiers
