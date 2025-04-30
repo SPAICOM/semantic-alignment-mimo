@@ -28,7 +28,7 @@ communication:
 model:
   layers: 0
   lr: 1e-3
-  lmb: 0.0
+  lmb: 0
 
 transmitter:
   model: vit_small_patch16_224
