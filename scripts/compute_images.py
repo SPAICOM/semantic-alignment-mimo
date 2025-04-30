@@ -207,6 +207,61 @@ def main() -> None:
     plt.clf()
     plt.cla()
 
+    # ===================================================================================
+    #                          Accuracy Vs Signal to Noise Ratio
+    # ===================================================================================
+    filter = pl.col('Simulation') == 'pgd'
+
+    plot_df = (
+        df.filter(filter)
+        .group_by(['Compression Factor', 'Case', 'Lambda'])
+        .agg(
+            pl.col('FLOPs').mean(),
+            pl.col('Accuracy').mean(),
+        )
+        .with_columns(
+            Case=pl.when(
+                pl.col('Case') == 'Neural Semantic Precoding/Decoding'
+            )
+            .then(
+                pl.lit(r'Neural Semantic $\zeta =')
+                + pl.col('Compression Factor').cast(pl.Int64).cast(pl.String)
+                + pl.lit(r'\%$ PDG with Hard Thresholding')
+            )
+            .when(pl.col('Case') == 'Linear Semantic Precoding/Decoding')
+            .then(
+                pl.lit(r'Linear Semantic $\zeta =')
+                + pl.col('Compression Factor').cast(pl.Int64).cast(pl.String)
+                + pl.lit(r'\%$')
+            )
+        )
+        .sort(['Compression Factor', 'Case'], descending=True)
+    )
+
+    sns.lineplot(
+        plot_df,
+        x='FLOPs',
+        y='Accuracy',
+        hue='Case',
+        style='Case',
+        dashes=False,
+        markers=True,
+    ).set(ylim=(0, 1))
+    plt.xlabel('FLOPs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.savefig(
+        str(IMG_PATH / 'AccuracyVsFLOPs.pdf'),
+        format='pdf',
+        bbox_inches='tight',
+    )
+    plt.savefig(
+        str(IMG_PATH / 'AccuracyVsFLOPs.png'),
+        bbox_inches='tight',
+    )
+    plt.clf()
+    plt.cla()
+
     return None
 
 
