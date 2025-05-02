@@ -235,10 +235,10 @@ def main() -> None:
                 + pl.lit(r'\%$')
             )
         )
-        .sort(['Compression Factor', 'Case'], descending=True)
+        .sort(['Case', 'Compression Factor'], descending=True)
     )
 
-    sns.lineplot(
+    ax = sns.lineplot(
         plot_df,
         x='FLOPs',
         y='Accuracy',
@@ -246,10 +246,19 @@ def main() -> None:
         style='Case',
         dashes=False,
         markers=True,
-    ).set(ylim=(0, 1))
+    )
+    sns.move_legend(
+        ax,
+        'upper center',
+        ncol=2,
+        frameon=True,
+        bbox_to_anchor=(0.5, 1.2),
+    )
+    plt.xscale('log')
     plt.xlabel('FLOPs')
     plt.ylabel('Accuracy')
-    plt.legend()
+    plt.ylim((0, 1))
+    # plt.legend()
     plt.savefig(
         str(IMG_PATH / 'AccuracyVsFLOPs.pdf'),
         format='pdf',
