@@ -21,6 +21,7 @@ from pathlib import Path
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogLocator
 
 
 # =============================================================
@@ -254,7 +255,13 @@ def main() -> None:
         frameon=True,
         bbox_to_anchor=(0.5, 1.2),
     )
-    plt.xscale('log')
+    # plt.xscale('log')
+    ax.set_xscale('log')
+    ax.xaxis.set_major_locator(LogLocator(base=10.0))
+    ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs='auto', numticks=10))
+    ax.grid(
+        True, which='both', axis='x', linestyle='--', color='gray', alpha=0.5
+    )
     plt.xlabel('FLOPs')
     plt.ylabel('Accuracy')
     plt.ylim((0, 1))
