@@ -73,6 +73,24 @@ uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 se
 uv run scripts/train_baseline.py communication.snr=-20.0,-10.0,10.0,20.0,30.0 seed=27,42,100,123,144,200 strategy=Top-K communication.antennas_receiver=4 communication.antennas_transmitter=4 simulation=snr -m
 ```
 
+### Accuracy Vs FLOPs
+
+```bash
+# Neural Semantic Precoding/Decoding
+python scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=6,10 communication.antennas_transmitter=6,10 model.lmb=0,10,20,30,40,50,60,70 simulation=pgd -m
+
+# Linear Semantic Precoding/Decoding
+python scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=6,10 communication.antennas_transmitter=6,10 simulation=pgd -m
+```
+
+```bash
+# Neural Semantic Precoding/Decoding
+uv run scripts/train_neural.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=6,10 communication.antennas_transmitter=6,10 model.lmb=0,10,20,30,40,50,60,70 simulation=pgd -m
+
+# Linear Semantic Precoding/Decoding
+uv run scripts/train_linear.py communication.snr=20.0 seed=27,42,100,123,144,200 communication.antennas_receiver=6,10 communication.antennas_transmitter=6,10 simulation=pgd -m
+```
+
 ### Classifiers
 
 The following command will initiate training of the required classifiers for the above simulations. However, this step is not strictly necessary, as the simulation scripts will automatically check for the presence of pretrained classifiers in the `models/classifiers` subfolder. If the classifiers are not found, a pretrained version (used in our paper) will be downloaded from Drive.
