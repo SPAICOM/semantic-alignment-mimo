@@ -125,7 +125,7 @@ def main() -> None:
     legend1 = ax.legend(
         style_handles,
         style_labels,
-        title='Semantic Pilots per Class',
+        title='SPs per Class',
         loc='upper right',
         bbox_to_anchor=(1, 0.7),
         ncol=3,
@@ -225,13 +225,13 @@ def main() -> None:
                 pl.col('Case') == 'Neural Semantic Precoding/Decoding'
             )
             .then(
-                pl.lit(r'Neural Semantic $\zeta =')
+                pl.lit(r'Neural Semantic $\zeta \approx')
                 + pl.col('Compression Factor').cast(pl.Int64).cast(pl.String)
                 + pl.lit(r'\%$ PDG with Hard Thresholding')
             )
             .when(pl.col('Case') == 'Linear Semantic Precoding/Decoding')
             .then(
-                pl.lit(r'Linear Semantic $\zeta =')
+                pl.lit(r'Linear Semantic $\zeta \approx')
                 + pl.col('Compression Factor').cast(pl.Int64).cast(pl.String)
                 + pl.lit(r'\%$')
             )
@@ -239,6 +239,7 @@ def main() -> None:
         .sort(['Case', 'Compression Factor'], descending=True)
     )
 
+    plt.figure(figsize=(16,8))
     ax = sns.lineplot(
         plot_df,
         x='FLOPs',
@@ -253,9 +254,8 @@ def main() -> None:
         'upper center',
         ncol=2,
         frameon=True,
-        bbox_to_anchor=(0.5, 1.2),
+        bbox_to_anchor=(0.5, 1.25),
     )
-    # plt.xscale('log')
     ax.set_xscale('log')
     ax.xaxis.set_major_locator(LogLocator(base=10.0))
     ax.xaxis.set_minor_locator(LogLocator(base=10.0, subs='auto', numticks=10))
