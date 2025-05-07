@@ -77,6 +77,10 @@ def main() -> None:
             + 'x'
             + (pl.col('Channel')).cast(pl.String)
         ).alias('Channel'),
+        Case=pl.when(pl.col('Case') == 'Baseline Eigen-K').then(pl.lit(r'Baseline Eigen-$\kappa$'))
+        .when(pl.col('Case')== 'Baseline First-K').then(pl.lit(r'Baseline First-$\kappa$'))
+        .when(pl.col('Case')== 'Baseline Top-K').then(pl.lit(r'Baseline Top-$\kappa$'))
+        .otherwise(pl.col('Case')),
     ).sort('Awareness')
 
     # ===================================================================================
@@ -106,7 +110,7 @@ def main() -> None:
     case_labels = [
         'Neural Semantic Precoding/Decoding',
         'Linear Semantic Precoding/Decoding',
-        'Baseline Eigen-K',
+        r'Baseline Eigen-$\kappa$',
         'Neural Semantic Precoding/Decoding - Channel Unaware',
         'Linear Semantic Precoding/Decoding - Channel Unaware',
     ]
@@ -139,7 +143,7 @@ def main() -> None:
         case_labels,
         title='Case',
         loc='upper center',
-        bbox_to_anchor=(0.5, 1.25),
+        bbox_to_anchor=(0.5, 1.32),
         ncol=2,
         frameon=True,
     )
@@ -172,9 +176,9 @@ def main() -> None:
     hue_order = [
         'Neural Semantic Precoding/Decoding',
         'Linear Semantic Precoding/Decoding',
-        'Baseline Eigen-K',
-        'Baseline Top-K',
-        'Baseline First-K',
+        r'Baseline Eigen-$\kappa$',
+        r'Baseline Top-$\kappa$',
+        r'Baseline First-$\kappa$',
     ]
 
     ax = sns.lineplot(
@@ -192,7 +196,7 @@ def main() -> None:
         'upper center',
         ncol=3,
         frameon=True,
-        bbox_to_anchor=(0.5, 1.2),
+        bbox_to_anchor=(0.5, 1.25),
     )
     plt.xlabel('Signal to Noise Ratio (dB)')
     plt.xlim(min(ticks), max(ticks))
@@ -239,7 +243,6 @@ def main() -> None:
         .sort(['Case', 'Compression Factor'], descending=True)
     )
 
-    plt.figure(figsize=(16,8))
     ax = sns.lineplot(
         plot_df,
         x='FLOPs',

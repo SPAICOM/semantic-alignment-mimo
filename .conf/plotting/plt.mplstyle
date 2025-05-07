@@ -1,4 +1,4 @@
-figure.figsize: 16, 10
+figure.figsize: 16, 8
 font.size: 22
 axes.titlesize: 24
 axes.labelsize: 24
