@@ -77,9 +77,12 @@ def main() -> None:
             + 'x'
             + (pl.col('Channel')).cast(pl.String)
         ).alias('Channel'),
-        Case=pl.when(pl.col('Case') == 'Baseline Eigen-K').then(pl.lit(r'Baseline Eigen-$\kappa$'))
-        .when(pl.col('Case')== 'Baseline First-K').then(pl.lit(r'Baseline First-$\kappa$'))
-        .when(pl.col('Case')== 'Baseline Top-K').then(pl.lit(r'Baseline Top-$\kappa$'))
+        Case=pl.when(pl.col('Case') == 'Baseline Eigen-K')
+        .then(pl.lit(r'Baseline Eigen-$\kappa$'))
+        .when(pl.col('Case') == 'Baseline First-K')
+        .then(pl.lit(r'Baseline First-$\kappa$'))
+        .when(pl.col('Case') == 'Baseline Top-K')
+        .then(pl.lit(r'Baseline Top-$\kappa$'))
         .otherwise(pl.col('Case')),
     ).sort('Awareness')
 

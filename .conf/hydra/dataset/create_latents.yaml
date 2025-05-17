@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+
+seed: 42
+device: cpu
+dataset: cifar10
+
+perc: 1.0
+val_perc: 0.15
+
+models:
+  - vit_small_patch16_224
+  - vit_base_patch16_224
