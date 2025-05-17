@@ -45,7 +45,7 @@ def get_dataset(
     seed: int = 42,
 ) -> Dataset | tuple[Dataset, Dataset]:
     """A function to retrieve a dataset from the Datasets library.
-    
+
     Args:
         dataset : str
             The name of the dataset.
