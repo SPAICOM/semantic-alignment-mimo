@@ -146,7 +146,7 @@ cycler==0.12.1 \
 datasets==3.6.0 \
     --hash=sha256:1b2bf43b19776e2787e181cfd329cb0ca1a358ea014780c3581e0f276375e041 \
     --hash=sha256:25000c4a2c0873a710df127d08a202a06eab7bf42441a6bc278b499c2f72cd1b
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 dill==0.3.8 \
     --hash=sha256:3ebe3c479ad625c4553aca177444d89b486b1d84982eeacded644afc0cf797ca \
     --hash=sha256:c36ca9ffb54365bdd2f8eb3eff7d2a21237f8452b57ace88b1ac615b7e815bd7
@@ -232,7 +232,7 @@ fsspec==2025.2.0 \
 gdown==5.2.0 \
     --hash=sha256:2145165062d85520a3cd98b356c9ed522c5e7984d408535409fd46f94defc787 \
     --hash=sha256:33083832d82b1101bdd0e9df3edd0fbc0e1c5f14c9d8c38d2a35bf1683b526d6
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 gitdb==4.0.12 \
     --hash=sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571 \
     --hash=sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf
@@ -250,7 +250,7 @@ huggingface-hub==0.28.1 \
 hydra-core==1.3.2 \
     --hash=sha256:8a878ed67216997c3e9d88a8e72e7b4767e81af37afb4ea3334b269a4390a824 \
     --hash=sha256:fa0238a9e31df3373b35b0bfb672c34cc92718d21f81311d8996a16de1141d8b
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 idna==3.10 \
     --hash=sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9 \
     --hash=sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3
@@ -600,7 +600,7 @@ polars==1.21.0 \
     --hash=sha256:bbecddca35c57efde99070517db5d2c63d4c6d0e3c992123ba3be93e86e7bfac \
     --hash=sha256:c4517abb008af890e4ca8fb6bb0372868381017af0ecadf9d062e2f91f50b276 \
     --hash=sha256:d9ce8e6f0d8140e67b0f7c276d22bb5f3345ce7412558643c8b5c270db254b64
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 propcache==0.2.1 \
     --hash=sha256:049324ee97bb67285b49632132db351b41e77833678432be52bdd0289c0e05e4 \
     --hash=sha256:081a430aa8d5e8876c6909b67bd2d937bfd531b0382d3fdedb82612c618bc41a \
@@ -682,7 +682,7 @@ pyarrow==19.0.0 \
     --hash=sha256:f43f5aef2a13d4d56adadae5720d1fed4c1356c993eda8b59dace4b5983843c1
     # via
     #   datasets
-    #   semantic-alignment-via-nn
+    #   semantic-alignment-mimo
 pydantic==2.10.6 \
     --hash=sha256:427d664bf0b8a2b34ff5dd0f5a18df00591adcee7198fbd71981054cef37b584 \
     --hash=sha256:ca5daa827cce33de7a42be142548b0096bf05a7e7b365aebfa5f8eeec7128236
@@ -735,11 +735,11 @@ python-dateutil==2.9.0.post0 \
 python-dotenv==1.0.1 \
     --hash=sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca \
     --hash=sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 pytorch-lightning==2.5.0.post0 \
     --hash=sha256:347235bf8573b4ebcf507a0dd755fcb9ce58c420c77220a9756a6edca0418532 \
     --hash=sha256:c86bf4fded58b386f312f75337696a9b2d57077b858b3b9524400a03a0179b3a
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 pytz==2025.1 \
     --hash=sha256:89dd22dca55b46eac6eda23b2d72721bf1bdfef212645d81513ef5d03038de57 \
     --hash=sha256:c2db42be2a2518b28e65f9207c4d05e6ff547d1efa4086469ef855e4ab70178e
@@ -812,7 +812,7 @@ scikit-learn==1.6.1 \
     --hash=sha256:c06beb2e839ecc641366000ca84f3cf6fa9faa1777e29cf0c04be6e4d096a348 \
     --hash=sha256:dc5cf3d68c5a20ad6d571584c0750ec641cc46aeef1c1507be51300e6003a7e1 \
     --hash=sha256:e8ca8cb270fee8f1f76fa9bfd5c3507d60c6438bbee5687f81042e2bb98e5a97
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 scipy==1.15.1 \
     --hash=sha256:033a75ddad1463970c96a88063a1df87ccfddd526437136b6ee81ff0312ebdf6 \
     --hash=sha256:0458839c9f873062db69a03de9a9765ae2e694352c76a16be44f93ea45c28d2b \
@@ -840,11 +840,11 @@ scipy==1.15.1 \
     --hash=sha256:f735bc41bd1c792c96bc426dece66c8723283695f02df61dcc4d0a707a42fc54
     # via
     #   scikit-learn
-    #   semantic-alignment-via-nn
+    #   semantic-alignment-mimo
 seaborn==0.13.2 \
     --hash=sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987 \
     --hash=sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 sentry-sdk==2.20.0 \
     --hash=sha256:afa82713a92facf847df3c6f63cec71eb488d826a50965def3d7722aa6f0fdab \
     --hash=sha256:c359a1edf950eb5e80cffd7d9111f3dbeef57994cb4415df37d39fda2cf22364
@@ -908,7 +908,7 @@ threadpoolctl==3.6.0 \
 timm==1.0.14 \
     --hash=sha256:00a7f2cc04ce3ed8f80476bbb7eea27eac8cf6f2d59b5e9aa9cdd375dd6550db \
     --hash=sha256:16653695ff420cf4e87e384c8654f2ee6be2070bcb4a0e840b5c6764ee0547ec
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 torch==2.6.0 \
     --hash=sha256:2bb8987f3bb1ef2675897034402373ddfc8f5ef0e156e2d8cfc47cacafdda4a9 \
     --hash=sha256:4874a73507a300a5d089ceaff616a569e7bb7c613c56f37f63ec3ffac65259cf \
@@ -920,7 +920,7 @@ torch==2.6.0 \
     --hash=sha256:ff96f4038f8af9f7ec4231710ed4549da1bdebad95923953a25045dcf6fd87e2
     # via
     #   pytorch-lightning
-    #   semantic-alignment-via-nn
+    #   semantic-alignment-mimo
     #   timm
     #   torchmetrics
     #   torchvision
@@ -985,7 +985,7 @@ wandb==0.19.6 \
     --hash=sha256:ca90dd5519de1a48963536f02d6e14c150475807173b7af1d8ebe3e2f9e3afba \
     --hash=sha256:fd9ae9a7f08e4d3972ba341c42af787e951689e0d1a76c111aa66d09bcdadafd \
     --hash=sha256:ff0973ca26cd06bc5451ae7ba469ad98f74024f5678dfa0d6dc78ca36eb950b6
-    # via semantic-alignment-via-nn
+    # via semantic-alignment-mimo
 xxhash==3.5.0 \
     --hash=sha256:07fda5de378626e502b42b311b049848c2ef38784d0d67b6f30bb5008642f8eb \
     --hash=sha256:08424f6648526076e28fae6ea2806c0a7d504b9ef05ae61d196d571e5c879c84 \

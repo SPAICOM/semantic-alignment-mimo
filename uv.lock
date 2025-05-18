@@ -1310,7 +1310,7 @@ wheels = [
 ]
 
 [[package]]
-name = "semantic-alignment-via-nn"
+name = "semantic-alignment-mimo"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
