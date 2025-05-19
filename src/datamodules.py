@@ -324,6 +324,7 @@ class DataModule(LightningDataModule):
 
         idx = torch.tensor([], dtype=torch.long)
         for label in unique_labels:
+            # Create a mask over the selected label and then retrieve the respective observations
             mask = labels == label
             selected = self.train_data.z_tx[mask]
 
@@ -341,17 +342,17 @@ class DataModule(LightningDataModule):
                     # Calculate the distance from the centroid
                     dists = torch.norm(selected - mean, dim=1)
 
-                    # Get the indeces
+                    # Get the indices
                     _, indices = torch.topk(
                         dists, k=self.train_label_size, largest=False
                     )
                 case _:
                     raise Exception('The passed method is not supported.')
 
-            # Save the indeces
+            # Save the indices
             idx = torch.cat((idx, indices), dim=0)
 
-        # Shuffle the indeces
+        # Shuffle the indices
         idx = idx[torch.randperm(idx.shape[0])]
 
         self.train_data.z_tx = self.train_data.z_tx[idx]
