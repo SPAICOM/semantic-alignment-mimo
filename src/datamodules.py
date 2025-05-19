@@ -219,7 +219,7 @@ class DataModule(LightningDataModule):
         method : str
             The sample selection, either 'random' or 'centroid'. Default 'centroid'.
         grouping : str
-            The type of grouping method for the observations, either 'label' or 'proto'. Default 'label'.
+            The type of grouping method for the observations, either 'label' or 'cluster'. Default 'label'.
         batch_size : int
             The size of a batch. Default 128.
         num_workers : int
@@ -259,7 +259,7 @@ class DataModule(LightningDataModule):
         assert self.method in ['random', 'centroid'], (
             'The passed method is not supported, chose between "random" or "centroid".'
         )
-        assert self.grouping in ['label', 'proto'], (
+        assert self.grouping in ['label', 'cluster'], (
             'The passed grouping method is not supported, chose between "label" or "cluster".'
         )
 
@@ -310,7 +310,7 @@ class DataModule(LightningDataModule):
                 # Get the original labels
                 labels = self.train_data.labels
 
-            case 'proto':
+            case 'cluster':
                 data = self.train_data.z_tx.detach().cpu().numpy()
 
                 # Perform the clustering of the absolute representations (the latent space)
