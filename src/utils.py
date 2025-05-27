@@ -18,6 +18,10 @@
     Perform in an efficient way the A^{-1}B.
 - prewhiten:
     Prewhiten the training and test data using only training data statistics.
+- remove_non_empty_dir:
+    A function to remove a non-empty folder. Use with caution.
+- mmse_svd_equalizer:
+    A function to perform SVD channel equalization.
 """
 
 import math
