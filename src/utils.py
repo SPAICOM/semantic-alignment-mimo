@@ -344,6 +344,50 @@ def remove_non_empty_dir(path: str) -> None:
     return None
 
 
+def mmse_svd_equalizer(
+    channel_matrix: torch.tensor,
+    snr_db: float = None,
+):
+    """
+    Linear MMSE equalizer via SVD.
+
+    Args:
+        channel_matrix : torch.Tensor
+            Channel matrix of shape (Nr, Nt), complex dtype.
+        snr_db : float | None
+            SNR in dB; if None, returns ZF equalizer.
+
+    Returns:
+        G, F : tuple[torch.tensor, torch.tensor]
+    """
+    # SVD: H = U @ diag(s) @ Vh
+    U, s, Vh = torch.linalg.svd(channel_matrix)
+
+    # Form diagonal Sigma and cast to complex dtype
+    Sigma = torch.diag(s).to(channel_matrix.dtype)
+
+    # Precoder = right singular vectors
+    F = Vh.H
+
+    if snr_db is not None:
+        snr_linear = 10 ** (snr_db / 10)
+        reg = 1.0 / snr_linear
+
+        # MMSE receiver
+        inv_term = torch.inverse(Sigma.H @ Sigma + reg)
+        G = inv_term @ (U @ Sigma).H
+    else:
+        # Zero-forcing: G = H^+ = V Σ⁻¹ U^H
+        inv_Sigma = torch.diag(1.0 / s).to(channel_matrix.dtype)
+        G = inv_Sigma @ U.H
+
+    # Normalize F to unit Frobenius norm
+    G *= torch.norm(F, p='fro')
+    F /= torch.norm(F, p='fro')
+
+    return G, F
+
+
 # ================================================================
 #
 #                        Main Definition

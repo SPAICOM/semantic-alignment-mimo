@@ -8,22 +8,25 @@ from scipy.linalg import solve_sylvester
 
 if __name__ == '__main__':
     from utils import (
+        awgn,
+        prewhiten,
+        a_inv_times_b,
+        sigma_given_snr,
+        mmse_svd_equalizer,
         complex_gaussian_matrix,
         complex_compressed_tensor,
         decompress_complex_tensor,
-        prewhiten,
-        sigma_given_snr,
-        awgn,
-        a_inv_times_b,
     )
 else:
     from src.utils import (
+        awgn,
+        prewhiten,
+        a_inv_times_b,
+        sigma_given_snr,
+        mmse_svd_equalizer,
+        complex_gaussian_matrix,
         complex_compressed_tensor,
         decompress_complex_tensor,
-        prewhiten,
-        sigma_given_snr,
-        awgn,
-        a_inv_times_b,
     )
 
 
@@ -96,31 +99,8 @@ class Baseline:
                 (self.input_dim // 2) / self.antennas_transmitter
             )
 
-        # Perform the SVD of the channel matrix, save the U, S and Vt.
-        U, S, Vt = torch.linalg.svd(self.channel_matrix)
-        S = torch.diag(S).to(torch.complex64)
-
-        # Auxiliary matrix
-        B = U @ S
-
-        # Define the decoder and precoder
-        self.F = Vt.H / torch.linalg.norm(Vt.H)
-        if self.snr:
-            self.G = (
-                B.H
-                @ torch.linalg.inv(
-                    B @ B.H
-                    + (1 / self.snr)
-                    * torch.view_as_complex(
-                        torch.stack(
-                            (torch.eye(B.shape[0]), torch.eye(B.shape[0])),
-                            dim=-1,
-                        )
-                    )
-                )
-            ) * torch.linalg.norm(Vt.H)
-        else:
-            self.G = (torch.linalg.inv(S) @ U.H) * torch.linalg.norm(Vt.H)
+        # SVD channel equalization
+        self.G, self.F = mmse_svd_equalizer(self.channel_matrix, self.snr)
 
         return None
 
