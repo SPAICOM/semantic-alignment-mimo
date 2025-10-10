@@ -159,10 +159,10 @@ You're ready to go! 🚀
 
 ## Authors
 
-- [Mario Edoardo Pandolfo](https://github.com/JRhin)
+- [Mario Edoardo Pandolfo](https://scholar.google.com/citations?user=wAeScL8AAAAJ&hl)
 - [Simone Fiorellino](https://scholar.google.com/citations?hl=en&user=nKMc4GQAAAAJ)
-- [Paolo Di Lorenzo](https://scholar.google.com/citations?hl=en&user=VZYvspQAAAAJ)
 - [Emilio Calvanese Strinati](https://scholar.google.com/citations?user=bWndGhQAAAAJ)
+- [Paolo Di Lorenzo](https://scholar.google.com/citations?hl=en&user=VZYvspQAAAAJ)
 
 ## Used Technologies
 
