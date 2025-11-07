@@ -165,7 +165,21 @@ uv sync
 
 This will automatically create a virtual environment (if none exists) and install all dependencies.  
 
-You're ready to go! 🚀  
+You're ready to go! 🚀
+
+## Citation
+
+If you find this code useful for your research, please consider citing the following paper:
+
+```
+@inproceedings{pandolfo2025mimo,
+  title={Latent Space Alignment for AI-Native MIMO Semantic Communications},
+  author={Pandolfo, M. E. and Fiorellino, S. and Strinati, E. Calvanese and Di Lorenzo, P.},
+  booktitle={2025 International Joint Conference on Neural Networks},
+  year={2025},
+  organization={IEEE}
+}
+```
 
 ## Authors
 
