@@ -2,7 +2,7 @@
 
 <h5 align="center">
      
- 
+[![ieee](https://img.shields.io/static/v1?label=IEEE+Paper&message=11228893&color=0057b7&logo=ieee)](https://ieeexplore.ieee.org/document/11228893)
 [![arXiv](https://img.shields.io/badge/Arxiv-2507.16680-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2507.16680)
 [![License](https://img.shields.io/badge/Code%20License-MIT-yellow)](https://github.com/PKU-YuanGroup/LanguageBind/blob/main/LICENSE)
 
@@ -172,12 +172,16 @@ You're ready to go! 🚀
 If you find this code useful for your research, please consider citing the following paper:
 
 ```
-@inproceedings{pandolfo2025mimo,
-  title={Latent Space Alignment for AI-Native MIMO Semantic Communications},
-  author={Pandolfo, M. E. and Fiorellino, S. and Strinati, E. Calvanese and Di Lorenzo, P.},
-  booktitle={2025 International Joint Conference on Neural Networks},
+@INPROCEEDINGS{pandolfo2025mimo,
+  author={Pandolfo, Mario Edoardo and Fiorellino, Simone and Strinati, Emilio Calvanese and Di Lorenzo, Paolo},
+  booktitle={2025 International Joint Conference on Neural Networks (IJCNN)}, 
+  title={Latent Space Alignment for AI-Native MIMO Semantic Communications}, 
   year={2025},
-  organization={IEEE}
+  volume={},
+  number={},
+  pages={1-8},
+  keywords={Accuracy;Computational modeling;Precoding;Neural networks;Semantic communication;MIMO;Convex functions;Robustness;Numerical models;Optimization;Semantic Communication;semantic equalization;latent space alignment;MIMO;AI-native communication},
+  doi={10.1109/IJCNN64981.2025.11228893}
 }
 ```
 
