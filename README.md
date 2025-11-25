@@ -4,7 +4,7 @@
      
 [![ieee](https://img.shields.io/static/v1?label=IEEE+Paper&message=11228893&color=0057b7&logo=ieee)](https://ieeexplore.ieee.org/document/11228893)
 [![arXiv](https://img.shields.io/badge/Arxiv-2507.16680-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2507.16680)
-[![License](https://img.shields.io/badge/Code%20License-MIT-yellow)](https://github.com/PKU-YuanGroup/LanguageBind/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/Code%20License-MIT-yellow)](https://github.com/SPAICOM/semantic-alignment-mimo/blob/main/LICENSE)
 
  <br>
 
